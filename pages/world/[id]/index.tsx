@@ -31,7 +31,7 @@ export default function Home() {
         <Link href={`/world/`}>Back</Link>
         <h2>{w.title}</h2>
         <ul>
-          {w.zones.map((z,index) => (<li><Link href={`/world/${id}/${index+1}`}>{z.title}</Link></li>))}
+          {w.zones.map((z,index) => (<li key={w.id}><Link href={`/world/${id}/${index+1}`}>{z.title}</Link></li>))}
         </ul>
       </>
     )

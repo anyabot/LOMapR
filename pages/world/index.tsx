@@ -43,19 +43,19 @@ export default function Home() {
       <>
         <h2>Current Event and Story</h2>
         <ul>
-          {getCurrent().map(w => (<li><Link href={`/world/${encodeURIComponent(w.id)}`}>{w.title}</Link></li>))}
+          {getCurrent().map(w => (<li key={w.id}><Link href={`/world/${encodeURIComponent(w.id)}`}>{w.title}</Link></li>))}
         </ul>
         <h2>Current Event and Story</h2>
         <ul>
-          {getPermaEvents().map(w => (<li><Link href={`/world/${encodeURIComponent(w.id)}`}>{w.title}</Link></li>))}
+          {getPermaEvents().map(w => (<li key={w.id}><Link href={`/world/${encodeURIComponent(w.id)}`}>{w.title}</Link></li>))}
         </ul>
         <h2>Current Event and Story</h2>
         <ul>
-          {getOldEvents().map(w => (<li><Link href={`/world/${encodeURIComponent(w.id)}`}>{w.title}</Link></li>))}
+          {getOldEvents().map(w => (<li key={w.id}><Link href={`/world/${encodeURIComponent(w.id)}`}>{w.title}</Link></li>))}
         </ul>
         <h2>Current Event and Story</h2>
         <ul>
-          {getOthers().map(w => (<li><Link href={`/world/${encodeURIComponent(w.id)}`}>{w.title}</Link></li>))}
+          {getOthers().map(w => (<li key={w.id}><Link href={`/world/${encodeURIComponent(w.id)}`}>{w.title}</Link></li>))}
         </ul>
       </>
     )
