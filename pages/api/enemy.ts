@@ -2,13 +2,13 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { app } from '@/firebaseConfigs'
 import { getDatabase, ref, child, get } from "firebase/database";
-import { EnemyPreview } from '@/interfaces/enemy';
+import { EnemyData } from '@/interfaces/enemy';
 
 const dbRef = ref(getDatabase(app));
 
 export default async function GET(
   req: NextApiRequest,
-  res: NextApiResponse<{[key: string]: EnemyPreview} | {}>
+  res: NextApiResponse<{[key: string]: EnemyData} | {}>
 ) {
   const response = await get(child(dbRef, "EnemyData/")).then((snapshot) => snapshot)
   if (response.exists()) {
