@@ -1,0 +1,79 @@
+.area-container {
+  background-color: black;
+  padding: 1em;
+  display: inline-grid;
+  gap: 0.75em;
+  width: 100%;
+}
+
+.active-stage{
+  background-color: red;
+}
+
+.enemy-grid {
+  display: inline-grid;
+  gap: 0.75em;
+  grid-template-columns: repeat(3,1fr);
+  grid-template-rows: repeat(3,1fr);
+  max-width: 100%;
+}
+
+#loader {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: inherit;
+}
+
+.skill-area {
+  height: 80px;
+  width: 80px;
+  margin: 0 auto;
+}
+
+.skill-area tbody {
+  transform: skewX(-10deg);
+}
+
+.skill-area td {
+  box-sizing: content-box;
+  /* background: rgb(45, 45, 45); */
+  width: 33%;
+  height: 0;
+  border-radius: 5%;
+  background-position: -4px -4px, 4px 4px;
+  background-size: 100%, 100%;
+  background-repeat: no-repeat;
+}
+
+.enemy-card {
+  border-radius: 8px;
+  line-height: 120%;
+  padding: 1em;
+  text-align: center;
+  position: relative;
+  cursor: pointer;
+}
+
+.enemy-card > * {
+  display: inline-block;
+  margin: 2px auto;
+}
+
+.enemy-card img {
+  max-height: 100px;
+  max-width: 100%;
+}
+
+.wave-button {
+  margin: 0.5em;
+  display: inline-block;
+  cursor: pointer;
+}
+.wave-button img {
+  width: 42px;
+}
+.wave-current {
+  position: absolute; 
+  transform: scale(0.7)
+}

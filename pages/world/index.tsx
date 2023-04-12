@@ -1,23 +1,29 @@
 import { useAppSelector, useAppDispatch } from '@/hooks';
-import { selectWorld, selectWorldStatus, fetchWorldAsync } from '@/store/worldSlice';
+import { selectWorld, selectWorldStatus, selectWorldImage, fetchWorldAsync, fetchWorldImageAsync } from '@/store/worldSlice';
 import { useEffect } from 'react';
 import Link from 'next/link'
 
 export default function Home() {
 
   const world = useAppSelector(selectWorld);
+  const worldStatus = useAppSelector(selectWorldStatus)
+  const imagelink = useAppSelector(selectWorldImage)
   const dispatch = useAppDispatch();
   useEffect(() => {
     dispatch(fetchWorldAsync());
-  }, [dispatch]);
-  // function getCurrent() {
-  //   return Object.fromEntries(Object.entries(world).filter(([k,v]) => v.type == "story" || v.type == "current"))
-  // }
+  }, []);
+  useEffect(() => {
+    Object.keys(world).map((key) => imagelink[world[key].img]? null : dispatch(fetchWorldImageAsync(world[key].img)))
+  }, [world]);
+  
   function sortNumeric(a:any, b:any) {
     return a.id.localeCompare(b.id, undefined, {
       numeric: true,
       sensitivity: 'base'
     });
+  }
+  function getImage(id:string) {
+    return imagelink[id] ? imagelink[id] : undefined
   }
   const world2 = Object.keys(world).map((key) => {
     let temp = world[key]
@@ -35,6 +41,9 @@ export default function Home() {
   function getOthers() {
     return world2.filter(w => w.type == "others").sort(sortNumeric);
   }
+  if (worldStatus == "failed"){
+    return <h1>Fetch Failed</h1>
+  }
   if (Object.keys(world).length === 0) {
     return <h1>Loading</h1>
   }
@@ -43,19 +52,19 @@ export default function Home() {
       <>
         <h2>Current Event and Story</h2>
         <ul>
-          {getCurrent().map(w => (<li key={w.id}><Link href={`/world/${encodeURIComponent(w.id)}`}>{w.title}</Link></li>))}
+          {getCurrent().map(w => (<li key={w.id}><Link href={`/world/${encodeURIComponent(w.id)}`}><><img src={getImage(w.img)}/>{w.title}</></Link></li>))}
         </ul>
         <h2>Current Event and Story</h2>
         <ul>
-          {getPermaEvents().map(w => (<li key={w.id}><Link href={`/world/${encodeURIComponent(w.id)}`}>{w.title}</Link></li>))}
+          {getPermaEvents().map(w => (<li key={w.id}><Link href={`/world/${encodeURIComponent(w.id)}`}><><img src={getImage(w.img)}/>{w.title}</></Link></li>))}
         </ul>
         <h2>Current Event and Story</h2>
         <ul>
-          {getOldEvents().map(w => (<li key={w.id}><Link href={`/world/${encodeURIComponent(w.id)}`}>{w.title}</Link></li>))}
+          {getOldEvents().map(w => (<li key={w.id}><Link href={`/world/${encodeURIComponent(w.id)}`}><><img src={getImage(w.img)}/>{w.title}</></Link></li>))}
         </ul>
         <h2>Current Event and Story</h2>
         <ul>
-          {getOthers().map(w => (<li key={w.id}><Link href={`/world/${encodeURIComponent(w.id)}`}>{w.title}</Link></li>))}
+          {getOthers().map(w => (<li key={w.id}><Link href={`/world/${encodeURIComponent(w.id)}`}><><img src={getImage(w.img)}/>{w.title}</></Link></li>))}
         </ul>
       </>
     )

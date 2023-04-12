@@ -1,10 +1,14 @@
 import { configureStore, ThunkAction, Action } from '@reduxjs/toolkit';
-import counterReducer from './store/counterSlice';
 import worldReducer from './store/worldSlice';
+import enemyReducer from './store/enemySlice';
+import skillReducer from './store/skillSlice';
+import sanctumReducer from './store/sanctumSlice';
 
 export const store = configureStore({
   reducer: {
-    counter: counterReducer,
+    enemy: enemyReducer,
+    sanctum: sanctumReducer,
+    skill: skillReducer,
     world: worldReducer
   },
 });

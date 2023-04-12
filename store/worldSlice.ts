@@ -1,76 +1,57 @@
-import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { createAsyncThunk, createSlice, isRejectedWithValue, PayloadAction } from '@reduxjs/toolkit';
 import { RootState, AppThunk } from '../store';
-import { app } from '@/firebaseConfigs'
-import { getDatabase, ref, child, get } from "firebase/database";
-
-const dbRef = ref(getDatabase(app));
-
-type getStateType = () => RootState;
-
-export interface EnemyData {
-  index: string;
-  level: number;
-}
-
-export interface Wave {
-  title: string;
-  enemylist: string;
-}
-
-export interface Stage {
-  name: string;
-  title: string;
-  grid: number[];
-  type: string;
-  wave: Wave[];
-}
-
-export interface Zone {
-  img: string;
-  title: string;
-  gridsize: [number, number];
-  stages: Stage[];
-}
-
-export interface World {
-  img: string;
-  title: string;
-  type: string;
-  id: string;
-  zones: Zone[];
-}
+import { World } from '@/interfaces/world';
 
 export interface WorldState {
   value: {[key: string]: World};
+  imagelink: {[key: string]: string};
   status: 'idle' | 'loading' | 'failed';
 }
 
 const initialState: WorldState = {
   value: {},
+  imagelink: {},
   status: 'idle',
 };
 
 export const fetchWorldAsync = createAsyncThunk<{[key: string]: World}, void, {state: RootState}>(
   'world/fetch',
   async function (_, thunkApi)  {
-    if (Object.keys(thunkApi.getState().world.value).length > 0) {
+    if (thunkApi.getState().world.status == "failed") return {}
+    else if (Object.keys(thunkApi.getState().world.value).length > 0) {
       return thunkApi.getState().world.value
     }
     else {
-      const response = await get(child(dbRef, "World/")).then((snapshot) => snapshot)
-      if (response.exists()) {
-        var temp = response.val();
-        Object.keys(temp).forEach(key => temp[key].id = key)
-        return temp
-      } else {
-        return {};
+      try {
+        const response = await fetch("/api/world").then(res => res.json())
+        return response ? response : {}
+      }
+      catch {
+        return thunkApi.rejectWithValue({})
       }
     }
   }
 );
 
+export const fetchWorldImageAsync = createAsyncThunk<[string, string?], string, {state: RootState}>(
+  'world/image',
+  async function (id: string, thunkApi)  {
+    if (id == "") return [id, undefined]
+    if (thunkApi.getState().world.imagelink[id]) {
+      return [id, undefined]
+    }
+    try {
+      const response = await fetch(`/api/worldImage/${id}`).then(res => res.text())
+      return response ? [id, response] : [id, undefined]
+    }
+    catch {
+      return [id, undefined]
+    }
+  }
+);
+
 export const worldSlice = createSlice({
-  name: 'counter',
+  name: 'world',
   initialState,
   // The `reducers` field lets us define reducers and generate associated actions
   reducers: {
@@ -86,13 +67,26 @@ export const worldSlice = createSlice({
       .addCase(fetchWorldAsync.fulfilled, (state, action) => {
         state.value = action.payload;
       })
-      .addCase(fetchWorldAsync.rejected, (state) => {
+      .addCase(fetchWorldAsync.rejected, (state, action) => {
+        state.value = {};
         state.status = 'failed';
-      });
+      })
+      .addCase(fetchWorldImageAsync.pending, (state, action) => {
+        state.status = 'loading';
+      })
+      .addCase(fetchWorldImageAsync.fulfilled, (state, action) => {
+        if (action.payload[1]) {
+          state.imagelink[action.payload[0]] = action.payload[1]
+        }
+      })
+      .addCase(fetchWorldImageAsync.rejected, (state, action) => {
+        state.status = 'failed';
+      })
   },
 });
 
 export const selectWorld = (state: RootState) => state.world.value;
 export const selectWorldStatus = (state: RootState) => state.world.status;
+export const selectWorldImage = (state: RootState) => state.world.imagelink;
 
 export default worldSlice.reducer;
