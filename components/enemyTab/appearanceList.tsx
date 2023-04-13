@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { Card, CardHeader, CardBody, Text, Divider, Box, Tag, TagLabel, Heading } from '@chakra-ui/react'
 import { LinkIcon } from '@chakra-ui/icons'
 import Link from 'next/link';
@@ -12,10 +12,9 @@ export default function ApperanceList({used, usedSanctum} : {used: {[key: string
   const world = useAppSelector(selectWorld);
   const worldStatus = useAppSelector(selectWorldStatus);
   const dispatch = useAppDispatch();
-
   useEffect(() => {
     dispatch(fetchWorldAsync());
-  }, [])
+  }, [dispatch])
 
   if (worldStatus == "failed"){
     return <h2>Fetch World Failed</h2>

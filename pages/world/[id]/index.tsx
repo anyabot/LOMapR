@@ -1,23 +1,28 @@
 import { useAppSelector, useAppDispatch } from '@/hooks';
-import { selectWorld, selectWorldImage, fetchWorldAsync, fetchWorldImageAsync } from '@/store/worldSlice';
+import { selectWorld, fetchWorldAsync } from '@/store/worldSlice';
+import { selectImage, fetchImageAsync } from '@/store/imageSlice';
 import { useEffect } from 'react';
 import { useRouter } from 'next/router'
 import Error from 'next/error';
 import Link from 'next/link';
+import SimpleCard from '@/components/simpleCard';
+import { SimpleGrid, Heading, Divider, Button } from '@chakra-ui/react';
+import { ArrowBackIcon } from '@chakra-ui/icons';
 
 export default function Home() {
 
   const world = useAppSelector(selectWorld);
-  const imagelink = useAppSelector(selectWorldImage)
+  const imagelink = useAppSelector(selectImage)
   const dispatch = useAppDispatch();
+
   useEffect(() => {
     dispatch(fetchWorldAsync());
-  }, []);
+    dispatch(fetchImageAsync());
+  }, [dispatch]);
+
   const router = useRouter()
   const id = router.query.id as string
-  useEffect(() => {
-    world[id]?.zones.map((zone) => imagelink[zone.img]? null : dispatch(fetchWorldImageAsync(zone.img)))
-  }, [world]);
+
   if (Object.keys(world).length === 0) {
     return <h1>Loading</h1>
   }
@@ -29,11 +34,14 @@ export default function Home() {
 
     return (
       <>
-        <Link href={`/world/`}>Back</Link>
-        <h2>{w.title}</h2>
-        <ul>
-          {w.zones.map((z,index) => (<li key={index}><><img src={imagelink[z.img]}/><Link href={`/world/${id}/${index+1}`}>{z.title}</Link></></li>))}
-        </ul>
+        <Button as={Link} href={`/world/`} leftIcon={<ArrowBackIcon />} colorScheme='blackAlpha' variant='solid'>
+          Back
+        </Button>
+        <Heading size="2xl" p={4}>{w.title}</Heading>
+        <Divider/>
+        <SimpleGrid columns={[1,2,2,3,4]} spacing={4}>
+          {w.zones.map((z,index) => (<Link href={`/world/${id}/${index+1}`}><SimpleCard img={imagelink[z.img]} key={index} alt={`${id}-${index}`} text={z.title}/></Link>))}
+        </SimpleGrid>
       </>
     )
   }

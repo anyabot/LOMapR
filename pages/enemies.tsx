@@ -1,22 +1,23 @@
 import { useAppSelector, useAppDispatch } from '@/hooks';
-import { selectEnemy, selectEnemyImage, selectEnemyStatus, fetchEnemyAsync, fetchEnemyImageAsync, setActive } from '@/store/enemySlice';
+import { selectEnemy, selectEnemyStatus, fetchEnemyAsync, setActive } from '@/store/enemySlice';
+import { selectImage, fetchImageAsync } from '@/store/imageSlice';
 import { useEffect, useState } from 'react';
 import { EnemyData } from '@/interfaces/enemy';
-import { Button, ButtonGroup, Flex, InputGroup, Input  } from '@chakra-ui/react'
-import Link from 'next/link'
+import { Button, ButtonGroup, Flex, InputGroup, Input, SimpleGrid } from '@chakra-ui/react'
+import SimpleCard from '@/components/simpleCard';
 
 export default function Home() {
 
   const enemy = useAppSelector(selectEnemy);
   const enemyStatus = useAppSelector(selectEnemyStatus)
-  const imagelink = useAppSelector(selectEnemyImage)
+  const imagelink = useAppSelector(selectImage)
+
   const dispatch = useAppDispatch();
+
   useEffect(() => {
     dispatch(fetchEnemyAsync());
-  }, []);
-  useEffect(() => {
-    dispatch(fetchEnemyImageAsync())
-  }, [enemy]);
+    dispatch(fetchImageAsync())
+  }, [dispatch]);
   const [searchTerm, setSearchTerm] = useState("");
   const [checkFilterUsed, setFilterUsed] = useState(true);
   const [filterGroup, setFilterGroup] = useState({
@@ -97,9 +98,9 @@ export default function Home() {
           <Input placeholder="Enemy Name" value={searchTerm} onInput={e => setSearchTerm((e.target as HTMLTextAreaElement).value)}/>
           <Button colorScheme='red' onClick={e => setSearchTerm("")}>Reset</Button>
         </InputGroup>
-        <ul>
-          {enemies(enemy).map(e => (<li key={e.id}><div onClick={() => dispatch(setActive([e.id, 1]))}><><img src={getImage(e.img)}/>{e.name}</></div></li>))}
-        </ul>
+        <SimpleGrid columns={[2,3,4,6,7]} spacing={4}>
+          {enemies(enemy).map(e => (<SimpleCard onClick={() => dispatch(setActive([e.id, 1]))} headingSize="sm" img={getImage(e.img)} key={e.id} alt={e.img} text={e.name}/>))}
+        </SimpleGrid>
       </>
     )
   }

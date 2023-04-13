@@ -1,20 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { Divider, Box, Tag, TagLabel, Text } from '@chakra-ui/react'
+import { Box, Tag, TagLabel, Text } from '@chakra-ui/react'
 import { LinkIcon } from '@chakra-ui/icons'
 import Link from 'next/link';
 
 import { useAppSelector, useAppDispatch } from '@/hooks';
-import { selectWorld, selectWorldStatus, fetchWorldAsync } from '@/store/worldSlice';
+import { selectWorldStatus, fetchWorldAsync } from '@/store/worldSlice';
 
 export default function Apperance({name, ev, used} : {name:string, ev:string, used: [number, string][]}) {
 
-  const world = useAppSelector(selectWorld);
   const worldStatus = useAppSelector(selectWorldStatus);
   const dispatch = useAppDispatch();
-
   useEffect(() => {
     dispatch(fetchWorldAsync());
-  }, [])
+  }, [dispatch])
   if (worldStatus == "failed"){
     return <h2>Fetch World Failed</h2>
   }

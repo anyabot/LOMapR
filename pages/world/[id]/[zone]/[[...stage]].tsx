@@ -8,7 +8,7 @@ import Error from 'next/error';
 import Link from 'next/link';
 import styles from "@/styles/custom.module.css"
 import { Grid, GridItem, Box, Image, VStack, HStack, Center, Tag, Text, Divider, Circle, Button } from '@chakra-ui/react';
-import { ArrowLeftIcon, ArrowRightIcon } from '@chakra-ui/icons';
+import { ArrowLeftIcon, ArrowRightIcon, ArrowBackIcon } from '@chakra-ui/icons';
 
 export default function Home() {
 
@@ -16,7 +16,7 @@ export default function Home() {
   const dispatch = useAppDispatch();
   useEffect(() => {
     dispatch(fetchWorldAsync());
-  }, []);
+  }, [dispatch]);
   const router = useRouter()
   const id = router.query.id as string
   const zone = router.query.zone as string
@@ -77,7 +77,9 @@ export default function Home() {
     return (
       <>
       
-        <Link href={`/world/${id}`}>Back</Link>
+      <Button as={Link} href={`/world/${id}`} leftIcon={<ArrowBackIcon />} colorScheme='blackAlpha' variant='solid'>
+          Back
+        </Button>
         <h2>{z.title}</h2>
         <Grid templateRows={`repeat(${height}, 1fr)`} templateColumns={`repeat(${width}, minmax(128px, 1fr))`} p={1} bg="blackAlpha.800" color="yellow.400" w="100%" overflowX="auto">
           {makeGrid(grid, height, width)}
@@ -95,7 +97,7 @@ export default function Home() {
             <Image src="/images/profile/NightChick.png" alt="" />
           </div>)}</HStack> : null}
         {realCurrStage ? realCurrStage.wave 
-        ?<HStack as={Center}>
+        ?<HStack as={Center} gap={8}>
           <Circle as={Button} size='40px' bg='red' color='white' isDisabled={currWave == 0} onClick={decreaseWave}>
             <ArrowLeftIcon />
           </Circle>

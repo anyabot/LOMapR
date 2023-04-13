@@ -1,8 +1,13 @@
 import NextLink from 'next/link'
-import { Link, Text } from "@chakra-ui/react";
+import { Link, Text, TextProps } from "@chakra-ui/react";
 import { ReactNode } from "react";
 
-function NavLink ({ children, to = "/", ...rest }: { children : ReactNode, to : string }) {
+interface Props extends TextProps {
+  children : ReactNode, 
+  to : string
+}
+
+function NavLink ({ children, to = "/", ...rest }: Props) {
   return (
     <Link as={NextLink} href={to}>
       <Text display="block" {...rest} my={0} fontWeight="bold">

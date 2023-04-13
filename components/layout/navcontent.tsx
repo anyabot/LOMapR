@@ -14,7 +14,7 @@ function NavContent ({ isOpen }: { isOpen : boolean }) {
         direction={["column", "column", "row", "row"]}
         pt={[2, 2, 0, 0]}
       >
-        <NavLink to="/">Home</NavLink>
+        <NavLink to="/" fontSize='xl' mx={6}>Home</NavLink>
         <NavLink to="/world">World </NavLink>
         <NavLink to="/sanctum">Sanctum of Alteration </NavLink>
         <NavLink to="/enemies">Enemy List </NavLink>

@@ -4,13 +4,11 @@ import { World } from '@/interfaces/world';
 
 export interface WorldState {
   value: {[key: string]: World};
-  imagelink: {[key: string]: string};
   status: 'idle' | 'loading' | 'failed';
 }
 
 const initialState: WorldState = {
   value: {},
-  imagelink: {},
   status: 'idle',
 };
 
@@ -29,23 +27,6 @@ export const fetchWorldAsync = createAsyncThunk<{[key: string]: World}, void, {s
       catch {
         return thunkApi.rejectWithValue({})
       }
-    }
-  }
-);
-
-export const fetchWorldImageAsync = createAsyncThunk<[string, string?], string, {state: RootState}>(
-  'world/image',
-  async function (id: string, thunkApi)  {
-    if (id == "") return [id, undefined]
-    if (thunkApi.getState().world.imagelink[id]) {
-      return [id, undefined]
-    }
-    try {
-      const response = await fetch(`/api/worldImage/${id}`).then(res => res.text())
-      return response ? [id, response] : [id, undefined]
-    }
-    catch {
-      return [id, undefined]
     }
   }
 );
@@ -71,22 +52,10 @@ export const worldSlice = createSlice({
         state.value = {};
         state.status = 'failed';
       })
-      .addCase(fetchWorldImageAsync.pending, (state, action) => {
-        state.status = 'loading';
-      })
-      .addCase(fetchWorldImageAsync.fulfilled, (state, action) => {
-        if (action.payload[1]) {
-          state.imagelink[action.payload[0]] = action.payload[1]
-        }
-      })
-      .addCase(fetchWorldImageAsync.rejected, (state, action) => {
-        state.status = 'failed';
-      })
   },
 });
 
 export const selectWorld = (state: RootState) => state.world.value;
 export const selectWorldStatus = (state: RootState) => state.world.status;
-export const selectWorldImage = (state: RootState) => state.world.imagelink;
 
 export default worldSlice.reducer;

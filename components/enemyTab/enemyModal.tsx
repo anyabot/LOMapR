@@ -35,15 +35,19 @@ import ApperanceList from './appearanceList';
 import { EnemyData } from '@/interfaces/enemy';
 
 import { useAppSelector, useAppDispatch } from '@/hooks';
-import { selectEnemy, selectActiveEnemy, selectEnemyImage, selectActiveLevel, setActive, fetchEnemyAsync, fetchEnemyImageAsync } from '@/store/enemySlice';
+import { selectEnemy, selectActiveEnemy, selectActiveLevel, setActive, fetchEnemyAsync } from '@/store/enemySlice';
+import { selectImage, fetchImageAsync } from '@/store/imageSlice';
+
+
 
 export default function EnemyModal() {
 
   const activeEnemy = useAppSelector(selectActiveEnemy);
   const initialLevel = useAppSelector(selectActiveLevel);
-  const imagelink = useAppSelector(selectEnemyImage)
+  const imagelink = useAppSelector(selectImage)
   const enemy = useAppSelector(selectEnemy);
   const dispatch = useAppDispatch();
+
   const [realEnemy, setRealEnemy] = useState<EnemyData | null>(enemy[activeEnemy])
   const [realLevel, setRealLevel] = useState<number>(initialLevel)
 
@@ -55,8 +59,8 @@ export default function EnemyModal() {
   }
   useEffect(() => {
     dispatch(fetchEnemyAsync());
-    dispatch(fetchEnemyImageAsync());
-  }, [])
+    dispatch(fetchImageAsync());
+  }, [dispatch])
   useEffect(() => {
     setRealEnemy(enemy[activeEnemy])
   }, [activeEnemy, enemy]);
@@ -88,7 +92,7 @@ export default function EnemyModal() {
               <Divider/>
               <SimpleGrid columns={[1, 1, 2]}>
                 <Box display="flex" justifyContent="center" flexDirection="column">
-                  <Image src={getImage(realEnemy.img)} fallbackSrc='https://via.placeholder.com/128' margin="auto" maxW="128px"></Image>
+                  <Image src={getImage(realEnemy.img)} fallbackSrc='https://via.placeholder.com/128' margin="auto" maxW="128px" alt={realEnemy.img}></Image>
                   <TableContainer bg="darkgray">
                     <Table variant='simple'>
                       <Tbody>
@@ -123,32 +127,32 @@ export default function EnemyModal() {
                     <Table variant='simple'>
                       <Tbody>
                         <Tr>
-                          <Th width="25%"><Image src='/images/icon_HP.png' boxSize='1rem' display="inline" mx={1}/>HP</Th>
+                          <Th width="25%"><Image alt="HP" src='/images/icon_HP.png' boxSize='1rem' display="inline" mx={1}/>HP</Th>
                           <Td width="25%">{Math.floor(realEnemy.HP[0] + realEnemy.HP[1] * (realLevel - 1))}</Td>
                         </Tr>
                         <Tr>
-                          <Th width="25%"><Image src='/images/icon_ATK.png' boxSize='1rem' display="inline" mx={1}/>ATK</Th>
+                          <Th width="25%"><Image alt="ATK" src='/images/icon_ATK.png' boxSize='1rem' display="inline" mx={1}/>ATK</Th>
                           <Td width="25%">{Math.floor(realEnemy.ATK[0] + realEnemy.ATK[1] * (realLevel - 1))}</Td>
-                          <Th width="25%"><Image src='/images/icon_DEF.png' boxSize='1rem' display="inline" mx={1}/>DEF</Th>
+                          <Th width="25%"><Image alt="DEF" src='/images/icon_DEF.png' boxSize='1rem' display="inline" mx={1}/>DEF</Th>
                           <Td width="25%">{Math.floor(realEnemy.DEF[0] + realEnemy.DEF[1] * (realLevel - 1))}</Td>
                         </Tr>
                         <Tr>
-                          <Th width="25%"><Image src='/images/icon_ACC.png' boxSize='1rem' display="inline" mx={1}/>ACC</Th>
+                          <Th width="25%"><Image alt="ACC" src='/images/icon_ACC.png' boxSize='1rem' display="inline" mx={1}/>ACC</Th>
                           <Td width="25%">{realEnemy.ACC}</Td>
-                          <Th width="25%"><Image src='/images/icon_EVA.png' boxSize='1rem' display="inline" mx={1}/>EVA</Th>
+                          <Th width="25%"><Image alt="EVA" src='/images/icon_EVA.png' boxSize='1rem' display="inline" mx={1}/>EVA</Th>
                           <Td width="25%">{realEnemy.EVA}</Td>
                         </Tr>
                         <Tr>
-                          <Th width="25%"><Image src='/images/icon_CRIT.png' boxSize='1rem' display="inline" mx={1}/>CRIT</Th>
+                          <Th width="25%"><Image alt="CRIT" src='/images/icon_CRIT.png' boxSize='1rem' display="inline" mx={1}/>CRIT</Th>
                           <Td width="25%">{realEnemy.CRIT}</Td>
-                          <Th width="25%"><Image src='/images/icon_SPD.png' boxSize='1rem' display="inline" mx={1}/>SPD</Th>
+                          <Th width="25%"><Image alt="SPD" src='/images/icon_SPD.png' boxSize='1rem' display="inline" mx={1}/>SPD</Th>
                           <Td width="25%">{realEnemy.SPD}</Td>
                         </Tr>
                         <Tr>
                           <Th width="25%">Resists</Th>
-                          <Td width="25%"><Image src='/images/fire.png' boxSize='1rem' display="inline" mx={1}/>{realEnemy.resist[0]}</Td>
-                          <Td width="25%"><Image src='/images/ice.png' boxSize='1rem' display="inline" mx={1}/>{realEnemy.resist[1]}</Td>
-                          <Td width="25%"><Image src='/images/electric.png' boxSize='1rem' display="inline" mx={1}/>{realEnemy.resist[2]}</Td>
+                          <Td width="25%"><Image alt="fire resist" src='/images/fire.png' boxSize='1rem' display="inline" mx={1}/>{realEnemy.resist[0]}</Td>
+                          <Td width="25%"><Image alt="ice resist" src='/images/ice.png' boxSize='1rem' display="inline" mx={1}/>{realEnemy.resist[1]}</Td>
+                          <Td width="25%"><Image alt="electric resist" src='/images/electric.png' boxSize='1rem' display="inline" mx={1}/>{realEnemy.resist[2]}</Td>
                         </Tr>
                       </Tbody>
                     </Table>

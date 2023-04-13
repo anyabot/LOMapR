@@ -1,21 +1,20 @@
 // Next.js API route support: https://nextjs.org/docs/api-routes/introduction
 import type { NextApiRequest, NextApiResponse } from 'next'
-import { app, getImage } from '@/firebaseConfigs'
+import { app } from '@/firebaseConfigs'
 import { getDatabase, ref, child, get } from "firebase/database";
 
 const dbRef = ref(getDatabase(app));
 
 export default async function GET(
   req: NextApiRequest,
-  res: NextApiResponse<string | {}>
+  res: NextApiResponse<{[key: string]: string}>
 ) {
-  const id = req.query.id as string
-  try { 
-    const reponse = await getImage(`/images/world/${id}.png`)
+  const response = await get(child(dbRef, "Images/")).then((snapshot) => snapshot)
+  if (response.exists()) {
+    var temp = response.val();
     res.setHeader('Cache-Control','s-maxage=86400');
-    res.status(200).send(reponse)
-  }
-  catch(e) {  
-    res.status(404).send({ error: 'failed to fetch data' });
+    return res.status(200).json(temp)
+  } else {
+    return res.status(404);
   }
 }

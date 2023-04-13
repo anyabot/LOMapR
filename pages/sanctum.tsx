@@ -21,9 +21,10 @@ export default function Home() {
   const [actualWave, setActualWave] = useState<Wave | null>(null)
 
   const dispatch = useAppDispatch();
+
   useEffect(() => {
     dispatch(fetchSanctumAsync());
-  }, []);
+  }, [dispatch]);
   useEffect(() => {
     sanctum[active] ? floor >= sanctum[active].length ? setFloor(sanctum[active].length - 1) : null : null
     sanctum[active] ? sanctum[active][floor] ? setActualFloor(sanctum[active][floor]) : null : null
@@ -53,7 +54,7 @@ export default function Home() {
   else {
     return (
       <VStack as={Center}>
-        <Text as="b" fontSize="6xl">Sanctum of Alteration</Text>
+        <Text as="b" fontSize="6xl" textAlign="center">Sanctum of Alteration</Text>
         <ButtonGroup isAttached size={["sm", "sm", "md", "md", "md"]}>
           {Object.keys(sanctum).map((e, index) => (<Button key={e} isActive={active == e} colorScheme="red" onClick={() => setActive(e)}>Sanctum {index + 1}</Button>))}
         </ButtonGroup>
@@ -66,10 +67,10 @@ export default function Home() {
           <div onClick={() => setWave(index)} key={index} className={styles["wave-button"]}>
             {index == wave ? (<Image
               src="/images/map-current.png"
-              alt=""
+              alt="current-wave"
               className={styles["wave-current"]}
             />) : null}
-            <Image src="/images/profile/NightChick.png" alt="" />
+            <Image src="/images/profile/NightChick.png" alt={`wave-${index}`} />
           </div>)}</HStack> : null}
         {possibleWaves ? (<VStack><Select value={wavenum} onChange={(e) => setWaveNum(parseInt(e.target.value))}>
           {possibleWaves.map((e, index) => {return e ? (<option key={index} value={index}>Formation {index + 1}</option>) : null})}

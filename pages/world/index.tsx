@@ -1,20 +1,23 @@
 import { useAppSelector, useAppDispatch } from '@/hooks';
-import { selectWorld, selectWorldStatus, selectWorldImage, fetchWorldAsync, fetchWorldImageAsync } from '@/store/worldSlice';
+import { selectWorld, selectWorldStatus, fetchWorldAsync } from '@/store/worldSlice';
+import { selectImage, fetchImageAsync } from '@/store/imageSlice';
 import { useEffect } from 'react';
 import Link from 'next/link'
+import SimpleCard from '@/components/simpleCard';
+import { SimpleGrid, Heading, Divider } from '@chakra-ui/react';
 
 export default function Home() {
 
   const world = useAppSelector(selectWorld);
   const worldStatus = useAppSelector(selectWorldStatus)
-  const imagelink = useAppSelector(selectWorldImage)
+  const imagelink = useAppSelector(selectImage)
+
   const dispatch = useAppDispatch();
+
   useEffect(() => {
     dispatch(fetchWorldAsync());
-  }, []);
-  useEffect(() => {
-    Object.keys(world).map((key) => imagelink[world[key].img]? null : dispatch(fetchWorldImageAsync(world[key].img)))
-  }, [world]);
+    dispatch(fetchImageAsync());
+  }, [dispatch]);
   
   function sortNumeric(a:any, b:any) {
     return a.id.localeCompare(b.id, undefined, {
@@ -50,22 +53,26 @@ export default function Home() {
   else {
     return (
       <>
-        <h2>Current Event and Story</h2>
-        <ul>
-          {getCurrent().map(w => (<li key={w.id}><Link href={`/world/${encodeURIComponent(w.id)}`}><><img src={getImage(w.img)}/>{w.title}</></Link></li>))}
-        </ul>
-        <h2>Current Event and Story</h2>
-        <ul>
-          {getPermaEvents().map(w => (<li key={w.id}><Link href={`/world/${encodeURIComponent(w.id)}`}><><img src={getImage(w.img)}/>{w.title}</></Link></li>))}
-        </ul>
-        <h2>Current Event and Story</h2>
-        <ul>
-          {getOldEvents().map(w => (<li key={w.id}><Link href={`/world/${encodeURIComponent(w.id)}`}><><img src={getImage(w.img)}/>{w.title}</></Link></li>))}
-        </ul>
-        <h2>Current Event and Story</h2>
-        <ul>
-          {getOthers().map(w => (<li key={w.id}><Link href={`/world/${encodeURIComponent(w.id)}`}><><img src={getImage(w.img)}/>{w.title}</></Link></li>))}
-        </ul>
+        <Heading size="2xl" p={4}>Current Event and Story</Heading>
+        <Divider/>
+        <SimpleGrid columns={[1,2,2,3,4]} spacing={4}>
+          {getCurrent().map(w => (<Link href={`/world/${encodeURIComponent(w.id)}`}><SimpleCard img={getImage(w.img)} key={w.id} alt={w.id} text={w.title}/></Link>))}
+        </SimpleGrid>
+        <Heading size="2xl" p={4}>Permanent Events</Heading>
+        <Divider/>
+        <SimpleGrid columns={[1,2,2,3,4]} spacing={4}>
+          {getPermaEvents().map(w => (<Link href={`/world/${encodeURIComponent(w.id)}`}><SimpleCard img={getImage(w.img)} key={w.id} alt={w.id} text={w.title}/></Link>))}
+        </SimpleGrid>
+        <Heading size="2xl" p={4}>Old Events</Heading>
+        <Divider/>
+        <SimpleGrid columns={[1,2,2,3,4]} spacing={4}>
+          {getOldEvents().map(w => (<Link href={`/world/${encodeURIComponent(w.id)}`}><SimpleCard img={getImage(w.img)} key={w.id} alt={w.id} text={w.title}/></Link>))}
+        </SimpleGrid>
+        <Heading size="2xl" p={4}>Others</Heading>
+        <Divider/>
+        <SimpleGrid columns={[1,2,2,3,4]} spacing={4}>
+          {getOthers().map(w => (<Link href={`/world/${encodeURIComponent(w.id)}`}><SimpleCard img={getImage(w.img)} key={w.id} alt={w.id} text={w.title}/></Link>))}
+        </SimpleGrid>
       </>
     )
   }

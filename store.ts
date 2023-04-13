@@ -3,10 +3,12 @@ import worldReducer from './store/worldSlice';
 import enemyReducer from './store/enemySlice';
 import skillReducer from './store/skillSlice';
 import sanctumReducer from './store/sanctumSlice';
+import imageReducer from './store/imageSlice';
 
 export const store = configureStore({
   reducer: {
     enemy: enemyReducer,
+    image: imageReducer,
     sanctum: sanctumReducer,
     skill: skillReducer,
     world: worldReducer

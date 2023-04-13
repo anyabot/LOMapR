@@ -5,7 +5,6 @@ import { EnemyData } from '@/interfaces/enemy';
 
 export interface EnemyState {
   enemy: {[key: string]: EnemyData};
-  imagelink: {[key: string]: string};
   active: string;
   level: number;
   status: 'idle' | 'loading' | 'failed';
@@ -13,7 +12,6 @@ export interface EnemyState {
 
 const initialState: EnemyState = {
   enemy: {},
-  imagelink: {},
   active: "",
   level: 1,
   status: 'idle',
@@ -38,23 +36,6 @@ export const fetchEnemyAsync = createAsyncThunk<{[key: string]: EnemyData}, void
   }
 );
 
-export const fetchEnemyImageAsync = createAsyncThunk<{[key: string]: string}, void, {state: RootState}>(
-  'enemy/image',
-  async function (_, thunkApi)  {
-    if (Object.keys(thunkApi.getState().enemy.imagelink).length > 0) {
-      return thunkApi.getState().enemy.imagelink.length
-    }
-    try {
-      const response = await fetch(`/api/enemyImage`).then(res => res.json())
-      return response ? response : null
-    }
-    catch {
-      return null
-    }
-  }
-);
-
-
 export const EnemySlice = createSlice({
   name: 'enemy',
   initialState,
@@ -78,11 +59,6 @@ export const EnemySlice = createSlice({
       .addCase(fetchEnemyAsync.rejected, (state) => {
         state.status = 'failed';
       })
-      .addCase(fetchEnemyImageAsync.fulfilled, (state, action) => {
-        if (action.payload) {
-          state.imagelink = action.payload
-        }
-      })
   },
 });
 
@@ -91,7 +67,6 @@ export const selectEnemy = (state: RootState) => state.enemy.enemy;
 export const selectEnemyStatus = (state: RootState) => state.enemy.status;
 export const selectActiveEnemy = (state: RootState) => state.enemy.active;
 export const selectActiveLevel = (state: RootState) => state.enemy.level;
-export const selectEnemyImage = (state: RootState) => state.enemy.imagelink;
 
 
 export default EnemySlice.reducer;
