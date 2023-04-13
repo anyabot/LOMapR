@@ -42,7 +42,7 @@ export default function Home() {
       <Divider />
       <Text  textAlign="center">
         <Highlight query={["PiG Corporation", "LastOrigin"]} styles={{ px: '1', py: '1', bg: 'blue.100' }}>
-          All resources like equipment and unit icon, data values that is used on PiG Corporation's LastOrigin is the property of PiG Corporation. All rights of the resources belong to PiG Corporation.
+          All resources like equipment and unit icon, data values that is used on PiG Corporation&apos;s LastOrigin is the property of PiG Corporation. All rights of the resources belong to PiG Corporation.
         </Highlight>
       </Text>
     </>

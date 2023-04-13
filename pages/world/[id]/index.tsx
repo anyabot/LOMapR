@@ -40,7 +40,7 @@ export default function Home() {
         <Heading size="2xl" p={4}>{w.title}</Heading>
         <Divider/>
         <SimpleGrid columns={[1,2,2,3,4]} spacing={4}>
-          {w.zones.map((z,index) => (<Link href={`/world/${id}/${index+1}`}><SimpleCard img={imagelink[z.img]} key={index} alt={`${id}-${index}`}>{z.title}</SimpleCard></Link>))}
+          {w.zones.map((z,index) => (<Link key={index} href={`/world/${id}/${index+1}`}><SimpleCard img={imagelink[z.img]} alt={`${id}-${index}`}>{z.title}</SimpleCard></Link>))}
         </SimpleGrid>
       </>
     )

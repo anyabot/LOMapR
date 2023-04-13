@@ -80,7 +80,7 @@ export default function SkillTab({skill, atk} : {skill: Skill, atk:number}) {
           </tbody>
         </table>
       </Box>
-      <Text fontSize='2xl'><Image src={`/images/${skill.attr ? skill.attr : "normal"}.png`} boxSize='20px' display="inline" m={2}/>{skill.name}</Text>
+      <Text fontSize='2xl'><Image alt={skill.attr ? skill.attr : "normal"} src={`/images/${skill.attr ? skill.attr : "normal"}.png`} boxSize='20px' display="inline" m={2}/>{skill.name}</Text>
       {<Text fontSize='lg'>{renderDescription()}</Text>}
       
   </TabPanel>

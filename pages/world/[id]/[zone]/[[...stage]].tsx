@@ -32,7 +32,7 @@ export default function Home() {
   }, [world, id, real_zone_index]);
   useEffect(() => {
     realZone ? setRealCurrStage(realZone.stages.find(e => e.title.toLowerCase() == currStage.toLowerCase())) : null
-  }, [currStage]);
+  }, [realZone, currStage]);
 
   const defaultMapType = ["B", "Main", "EX"]
   const defaultFloat: Array<"right"| "left"> = ["right", "left"]
@@ -91,10 +91,10 @@ export default function Home() {
           <div onClick={() => setCurrWave(index)} key={index} className={styles["wave-button"]}>
             {index == currWave ? (<Image
               src="/images/map-current.png"
-              alt=""
+              alt="current-wave"
               className={styles["wave-current"]}
             />) : null}
-            <Image src="/images/profile/NightChick.png" alt="" />
+            <Image src="/images/profile/NightChick.png" alt={`wave-${index}`} />
           </div>)}</HStack> : null}
         {realCurrStage ? realCurrStage.wave 
         ?<HStack as={Center} gap={8}>
