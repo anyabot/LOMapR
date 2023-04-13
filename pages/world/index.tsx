@@ -56,22 +56,22 @@ export default function Home() {
         <Heading size="2xl" p={4}>Current Event and Story</Heading>
         <Divider/>
         <SimpleGrid columns={[1,2,2,3,4]} spacing={4}>
-          {getCurrent().map(w => (<Link href={`/world/${encodeURIComponent(w.id)}`}><SimpleCard img={getImage(w.img)} key={w.id} alt={w.id} text={w.title}/></Link>))}
+          {getCurrent().map(w => (<Link href={`/world/${encodeURIComponent(w.id)}`}><SimpleCard img={getImage(w.img)} key={w.id} alt={w.id}>{w.title}</SimpleCard></Link>))}
         </SimpleGrid>
         <Heading size="2xl" p={4}>Permanent Events</Heading>
         <Divider/>
         <SimpleGrid columns={[1,2,2,3,4]} spacing={4}>
-          {getPermaEvents().map(w => (<Link href={`/world/${encodeURIComponent(w.id)}`}><SimpleCard img={getImage(w.img)} key={w.id} alt={w.id} text={w.title}/></Link>))}
+          {getPermaEvents().map(w => (<Link href={`/world/${encodeURIComponent(w.id)}`}><SimpleCard img={getImage(w.img)} key={w.id} alt={w.id}>{w.title}</SimpleCard></Link>))}
         </SimpleGrid>
         <Heading size="2xl" p={4}>Old Events</Heading>
         <Divider/>
         <SimpleGrid columns={[1,2,2,3,4]} spacing={4}>
-          {getOldEvents().map(w => (<Link href={`/world/${encodeURIComponent(w.id)}`}><SimpleCard img={getImage(w.img)} key={w.id} alt={w.id} text={w.title}/></Link>))}
+          {getOldEvents().map(w => (<Link href={`/world/${encodeURIComponent(w.id)}`}><SimpleCard img={getImage(w.img)} key={w.id} alt={w.id}>{w.title}</SimpleCard></Link>))}
         </SimpleGrid>
         <Heading size="2xl" p={4}>Others</Heading>
         <Divider/>
         <SimpleGrid columns={[1,2,2,3,4]} spacing={4}>
-          {getOthers().map(w => (<Link href={`/world/${encodeURIComponent(w.id)}`}><SimpleCard img={getImage(w.img)} key={w.id} alt={w.id} text={w.title}/></Link>))}
+          {getOthers().map(w => (<Link href={`/world/${encodeURIComponent(w.id)}`}><SimpleCard img={getImage(w.img)} key={w.id} alt={w.id}>{w.title}</SimpleCard></Link>))}
         </SimpleGrid>
       </>
     )

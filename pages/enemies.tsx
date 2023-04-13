@@ -99,7 +99,7 @@ export default function Home() {
           <Button colorScheme='red' onClick={e => setSearchTerm("")}>Reset</Button>
         </InputGroup>
         <SimpleGrid columns={[2,3,4,6,7]} spacing={4}>
-          {enemies(enemy).map(e => (<SimpleCard onClick={() => dispatch(setActive([e.id, 1]))} headingSize="sm" img={getImage(e.img)} key={e.id} alt={e.img} text={e.name}/>))}
+          {enemies(enemy).map(e => (<SimpleCard onClick={() => dispatch(setActive([e.id, 1]))} headingSize="sm" img={getImage(e.img)} key={e.id} alt={e.img}>{e.name}</SimpleCard>))}
         </SimpleGrid>
       </>
     )
