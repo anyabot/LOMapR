@@ -27,6 +27,7 @@ export default function Home() {
   const [realCurrStage, setRealCurrStage] = useState<Stage | undefined | null>(null)
   const [currWave, setCurrWave] = useState(0)
 
+  useEffect(() => setCurrStage(stage), [])
   useEffect(() => {
     world[id]? world[id].zones ? world[id].zones[real_zone_index]? setRealZone(world[id].zones[real_zone_index]) : null : null : null
   }, [world, id, real_zone_index]);
@@ -76,7 +77,6 @@ export default function Home() {
     })
     return (
       <>
-      
       <Button as={Link} href={`/world/${id}`} leftIcon={<ArrowBackIcon />} colorScheme='blackAlpha' variant='solid'>
           Back
         </Button>
@@ -87,7 +87,7 @@ export default function Home() {
         <Divider/>
         {realCurrStage ? realCurrStage!.title ? <Tag variant='solid' colorScheme='teal' size="lg" p={4}>{`${realCurrStage.title}: ${realCurrStage.wave ? "Battle Stage" : "Story Stage"}`}</Tag> : null: null}
         <VStack as={Center}>
-        {realCurrStage ? <HStack >{realCurrStage.wave.map((e, index) => 
+        {realCurrStage ? realCurrStage.wave ? <HStack >{realCurrStage.wave.map((e, index) => 
           <div onClick={() => setCurrWave(index)} key={index} className={styles["wave-button"]}>
             {index == currWave ? (<Image
               src="/images/map-current.png"
@@ -95,7 +95,7 @@ export default function Home() {
               className={styles["wave-current"]}
             />) : null}
             <Image src="/images/profile/NightChick.png" alt={`wave-${index}`} />
-          </div>)}</HStack> : null}
+          </div>)}</HStack> : null : null}
         {realCurrStage ? realCurrStage.wave 
         ?<HStack as={Center} gap={8}>
           <Circle as={Button} size='40px' bg='red' color='white' isDisabled={currWave == 0} onClick={decreaseWave}>
