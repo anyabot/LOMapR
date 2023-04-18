@@ -27,7 +27,7 @@ export default function Home() {
   const [realCurrStage, setRealCurrStage] = useState<Stage | undefined | null>(null)
   const [currWave, setCurrWave] = useState(0)
 
-  useEffect(() => setCurrStage(stage), [])
+  useEffect(() => setCurrStage(stage), [stage])
   useEffect(() => {
     world[id]? world[id].zones ? world[id].zones[real_zone_index]? setRealZone(world[id].zones[real_zone_index]) : null : null : null
   }, [world, id, real_zone_index]);
