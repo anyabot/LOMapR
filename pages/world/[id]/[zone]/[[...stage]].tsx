@@ -9,6 +9,7 @@ import Link from 'next/link';
 import styles from "@/styles/custom.module.css"
 import { Grid, GridItem, Box, Image, VStack, HStack, Center, Tag, Text, Divider, Circle, Button } from '@chakra-ui/react';
 import { ArrowLeftIcon, ArrowRightIcon, ArrowBackIcon } from '@chakra-ui/icons';
+import Head from 'next/head';
 
 export default function Home() {
 
@@ -61,11 +62,21 @@ export default function Home() {
   function increaseWave() {
     currWave < realCurrStage!.wave.length - 1 ? setCurrWave(currWave + 1) : null
   }
-  if (Object.keys(world).length === 0) {
-    return <h1>Loading</h1>
+  if (Object.keys(world).length === 0 || !id || !zone) {
+    return (<>
+      <Head>
+        <title>Stage List</title>
+      </Head>
+      <h1>Loading</h1>
+    </>)
   }
   else if (!(id in world) || !(real_zone_index in world[id].zones)) {
-    return <Error statusCode={404}/>
+    return     (<>
+      <Head>
+        <title>Stage List</title>
+      </Head>
+      <Error statusCode={404}/>
+    </>)
   }
   else {
     let z = world[id].zones[real_zone_index]
@@ -77,6 +88,9 @@ export default function Home() {
     })
     return (
       <>
+      <Head>
+        <title>{z.title}</title>
+      </Head>
       <Button as={Link} href={`/world/${id}`} leftIcon={<ArrowBackIcon />} colorScheme='blackAlpha' variant='solid'>
           Back
         </Button>

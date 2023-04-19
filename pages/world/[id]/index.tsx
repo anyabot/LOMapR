@@ -8,6 +8,7 @@ import Link from 'next/link';
 import SimpleCard from '@/components/simpleCard';
 import { SimpleGrid, Heading, Divider, Button } from '@chakra-ui/react';
 import { ArrowBackIcon } from '@chakra-ui/icons';
+import Head from 'next/head';
 
 export default function Home() {
 
@@ -23,17 +24,31 @@ export default function Home() {
   const router = useRouter()
   const id = router.query.id as string
 
-  if (Object.keys(world).length === 0) {
-    return <h1>Loading</h1>
+  if (Object.keys(world).length === 0 || !id) {
+    return (<>
+      <Head>
+        <title>Zone List</title>
+      </Head>
+      <h1>Loading</h1>
+    </>)
   }
   else if (!(id in world)) {
-    return <Error statusCode={404}/>
+    return 
+    (<>
+      <Head>
+        <title>Zone List</title>
+      </Head>
+      <Error statusCode={404}/>
+    </>)
   }
   else {
     let w = world[id]
 
     return (
       <>
+        <Head>
+          <title>{w.title}</title>
+        </Head>
         <Button as={Link} href={`/world/`} leftIcon={<ArrowBackIcon />} colorScheme='blackAlpha' variant='solid'>
           Back
         </Button>

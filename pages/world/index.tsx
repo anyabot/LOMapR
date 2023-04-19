@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import Link from 'next/link'
 import SimpleCard from '@/components/simpleCard';
 import { SimpleGrid, Heading, Divider } from '@chakra-ui/react';
+import Head from 'next/head';
 
 export default function Home() {
 
@@ -45,14 +46,27 @@ export default function Home() {
     return world2.filter(w => w.type == "others").sort(sortNumeric);
   }
   if (worldStatus == "failed"){
-    return <h1>Fetch Failed</h1>
+    return (<>
+      <Head>
+        <title>Enemy List</title>
+      </Head>
+      <h1>World List</h1>
+    </>)
   }
   if (Object.keys(world).length === 0) {
-    return <h1>Loading</h1>
+    return (<>
+      <Head>
+        <title>World List</title>
+      </Head>
+      <h1>Loading</h1>
+    </>)
   }
   else {
     return (
       <>
+        <Head>
+          <title>World List</title>
+        </Head>
         <Heading size="2xl" p={4}>Current Event and Story</Heading>
         <Divider/>
         <SimpleGrid columns={[1,2,2,3,4]} spacing={4}>

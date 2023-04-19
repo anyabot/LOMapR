@@ -9,6 +9,7 @@ import { Highlight, Heading, Text, Divider, Center, VStack } from '@chakra-ui/re
 import SimpleCard from '@/components/simpleCard';
 import Link from 'next/link';
 import HomePageLink from '@/components/hompageLink';
+import Head from 'next/head';
 
 
 const inter = Inter({ subsets: ['latin'] })
@@ -25,6 +26,9 @@ export default function Home() {
   const current = id ? world[id] : null
   return (
     <>
+      <Head>
+        <title>Last Origin Map</title>
+      </Head>
       {current ? <><Center> <Link href={`/world/${encodeURIComponent(current.id)}`}><SimpleCard img={imagelink[current.img]} key={current.id} alt={current.id} headingSize="lg" direction="row">Current Event:<br/>{current.title}</SimpleCard></Link></Center><Divider/></> : null}
       <Heading textAlign="center" size="2xl">
         <Highlight query={["Last Origin"]} styles={{ px: '1', py: '1', bg: 'orange.100' }}>

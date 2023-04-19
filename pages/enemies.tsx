@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { EnemyData } from '@/interfaces/enemy';
 import { Button, ButtonGroup, Flex, InputGroup, Input, SimpleGrid } from '@chakra-ui/react'
 import SimpleCard from '@/components/simpleCard';
+import Head from 'next/head';
 
 export default function Home() {
 
@@ -71,14 +72,27 @@ export default function Home() {
     return true
   }
   if (enemyStatus == "failed"){
-    return <h1>Fetch Failed</h1>
+    return (<>
+      <Head>
+        <title>Enemy List</title>
+      </Head>
+      <h1>Fetch Failed</h1>
+    </>)
   }
   if (Object.keys(enemy).length === 0) {
-    return <h1>Loading</h1>
+    return (<>
+      <Head>
+        <title>Enemy List</title>
+      </Head>
+      <h1>Loading</h1>
+    </>)
   }
   else {
     return (
       <>
+        <Head>
+          <title>Enemy List</title>
+        </Head>
         <Flex align="center" justify="center" direction={{ base: 'column', md: 'row' }}>
         <ButtonGroup isAttached m={[2, 3]}>
           <Button colorScheme='red' isActive={filterGroup.Attacker} onClick={e => handleSwitch("Attacker")}>Attacker</Button>
