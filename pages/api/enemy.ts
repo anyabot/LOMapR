@@ -14,7 +14,7 @@ export default async function GET(
   if (response.exists()) {
     var temp = response.val();
     Object.keys(temp).forEach(key => temp[key].id = key)
-    res.setHeader('Cache-Control','s-maxage=86400');
+    res.setHeader('Cache-Control','s-maxage=10800');
     return res.status(200).json(temp)
   } else {
     return res.status(404).send({ error: 'failed to fetch data' });

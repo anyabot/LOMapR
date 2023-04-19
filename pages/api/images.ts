@@ -12,7 +12,7 @@ export default async function GET(
   const response = await get(child(dbRef, "Images/")).then((snapshot) => snapshot)
   if (response.exists()) {
     var temp = response.val();
-    res.setHeader('Cache-Control','s-maxage=86400');
+    res.setHeader('Cache-Control','s-maxage=10800');
     return res.status(200).json(temp)
   } else {
     return res.status(404);
