@@ -1,9 +1,9 @@
 // Next.js API route support: https://nextjs.org/docs/api-routes/introduction
 import type { NextApiRequest, NextApiResponse } from 'next'
-import { app } from '@/firebaseConfigs'
+import { db } from '@/firebaseConfigs'
 import { getDatabase, ref, child, get } from "firebase/database";
 
-const dbRef = ref(getDatabase(app));
+const dbRef = ref(db);
 
 export default async function GET(
   req: NextApiRequest,

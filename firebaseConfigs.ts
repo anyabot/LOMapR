@@ -1,24 +1,31 @@
 // Import the functions you need from the SDKs you need
-import { initializeApp } from 'firebase/app'
 import 'firebase/auth'
 import 'firebase/database'
 import { getStorage, ref, getDownloadURL } from "firebase/storage";
 
-const firebaseConfig = {
-  apiKey: process.env.apiKey as string,
-  authDomain: process.env.authDomain as string,
-  databaseURL: process.env.databaseURL as string,
-  projectId: process.env.projectId as string,
-  storageBucket: process.env.storageBucket as string,
-  messagingSenderId: process.env.messagingSenderId as string,
-  appId: process.env.appId as string,
-  measurementId: process.env.measurementId as string
+var admin = require("firebase-admin");
+
+var serviceAccount = {
+  type: process.env.type as string,
+  project_id: process.env.project_id as string,
+  private_key_id: process.env.private_key_id as string,
+  private_key: process.env.private_key ? process.env.private_key.replace(/\\n/gm, "\n")
+  : undefined,
+  client_email: process.env.client_email as string,
+  client_id: process.env.client_id as string,
+  auth_uri: process.env.auth_uri as string,
+  token_uri: process.env.token_uri as string,
+  auth_provider_x509_cert_url: process.env.auth_provider_x509_cert_url as string,
+  client_x509_cert_url: process.env.client_x509_cert_url as string
 };
 
-// Initialize Firebase
-export const app = initializeApp(firebaseConfig);
-const storage = getStorage(app);
-
-export function getImage(path: string) {
-  return getDownloadURL(ref(storage, path))
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+    databaseURL: "https://lomap-9cf31-default-rtdb.firebaseio.com"
+  });
 }
+
+// Initialize Firebase
+// export const app = initializeApp(firebaseConfig);
+export const db = admin.database()
