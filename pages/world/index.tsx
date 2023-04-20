@@ -48,9 +48,9 @@ export default function Home() {
   if (worldStatus == "failed"){
     return (<>
       <Head>
-        <title>Enemy List</title>
+        <title>World List</title>
       </Head>
-      <h1>World List</h1>
+      <h1>Fetch Failed</h1>
     </>)
   }
   if (Object.keys(world).length === 0) {

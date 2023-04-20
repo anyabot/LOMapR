@@ -18,6 +18,7 @@ function NavContent ({ isOpen }: { isOpen : boolean }) {
         <NavLink to="/world">World </NavLink>
         <NavLink to="/sanctum">Sanctum of Alteration </NavLink>
         <NavLink to="/enemies">Enemy List </NavLink>
+        <NavLink to="/iw">Infinite War </NavLink>
       </Stack>
     </Box>
   );

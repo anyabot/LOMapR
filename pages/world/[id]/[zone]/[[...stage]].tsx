@@ -47,7 +47,7 @@ export default function Home() {
         ? ret.push(
           <GridItem onClick={() => setCurrStage(cell!.title)} key={`${i}-${j}`}>
             <Box float={defaultFloat[i % 2]} as={VStack} gap={0}>
-              <Image src={`/images/${cell.type ? cell.type : defaultMapType[i]} Stage.png`}/>
+              <Image src={`/images/${cell.type ? cell.type : defaultMapType[i]} Stage.png`} alt={cell.type ? cell.type : defaultMapType[i]}/>
               <Text w="100%" p={1} className={cell.title == currStage ? styles["active-stage"] : undefined}>{cell.title}</Text>
             </Box>
           </GridItem>) 
@@ -72,9 +72,6 @@ export default function Home() {
   }
   else if (!(id in world) || !(real_zone_index in world[id].zones)) {
     return     (<>
-      <Head>
-        <title>Stage List</title>
-      </Head>
       <Error statusCode={404}/>
     </>)
   }

@@ -33,11 +33,7 @@ export default function Home() {
     </>)
   }
   else if (!(id in world)) {
-    return 
-    (<>
-      <Head>
-        <title>Zone List</title>
-      </Head>
+    return (<>
       <Error statusCode={404}/>
     </>)
   }
