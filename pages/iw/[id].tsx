@@ -47,7 +47,7 @@ export default function Home() {
   useEffect(() => {
     if (!router.isReady) return;
     setId(router.query.id as string);
-  }, [router.isReady]);
+  }, [router.isReady, router.query.id]);
 
   const dispatch = useAppDispatch();
 
@@ -60,14 +60,14 @@ export default function Home() {
   useEffect(() => {
     setRealEnemy(enemy[activeEnemy]);
     console.log(enemy[activeEnemy]);
-  }, [activeEnemy]);
+  }, [enemy, activeEnemy]);
   useEffect(() => {
     iw.bosses[id]
       ? iw.bosses[id][stage]
         ? setRealLevel(iw.bosses[id][stage].monster.lv)
         : null
       : null;
-  }, [stage]);
+  }, [stage, iw, iw.bosses]);
   useEffect(() => {
     if (iw.bosses[id]) {
       if (iw.bosses[id][stage]) {
@@ -140,7 +140,7 @@ export default function Home() {
             <HStack maxW="450px" margin="auto">
               <Button {...dec}>-</Button>
               <InputGroup as={Center} display="flex">
-                <InputLeftAddon children="Stage" />
+                <InputLeftAddon>Stage</InputLeftAddon>
                 <Input {...input} 
                 
                 min={1}
