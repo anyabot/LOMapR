@@ -30,8 +30,8 @@ export default function Home() {
         <title>Last Origin Map</title>
       </Head>
       {current ? <><Center> <Link href={`/world/${encodeURIComponent(current.id)}`}><SimpleCard img={imagelink[current.img]} key={current.id} alt={current.id} headingSize="lg" direction="row">Current Event:<br/>{current.title}</SimpleCard></Link></Center><Divider/></> : null}
-      <Heading textAlign="center" size="2xl">
-        <Highlight query={["Last Origin"]} styles={{ px: '1', py: '1', bg: 'orange.100' }}>
+      <Heading textAlign="center" size="2xl" lineHeight={1.5}>
+        <Highlight query={["Last Origin"]} styles={{ px: '2', py: '1', rounded: '10', bg: 'teal.100' }}>
         An Enemy Information Site for the Mobile Game Last Origin.
         </Highlight>
       </Heading>
