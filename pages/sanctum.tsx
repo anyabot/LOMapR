@@ -3,7 +3,7 @@ import { selectSanctum, selectSanctumStatus, fetchSanctumAsync } from '@/store/s
 import { useEffect, useState } from 'react';
 import Link from 'next/link'
 import Head from 'next/head'
-import { ButtonGroup, Button, Center, Select, Circle, HStack, VStack, Text, Image, Divider } from '@chakra-ui/react';
+import { Flex, Button, Center, Select, Circle, HStack, VStack, Text, Image, Divider } from '@chakra-ui/react';
 import { ArrowLeftIcon, ArrowRightIcon } from '@chakra-ui/icons';
 import { Floor, Wave } from '@/interfaces/sanctum';
 import EnemyGrid from '@/components/enemyGrid';
@@ -71,9 +71,9 @@ export default function Home() {
       
         <VStack as={Center}>
           <Text as="b" fontSize="6xl" textAlign="center">Sanctum of Alteration</Text>
-          <ButtonGroup isAttached size={["sm", "sm", "md", "md", "md"]}>
-            {Object.keys(sanctum).map((e, index) => (<Button key={e} isActive={active == e} colorScheme="red" onClick={() => setActive(e)}>Sanctum {index + 1}</Button>))}
-          </ButtonGroup>
+          <Flex flexWrap={"wrap"} justifyContent="center" margin="auto" gap={{base: '1', md: '2'}}>
+            {Object.keys(sanctum).map((e, index) => (<Button size="md" key={e} isActive={active == e} colorScheme="red" onClick={() => setActive(e)}>Sanctum {index + 1}</Button>))}
+          </Flex>
           <Select value={floor} onChange={(e) => setFloor(parseInt(e.target.value))}>
             {sanctum[active].map((e, index) => {return e ? (<option key={index} value={index}>Floor {index}</option>) : null})}
           </Select>

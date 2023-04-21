@@ -17,7 +17,7 @@ import {
   InputGroup,
   InputLeftAddon,
   InputRightAddon,
-  ButtonGroup, 
+  Flex, 
   Center,
   HStack, Input, Button
 } from "@chakra-ui/react";
@@ -28,6 +28,7 @@ import SkillTabList from "@/components/enemyTab/skillTabList";
 import { selectEnemy, fetchEnemyAsync } from "@/store/enemySlice";
 import { EnemyData } from "@/interfaces/enemy";
 import { useNumberInput } from "@chakra-ui/react";
+import styles from "@/styles/custom.module.css";
 
 export default function Home() {
   const iw = useAppSelector(selectIW);
@@ -67,7 +68,7 @@ export default function Home() {
         ? setRealLevel(iw.bosses[id][stage].monster.lv)
         : null
       : null;
-  }, [stage, iw, iw.bosses]);
+  }, [stage, iw, iw.bosses, id]);
   useEffect(() => {
     if (iw.bosses[id]) {
       if (iw.bosses[id][stage]) {
@@ -151,9 +152,9 @@ export default function Home() {
             </HStack>
             <Divider/>
             <Center>
-              <ButtonGroup isAttached size={["sm", "sm", "md", "md", "md"]}>
+              <Flex flexWrap={"wrap"} justifyContent="center" margin="auto" gap={{base: '1', md: '2'}}>
                 {boss[stage].phase.map((e, index) => (<Button key={index} isActive={phase == index} colorScheme="red" onClick={() => validPhase(index)}><>Phase {index + 1}{e.damage > 0 ? <><br/> {`${e.damage} DMG`}</> : null }</></Button>))}
-              </ButtonGroup>
+              </Flex>
             </Center>
             <Divider/>
             <SimpleGrid columns={[1, 1, 2]}>
@@ -169,7 +170,7 @@ export default function Home() {
                   maxW="128px"
                   alt={realEnemy.img}
                 ></Image>
-                <TableContainer bg="darkgray">
+                <TableContainer bg="darkgray" className={styles["stat-table"]}>
                   <Table variant="simple">
                     <Tbody>
                       <Tr>
@@ -193,12 +194,12 @@ export default function Home() {
                 justifyContent="center"
                 flexDirection="column"
               >
-                <Text as="b" fontSize="2xl">Lv. {boss[stage].monster.lv}</Text>
-                <TableContainer bg="darkgray">
+                <Text as="b" fontSize="2xl">Lv. {realLevel}</Text>
+                <TableContainer bg="darkgray" className={styles["stat-table"]}>
                   <Table variant="simple">
                     <Tbody>
                       <Tr>
-                        <Th width="25%">
+                        <Th>
                           <Image
                             alt="HP"
                             src="/images/icon_HP.png"
@@ -208,12 +209,12 @@ export default function Home() {
                           />
                           HP
                         </Th>
-                        <Td width="25%">
+                        <Td>
                           {boss[stage].monster.maxHP}
                         </Td>
                       </Tr>
                       <Tr>
-                        <Th width="25%">
+                        <Th>
                           <Image
                             alt="ATK"
                             src="/images/icon_ATK.png"
@@ -223,13 +224,13 @@ export default function Home() {
                           />
                           ATK
                         </Th>
-                        <Td width="25%">
+                        <Td>
                           {Math.floor(
                             realEnemy.ATK[0] +
                               realEnemy.ATK[1] * (realLevel - 1)
                           )}
                         </Td>
-                        <Th width="25%">
+                        <Th>
                           <Image
                             alt="DEF"
                             src="/images/icon_DEF.png"
@@ -239,7 +240,7 @@ export default function Home() {
                           />
                           DEF
                         </Th>
-                        <Td width="25%">
+                        <Td>
                           {Math.floor(
                             realEnemy.DEF[0] +
                               realEnemy.DEF[1] * (realLevel - 1)
@@ -247,7 +248,7 @@ export default function Home() {
                         </Td>
                       </Tr>
                       <Tr>
-                        <Th width="25%">
+                        <Th>
                           <Image
                             alt="ACC"
                             src="/images/icon_ACC.png"
@@ -257,8 +258,8 @@ export default function Home() {
                           />
                           ACC
                         </Th>
-                        <Td width="25%">{realEnemy.ACC}</Td>
-                        <Th width="25%">
+                        <Td>{realEnemy.ACC}%</Td>
+                        <Th>
                           <Image
                             alt="EVA"
                             src="/images/icon_EVA.png"
@@ -268,10 +269,10 @@ export default function Home() {
                           />
                           EVA
                         </Th>
-                        <Td width="25%">{realEnemy.EVA}</Td>
+                        <Td>{realEnemy.EVA}%</Td>
                       </Tr>
                       <Tr>
-                        <Th width="25%">
+                        <Th>
                           <Image
                             alt="CRIT"
                             src="/images/icon_CRIT.png"
@@ -281,8 +282,8 @@ export default function Home() {
                           />
                           CRIT
                         </Th>
-                        <Td width="25%">{realEnemy.CRIT}</Td>
-                        <Th width="25%">
+                        <Td>{realEnemy.CRIT}%</Td>
+                        <Th>
                           <Image
                             alt="SPD"
                             src="/images/icon_SPD.png"
@@ -292,11 +293,11 @@ export default function Home() {
                           />
                           SPD
                         </Th>
-                        <Td width="25%">{realEnemy.SPD}</Td>
+                        <Td>{realEnemy.SPD}</Td>
                       </Tr>
                       <Tr>
-                        <Th width="25%">Resists</Th>
-                        <Td width="25%">
+                        <Th>Resists</Th>
+                        <Td>
                           <Image
                             alt="fire resist"
                             src="/images/fire.png"
@@ -306,7 +307,7 @@ export default function Home() {
                           />
                           {realEnemy.resist[0]}%
                         </Td>
-                        <Td width="25%">
+                        <Td>
                           <Image
                             alt="ice resist"
                             src="/images/ice.png"
@@ -316,7 +317,7 @@ export default function Home() {
                           />
                           {realEnemy.resist[1]}%
                         </Td>
-                        <Td width="25%">
+                        <Td>
                           <Image
                             alt="electric resist"
                             src="/images/electric.png"

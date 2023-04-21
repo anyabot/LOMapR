@@ -20,7 +20,7 @@ export default function SkillTab({skill, atk} : {skill: Skill, atk:number}) {
     );
     var count = 0
     let r = copy.split(/(<strong>.+?<\/strong>|<br>|<br\/>|<br \/>)/).map(e => {
-      if (e.match(/<strong>(.+?)<\/strong>/)) return (<Badge key ={count++}>{e.replace(/<strong>(.+?)<\/strong>/, "$1")}</Badge>)
+      if (e.match(/<strong>(.+?)<\/strong>/)) return (<Text as="b" bg="gray.300" p={1} rounded={4} key ={count++}>{e.replace(/<strong>(.+?)<\/strong>/, "$1")}</Text>)
       else if (e.match(/<br>|<br\/>|<br \/>/)) return (<br key ={count++}/>)
       else return e
     })
@@ -54,12 +54,12 @@ export default function SkillTab({skill, atk} : {skill: Skill, atk:number}) {
 
   return (
     <TabPanel key={skill.title}>
-      <Box display="flex" justifyContent="center" float="right" p={4}>
-        <Box p={4}>
-          <Text as="b">Range: {skill.range}</Text>
+      <Box display="flex" justifyContent="center" float="right" p={[1,1,2,3,4]} flexDirection={{base:"column-reverse", md:"row"}}>
+        {(skill.range || skill.AP)? (<Box p={[0,0,2,4,4]}>
+          <Text as="b" fontSize={["sm", "sm", "md", "md", "lg"]}>Range: {skill.range}</Text>
           <br/>
-          <Text as="b">AP Cost: {skill.AP}</Text>
-        </Box>
+          <Text as="b" fontSize={["sm", "sm", "md", "md", "lg"]}>AP Cost: {skill.AP}</Text>
+        </Box>) : null}
         <table className={styles["skill-area"]}>
           <tbody>
             <tr>
@@ -80,8 +80,8 @@ export default function SkillTab({skill, atk} : {skill: Skill, atk:number}) {
           </tbody>
         </table>
       </Box>
-      <Text fontSize='2xl'><Image alt={skill.attr ? skill.attr : "normal"} src={`/images/${skill.attr ? skill.attr : "normal"}.png`} boxSize='20px' display="inline" m={2}/>{skill.name}</Text>
-      {<Text fontSize='lg'>{renderDescription()}</Text>}
+      <Text as="b" fontSize={["xl", "xl", "2xl", "3xl", "4xl"]}><Image alt={skill.attr ? skill.attr : "normal"} src={`/images/${skill.attr ? skill.attr : "normal"}.png`} boxSize={{base:"15px", md:"20px"}} display="inline" m={2}/>{skill.name}</Text>
+      {<Text fontSize={["md", "lg", "xl", "2xl", "2xl"]}>{renderDescription()}</Text>}
       
   </TabPanel>
   );

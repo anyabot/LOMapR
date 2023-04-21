@@ -25,10 +25,20 @@
   height: inherit;
 }
 
-.skill-area {
-  height: 80px;
-  width: 80px;
-  margin: 0 auto;
+.stat-table :is(td, th) {
+  padding-left: 12px;
+  padding-right: 12px;
+  font-size: 1rem;
+}
+
+.stat-table {
+  border-collapse: collapse;
+}
+
+@media screen and (max-width: 767px){
+  .skill-area {
+    scale: 0.75;
+  }
 }
 
 .skill-area tbody {
@@ -37,9 +47,8 @@
 
 .skill-area td {
   box-sizing: content-box;
-  /* background: rgb(45, 45, 45); */
-  width: 33%;
-  height: 0;
+  width: 24px;
+  height: 24px;
   border-radius: 5%;
   background-position: -4px -4px, 4px 4px;
   background-size: 100%, 100%;
@@ -49,7 +58,6 @@
 .enemy-card {
   border-radius: 8px;
   line-height: 120%;
-  padding: 1em;
   text-align: center;
   position: relative;
   cursor: pointer;

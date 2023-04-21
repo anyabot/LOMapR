@@ -38,8 +38,8 @@ export default function SkillTabList({skills, atk, info} : {skills: string[], at
   return (
       <Tabs variant='enclosed'>
         <TabList>
-          {getSkills().map(s => <Tab key={s.title}><Image src={`/images/SkillIcon/${s.img}_${s.type}.png`} boxSize='64px' alt={`${s.title}`}/></Tab>)}
-          <Tab><Image src='/images/info.png' boxSize='64px' alt="info"/></Tab>
+          {getSkills().map(s => <Tab key={s.title}><Image src={`/images/SkillIcon/${s.img}_${s.type}.png`} boxSize={["30px", "40px", "50px", "64px", "64px"]} alt={`${s.title}`}/></Tab>)}
+          <Tab><Image src='/images/info.png' boxSize={["30px", "40px", "50px", "64px", "64px"]} alt="info"/></Tab>
         </TabList>
         <TabPanels>
           {getSkills().map(s => <SkillTab key={s.title} skill={s} atk={atk}/>)}
