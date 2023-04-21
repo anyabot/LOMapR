@@ -304,7 +304,7 @@ export default function Home() {
                             display="inline"
                             mx={1}
                           />
-                          {realEnemy.resist[0]}
+                          {realEnemy.resist[0]}%
                         </Td>
                         <Td width="25%">
                           <Image
@@ -314,7 +314,7 @@ export default function Home() {
                             display="inline"
                             mx={1}
                           />
-                          {realEnemy.resist[1]}
+                          {realEnemy.resist[1]}%
                         </Td>
                         <Td width="25%">
                           <Image
@@ -324,7 +324,7 @@ export default function Home() {
                             display="inline"
                             mx={1}
                           />
-                          {realEnemy.resist[2]}
+                          {realEnemy.resist[2]}%
                         </Td>
                       </Tr>
                     </Tbody>

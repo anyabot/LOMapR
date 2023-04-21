@@ -32,7 +32,7 @@ export default function Home() {
       {current ? <><Center> <Link href={`/world/${encodeURIComponent(current.id)}`}><SimpleCard img={imagelink[current.img]} key={current.id} alt={current.id} headingSize="lg" direction="row">Current Event:<br/>{current.title}</SimpleCard></Link></Center><Divider/></> : null}
       <Heading textAlign="center" size="2xl">
         <Highlight query={["Last Origin"]} styles={{ px: '1', py: '1', bg: 'orange.100' }}>
-        An Enemy Information Site for the Mobile Game Last Ogirin.
+        An Enemy Information Site for the Mobile Game Last Origin.
         </Highlight>
       </Heading>
 

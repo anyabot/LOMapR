@@ -150,9 +150,9 @@ export default function EnemyModal() {
                         </Tr>
                         <Tr>
                           <Th width="25%">Resists</Th>
-                          <Td width="25%"><Image alt="fire resist" src='/images/fire.png' boxSize='1rem' display="inline" mx={1}/>{realEnemy.resist[0]}</Td>
-                          <Td width="25%"><Image alt="ice resist" src='/images/ice.png' boxSize='1rem' display="inline" mx={1}/>{realEnemy.resist[1]}</Td>
-                          <Td width="25%"><Image alt="electric resist" src='/images/electric.png' boxSize='1rem' display="inline" mx={1}/>{realEnemy.resist[2]}</Td>
+                          <Td width="25%"><Image alt="fire resist" src='/images/fire.png' boxSize='1rem' display="inline" mx={1}/>{realEnemy.resist[0]}%</Td>
+                          <Td width="25%"><Image alt="ice resist" src='/images/ice.png' boxSize='1rem' display="inline" mx={1}/>{realEnemy.resist[1]}%</Td>
+                          <Td width="25%"><Image alt="electric resist" src='/images/electric.png' boxSize='1rem' display="inline" mx={1}/>{realEnemy.resist[2]}%</Td>
                         </Tr>
                       </Tbody>
                     </Table>
