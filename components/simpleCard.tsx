@@ -21,7 +21,6 @@ export default function SimpleCard({img, alt, children, onClick, direction, head
   return (
     <Card bg="blackAlpha.900" color="whiteAlpha.800" onClick={onClick} cursor="pointer" direction={direction}>
         <Image
-          fallbackSrc="https://via.placeholder.com/128"
           src={img}
           alt={alt}
           borderRadius='lg'
