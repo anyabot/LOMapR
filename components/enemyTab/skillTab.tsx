@@ -19,9 +19,10 @@ export default function SkillTab({skill, atk} : {skill: Skill, atk:number}) {
       `${Math.floor(atk * parseFloat(skillrate)).toString()} (x${skillrate} ATK)`
     );
     var count = 0
-    let r = copy.split(/(<strong>.+?<\/strong>|<br>|<br\/>|<br \/>)/).map(e => {
-      if (e.match(/<strong>(.+?)<\/strong>/)) return (<Text as="b" bg="gray.300" p={1} rounded={4} key ={count++}>{e.replace(/<strong>(.+?)<\/strong>/, "$1")}</Text>)
+    let r = copy.split(/(<[^<]+?>|<li>[^<]+?<\/li>|<br>|<br\/>|<br \/>)/).map(e => {
+      if (e.match(/<li>(.+?)<\/li>/)) return (<li>{e.replace(/<li>(.+?)<\/li>/, "$1")}</li>)
       else if (e.match(/<br>|<br\/>|<br \/>/)) return (<br key ={count++}/>)
+      else if (e.match(/<[^<]+?>/)) return (<Text as="b" bg="gray.300" p={1} rounded={4} key ={count++}>{e.replace(/<[^<]+?>/, "$1")}</Text>)
       else return e
     })
     return r
