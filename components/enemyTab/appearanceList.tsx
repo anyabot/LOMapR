@@ -25,10 +25,10 @@ export default function ApperanceList({used, usedSanctum} : {used: {[key: string
       <CardBody w="90%" display="flex" alignItems="center" flexDirection="column">
       {
         used ? Object.keys(used).map((e, index) => (world[e]?.title ? 
-        <>
-          <Apperance key={e} ev={e} name={world[e].title} used={used[e]} />
+        <Box key={e} display="flex" alignItems="center" flexDirection="column" w="100%">
+          <Apperance ev={e} name={world[e].title} used={used[e]} />
           {index != Object.keys(used).length - 1 || usedSanctum ? <Divider/> : null}
-        </>
+        </Box>
         : null)) : null
       }
       { usedSanctum ? (
