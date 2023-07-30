@@ -1,7 +1,7 @@
 import { useAppSelector, useAppDispatch } from '@/hooks';
 import { selectWorld, fetchWorldAsync } from '@/store/worldSlice';
 import { Stage, Zone } from '@/interfaces/world';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useLayoutEffect } from 'react';
 import { useRouter } from 'next/router'
 import EnemyGrid from '@/components/enemyGrid'
 import Error from 'next/error';
@@ -35,6 +35,12 @@ export default function Home() {
   useEffect(() => {
     realZone ? setRealCurrStage(realZone.stages.find(e => e.title.toLowerCase() == currStage.toLowerCase())) : null
   }, [realZone, currStage]);
+  useLayoutEffect(() => {
+    if (currWave && realCurrStage) {
+      currWave >= 0 ? null : setCurrWave(0)
+      currWave <= realCurrStage!.wave.length - 1 ? null : setCurrWave(realCurrStage!.wave.length - 1)
+    }
+  }, [realCurrStage, currWave])
 
   const defaultMapType = ["B", "Main", "EX"]
   const defaultFloat: Array<"right"| "left"> = ["right", "left"]
@@ -112,7 +118,7 @@ export default function Home() {
           <Circle as={Button} size='40px' bg='red' color='white' isDisabled={currWave == 0} onClick={decreaseWave}>
             <ArrowLeftIcon />
           </Circle>
-          <EnemyGrid wave={realCurrStage.wave[currWave].enemylist}></EnemyGrid> 
+          {realCurrStage?.wave[currWave]?.enemylist && <EnemyGrid wave={realCurrStage.wave[currWave].enemylist}></EnemyGrid>}
           <Circle as={Button} size='40px' bg='red' color='white' isDisabled={currWave == realCurrStage!.wave.length - 1} onClick={increaseWave}>
             <ArrowRightIcon />
           </Circle>
