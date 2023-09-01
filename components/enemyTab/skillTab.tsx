@@ -688,7 +688,7 @@ export default function SkillTab({
       );
     var count = 0;
     let r = copy
-      .split(/(<[^<]+?>|<li>[^<]+?<\/li>|<br>|<br\/>|<br \/>)/)
+      .split(/(<li>[^<]+?<\/li><[^<]+?>||<br>|<br\/>|<br \/>)/)
       .map((e) => {
         if (e.match(/<li>(.+?)<\/li>/))
           return <li>{e.replace(/<li>(.+?)<\/li>/, "$1")}</li>;
