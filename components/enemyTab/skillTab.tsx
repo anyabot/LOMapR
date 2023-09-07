@@ -687,7 +687,7 @@ export default function SkillTab({
       .map((e) => {
         if (e.match(/<li>(.+?)<\/li>/)) {
           let liContent = e.replace(/<li>(.+?)<\/li>/, "$1")
-          return <li>{splitTag(liContent)}</li>;
+          return <li key={count++}>{splitTag(liContent)}</li>;
         }
           
         else if (e.match(/<br>|<br\/>|<br \/>/)) return <br key={count++} />;
