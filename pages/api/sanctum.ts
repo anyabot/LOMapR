@@ -8,7 +8,7 @@ const dbRef = ref(db);
 
 export default async function GET(
   req: NextApiRequest,
-  res: NextApiResponse<{[key: string]: Floor}>
+  res: NextApiResponse<{[key: string]: Floor[]}>
 ) {
   const response = await get(child(dbRef, "Sanctum/")).then((snapshot) => snapshot)
   if (response.exists()) {

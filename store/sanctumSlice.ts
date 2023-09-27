@@ -3,7 +3,7 @@ import { RootState, AppThunk } from '../store';
 import { Floor } from '@/interfaces/sanctum';
 
 export interface WorldState {
-  value: {[key: string]: Floor[]};
+  value: {[key: string]: Floor[][]};
   imagelink: {[key: string]: string};
   status: 'idle' | 'loading' | 'failed';
 }
@@ -14,7 +14,7 @@ const initialState: WorldState = {
   status: 'idle',
 };
 
-export const fetchSanctumAsync = createAsyncThunk<{[key: string]: Floor[]}, void, {state: RootState}>(
+export const fetchSanctumAsync = createAsyncThunk<{[key: string]: Floor[][]}, void, {state: RootState}>(
   'sanctum/fetch',
   async function (_, thunkApi)  {
     if (thunkApi.getState().sanctum.status == "failed") return {}

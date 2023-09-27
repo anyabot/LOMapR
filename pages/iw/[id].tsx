@@ -60,7 +60,6 @@ export default function Home() {
 
   useEffect(() => {
     setRealEnemy(enemy[activeEnemy]);
-    console.log(enemy[activeEnemy]);
   }, [enemy, activeEnemy]);
   useEffect(() => {
     iw.bosses[id]
