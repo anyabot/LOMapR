@@ -33,7 +33,7 @@ export default function Home() {
     world[id]? world[id].zones ? world[id].zones[real_zone_index]? setRealZone(world[id].zones[real_zone_index]) : null : null : null
   }, [world, id, real_zone_index]);
   useEffect(() => {
-    realZone ? setRealCurrStage(realZone.stages.find(e => e.title.toLowerCase() == currStage.toLowerCase())) : null
+    realZone ? setRealCurrStage(findStage()) : null
   }, [realZone, currStage]);
   useLayoutEffect(() => {
     if (currWave && realCurrStage) {
@@ -44,7 +44,26 @@ export default function Home() {
 
   const defaultMapType = ["B", "Main", "EX"]
   const defaultFloat: Array<"right"| "left"> = ["right", "left"]
-  function makeGrid(a: Array<Array<Stage | null>>, height: number, width: number) {
+  function findStage() {
+    if (realZone) {
+      if (realZone.multiple) {
+        for (var sz of realZone.subzones) {
+          var nextStage = sz.find(e => e.title.toLowerCase() == currStage.toLowerCase());
+          if (nextStage) return nextStage;
+        }
+        return null;
+      }
+      else return realZone.stages.find(e => e.title.toLowerCase() == currStage.toLowerCase())
+    }
+    return null
+  }
+
+  function makeGrid(stages: Stage[], height: number, width: number) {
+    let a = [...Array(height)].map(e => Array(width));
+    stages.forEach(s => {
+      let [col, row] = s.grid;
+      a[row][col] = s
+    })
     let ret = []
     for (let i = 0; i < height; i++) {
       for (let j = 0; j < width; j++) {
@@ -60,7 +79,12 @@ export default function Home() {
         : ret.push(<GridItem key={`${i}-${j}`}></GridItem>)
       }
     }
-    return ret
+
+    return (
+      <Grid templateRows={`repeat(${height}, 1fr)`} templateColumns={`repeat(${width}, minmax(128px, 1fr))`} p={1} bg="blackAlpha.800" color="yellow.400" w="100%" overflowX="auto">
+        {ret}
+      </Grid>
+    )
   }
   function decreaseWave() {
     currWave > 0 ? setCurrWave(currWave - 1) : null
@@ -84,11 +108,7 @@ export default function Home() {
   else {
     let z = world[id].zones[real_zone_index]
     let [width, height] = z.gridsize
-    let grid = [...Array(height)].map(e => Array(width));
-    z.stages.forEach(s => {
-      let [col, row] = s.grid;
-      grid[row][col] = s
-    })
+
     return (
       <>
       <Head>
@@ -98,9 +118,10 @@ export default function Home() {
           Back
         </Button>
         <h2>{z.title}</h2>
-        <Grid templateRows={`repeat(${height}, 1fr)`} templateColumns={`repeat(${width}, minmax(128px, 1fr))`} p={1} bg="blackAlpha.800" color="yellow.400" w="100%" overflowX="auto">
-          {makeGrid(grid, height, width)}
-        </Grid>
+        {
+          z.multiple ? z.subzones.map((sz, key) => <Box key={`subzone-${key}`} mb="5px">{makeGrid(sz, height, width)}</Box>)
+          : makeGrid(z.stages, height, width)
+        }
         <Divider/>
         {realCurrStage ? realCurrStage!.title ? <Tag variant='solid' colorScheme='teal' size="lg" p={4}>{`${realCurrStage.title}: ${realCurrStage.wave ? "Battle Stage" : "Story Stage"}`}</Tag> : null: null}
         <VStack as={Center}>

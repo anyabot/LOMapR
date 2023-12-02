@@ -21,6 +21,8 @@ export interface Zone {
   title: string;
   gridsize: [number, number];
   stages: Stage[];
+  multiple: boolean;
+  subzones: Stage[][];
 }
 
 export interface World {
