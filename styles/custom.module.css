@@ -41,6 +41,11 @@
   }
 }
 
+.skill-area::after {
+  display: block;
+  content: '';
+}
+
 .skill-area tbody {
   transform: skewX(-10deg);
 }
