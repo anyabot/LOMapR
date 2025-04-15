@@ -14,7 +14,7 @@ import { selectSkill, selectSkillStatus, fetchSkillAsync } from '@/store/skillSl
 
 
 
-export default function SkillTabList({skills, atk, info} : {skills: string[], atk:number, info:string}) {
+export default function SkillTabList({skills, atk, info, rank} : {skills: string[], atk:number, info:string, rank:string}) {
 
   const skillInfo = useAppSelector(selectSkill);
   const skillstatus = useAppSelector(selectSkillStatus);
@@ -24,11 +24,28 @@ export default function SkillTabList({skills, atk, info} : {skills: string[], at
     dispatch(fetchSkillAsync());
   }, [dispatch])
 
+  function convertRank(rank: string): number {
+    switch (rank) {
+      case "B":
+        return 2;
+      case "A":
+        return 3;
+      case "S":
+        return 4;
+      case "SS":
+        return 5;
+      default:
+        return 6;
+    }
+  }
+
   function getSkills() {
     let ret = []
     for (let s in skills) {
       if (skills[s] in skillInfo) {
-        ret.push(skillInfo[skills[s]])
+        if (convertRank(rank) >= skillInfo[skills[s]].leastRank) {
+          ret.push(skillInfo[skills[s]])
+        }
       }
     }
     return ret

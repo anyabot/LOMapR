@@ -339,6 +339,7 @@ export default function Home() {
                 realEnemy.ATK[0] + realEnemy.ATK[1] * (realLevel - 1)
               )}
               info={realEnemy.info}
+              rank={realEnemy.rank}
             />
           </>
         ) : null}

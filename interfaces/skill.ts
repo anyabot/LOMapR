@@ -9,4 +9,5 @@ export interface Skill {
   center: number;
   description: string;
   attr: string | undefined;
+  leastRank: number;
 }

@@ -160,7 +160,7 @@ export default function EnemyModal() {
                 </Box>
               </SimpleGrid>
               <Divider/>
-              <SkillTabList skills={realEnemy.skills} atk={Math.floor(realEnemy.ATK[0] + realEnemy.ATK[1] * (realLevel - 1))} info={realEnemy.info}/>
+              <SkillTabList skills={realEnemy.skills} atk={Math.floor(realEnemy.ATK[0] + realEnemy.ATK[1] * (realLevel - 1))} info={realEnemy.info} rank={realEnemy.rank}/>
               <Divider/>
               <ApperanceList used={realEnemy.used} usedSanctum={realEnemy.usedSanctum}/>
             </ModalBody>
