@@ -43,7 +43,7 @@ export default function SkillTabList({skills, atk, info, rank} : {skills: string
     let ret = []
     for (let s in skills) {
       if (skills[s] in skillInfo) {
-        if (convertRank(rank) >= skillInfo[skills[s]].leastRank) {
+        if (skillInfo[skills[s]].leastRank ? convertRank(rank) >= skillInfo[skills[s]].leastRank : true) {
           ret.push(skillInfo[skills[s]])
         }
       }
