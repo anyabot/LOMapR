@@ -1,6 +1,7 @@
 import { createAsyncThunk, createSlice, isRejectedWithValue, PayloadAction } from '@reduxjs/toolkit';
 import { RootState, AppThunk } from '../store';
 import { Floor } from '@/interfaces/sanctum';
+import { setRegion } from './regionSlice';
 
 export interface WorldState {
   value: {[key: string]: Floor[][]};
@@ -17,7 +18,7 @@ const initialState: WorldState = {
   imagelink: {},
   status: 'idle',
   activeArea: "EW01",
-  activeFloor: 1,
+  activeFloor: 0,
   activeDiff: 0,
 };
 
@@ -30,7 +31,7 @@ export const fetchSanctumAsync = createAsyncThunk<{[key: string]: Floor[][]}, vo
     }
     else {
       try {
-        const response = await fetch("/api/sanctum").then(res => res.json())
+        const response = await fetch(`/api/sanctum?region=${thunkApi.getState().region.region}`).then(res => res.json())
         return response ? response : {}
       }
       catch {
@@ -87,6 +88,13 @@ export const sanctumSlice = createSlice({
       .addCase(fetchSanctumAsync.rejected, (state, action) => {
         state.value = {};
         state.status = 'failed';
+      })
+      .addCase(setRegion, (state) => {
+        state.value = {};
+        state.status = 'idle';
+        state.floorData = undefined;
+        state.activeFloor = 0;
+        state.activeDiff = 0;
       })
   },
 });

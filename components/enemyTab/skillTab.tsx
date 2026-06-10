@@ -1,6 +1,7 @@
 import styles from "@/styles/custom.module.css";
 import { TabPanel, Text, Image, Badge, Box, Tooltip } from "@chakra-ui/react";
 import { Skill } from "@/interfaces/skill";
+import { t } from "@/lib/strings";
 import EffectTooltip from "./effectTooltip";
 import { useCallback } from "react";
 
@@ -701,17 +702,23 @@ export default function SkillTab({
     return r;
   }
 
+  // Render a damage value for a given multiplier: "<atk*rate> (xrate ATK)".
+  function dmg(rate: number) {
+    return `${Math.floor(atk * rate).toString()} (x${rate} ATK)`;
+  }
+
   function renderDescription() {
-    let copy = skill.description;
-    let temp = copy.match(/\$\((\d+\.*\d*)\)/);
-    let skillrate = temp ? (temp[1] ? temp[1] : null) : null;
-    if (skillrate)
-      copy = copy.replace(
-        /\$\(\d+\.*\d*\)/g,
-        `${Math.floor(
-          atk * parseFloat(skillrate)
-        ).toString()} (x${skillrate} ATK)`
-      );
+    let copy = t(skill.description);
+    // Hand-translated text embeds the multiplier inline as $(1.5).
+    const inline = copy.match(/\$\((\d+\.*\d*)\)/);
+    if (inline && inline[1]) {
+      copy = copy.replace(/\$\(\d+\.*\d*\)/g, dmg(parseFloat(inline[1])));
+    }
+    // Official table text uses a positional {0} placeholder; fill it with the
+    // skill's SkillAttackRate.
+    if (skill.rate) {
+      copy = copy.replace(/\{0\}/g, dmg(skill.rate));
+    }
     var count = 0;
     let r = splitTag(copy)
     return r;
@@ -788,7 +795,7 @@ export default function SkillTab({
           display="inline"
           m={2}
         />
-        {skill.name}
+        {t(skill.name)}
       </Text>
       {
         <Text fontSize={["md", "md", "lg", "lg", "xl"]}>

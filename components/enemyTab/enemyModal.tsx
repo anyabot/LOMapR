@@ -33,6 +33,7 @@ import SkillTabList from './skillTabList';
 import ApperanceList from './appearanceList';
 
 import { EnemyData } from '@/interfaces/enemy';
+import { t } from '@/lib/strings';
 
 import { useAppSelector, useAppDispatch } from '@/hooks';
 import { selectEnemy, selectActiveEnemy, selectActiveLevel, setActive, fetchEnemyAsync } from '@/store/enemySlice';
@@ -73,7 +74,7 @@ export default function EnemyModal() {
   }
   function duplicate() {
     let ret: string[] = []
-    enemy? realEnemy? Object.keys(enemy).map(e => enemy[e].name == realEnemy.name ? ret.push(e) : null) : null : null
+    enemy? realEnemy? Object.keys(enemy).map(e => t(enemy[e].name) == t(realEnemy.name) ? ret.push(e) : null) : null : null
     return ret
   }
 
@@ -83,7 +84,7 @@ export default function EnemyModal() {
       {realEnemy ? (
         <>
           <ModalContent maxW={["container.sm", "container.sm", "container.md", "container.lg", "container.xl"]}>
-            <ModalHeader>{realEnemy.name}</ModalHeader>
+            <ModalHeader>{t(realEnemy.name)}</ModalHeader>
             <ModalCloseButton />
             <ModalBody>
               <Select value={activeEnemy}  onChange={(e) => dispatch(setActive([e.target.value, realLevel]))}>
@@ -160,7 +161,7 @@ export default function EnemyModal() {
                 </Box>
               </SimpleGrid>
               <Divider/>
-              <SkillTabList skills={realEnemy.skills} atk={Math.floor(realEnemy.ATK[0] + realEnemy.ATK[1] * (realLevel - 1))} info={realEnemy.info} rank={realEnemy.rank}/>
+              <SkillTabList skills={realEnemy.skills} atk={Math.floor(realEnemy.ATK[0] + realEnemy.ATK[1] * (realLevel - 1))} info={t(realEnemy.info)} rank={realEnemy.rank}/>
               <Divider/>
               <ApperanceList used={realEnemy.used} usedSanctum={realEnemy.usedSanctum}/>
             </ModalBody>

@@ -1,13 +1,15 @@
 import { useAppSelector, useAppDispatch } from '@/hooks';
 import { selectWorld, fetchWorldAsync } from '@/store/worldSlice';
 import { Stage, Zone } from '@/interfaces/world';
+import { t } from '@/lib/strings';
 import { useEffect, useState, useLayoutEffect } from 'react';
 import { useRouter } from 'next/router'
 import EnemyGrid from '@/components/enemyGrid'
+import StageGrid from '@/components/stageGrid'
 import Error from 'next/error';
 import Link from 'next/link';
 import styles from "@/styles/custom.module.css"
-import { Grid, GridItem, Box, Image, VStack, HStack, Center, Tag, Text, Divider, Circle, Button } from '@chakra-ui/react';
+import { Box, Image, VStack, HStack, Center, Tag, Text, Divider, Circle, Button } from '@chakra-ui/react';
 import { ArrowLeftIcon, ArrowRightIcon, ArrowBackIcon } from '@chakra-ui/icons';
 import Head from 'next/head';
 
@@ -38,59 +40,25 @@ export default function Home() {
   useLayoutEffect(() => {
     if (currWave && realCurrStage) {
       currWave >= 0 ? null : setCurrWave(0)
-      currWave <= realCurrStage!.wave.length - 1 ? null : setCurrWave(realCurrStage!.wave.length - 1)
+      currWave <= realCurrStage!.waves.length - 1 ? null : setCurrWave(realCurrStage!.waves.length - 1)
     }
   }, [realCurrStage, currWave])
 
-  const defaultMapType = ["B", "Main", "EX"]
-  const defaultFloat: Array<"right"| "left"> = ["right", "left"]
+  // all stages in the zone (flat list or flattened subzones), for lookup
+  function allStages(z: Zone): Stage[] {
+    return z.subzones ? z.subzones.flat() : z.stages
+  }
   function findStage() {
     if (realZone) {
-      if (realZone.multiple) {
-        for (var sz of realZone.subzones) {
-          var nextStage = sz.find(e => e.title.toLowerCase() == currStage.toLowerCase());
-          if (nextStage) return nextStage;
-        }
-        return null;
-      }
-      else return realZone.stages.find(e => e.title.toLowerCase() == currStage.toLowerCase())
+      return allStages(realZone).find(e => e.title.toLowerCase() == currStage.toLowerCase())
     }
     return null
-  }
-
-  function makeGrid(stages: Stage[], height: number, width: number) {
-    let a = [...Array(height)].map(e => Array(width));
-    stages.forEach(s => {
-      let [col, row] = s.grid;
-      a[row][col] = s
-    })
-    let ret = []
-    for (let i = 0; i < height; i++) {
-      for (let j = 0; j < width; j++) {
-        let cell = a[i][j]
-        cell 
-        ? ret.push(
-          <GridItem onClick={() => setCurrStage(cell!.title)} key={`${i}-${j}`}>
-            <Box float={defaultFloat[i % 2]} as={VStack} gap={0}>
-              <Image src={`/images/${cell.type ? cell.type : defaultMapType[i]} Stage.png`} alt={cell.type ? cell.type : defaultMapType[i]}/>
-              <Text w="100%" p={1} className={cell.title == currStage ? styles["active-stage"] : undefined}>{cell.title}</Text>
-            </Box>
-          </GridItem>) 
-        : ret.push(<GridItem key={`${i}-${j}`}></GridItem>)
-      }
-    }
-
-    return (
-      <Grid templateRows={`repeat(${height}, 1fr)`} templateColumns={`repeat(${width}, minmax(128px, 1fr))`} p={1} bg="blackAlpha.800" color="yellow.400" w="100%" overflowX="auto">
-        {ret}
-      </Grid>
-    )
   }
   function decreaseWave() {
     currWave > 0 ? setCurrWave(currWave - 1) : null
   }
   function increaseWave() {
-    currWave < realCurrStage!.wave.length - 1 ? setCurrWave(currWave + 1) : null
+    currWave < realCurrStage!.waves.length - 1 ? setCurrWave(currWave + 1) : null
   }
   if (Object.keys(world).length === 0 || !id || !zone) {
     return (<>
@@ -107,25 +75,26 @@ export default function Home() {
   }
   else {
     let z = world[id].zones[real_zone_index]
-    let [width, height] = z.gridsize
+    const maps: Stage[][] = z.subzones ? z.subzones : [z.stages]
 
     return (
       <>
       <Head>
-        <title>{z.title}</title>
+        <title>{t(z.title)}</title>
       </Head>
       <Button as={Link} href={`/world/${id}`} leftIcon={<ArrowBackIcon />} colorScheme='blackAlpha' variant='solid'>
           Back
         </Button>
-        <h2>{z.title}</h2>
-        {
-          z.multiple ? z.subzones.map((sz, key) => <Box key={`subzone-${key}`} mb="5px">{makeGrid(sz, height, width)}</Box>)
-          : makeGrid(z.stages, height, width)
-        }
+        <h2>{t(z.title)}</h2>
+        {maps.map((stages, i) => (
+          <Box key={i} mb={3} p={2} bg="blackAlpha.800" w="100%" overflowX="auto">
+            <StageGrid stages={stages} selected={currStage} onSelect={setCurrStage} />
+          </Box>
+        ))}
         <Divider/>
-        {realCurrStage ? realCurrStage!.title ? <Tag variant='solid' colorScheme='teal' size="lg" p={4}>{`${realCurrStage.title}: ${realCurrStage.wave ? "Battle Stage" : "Story Stage"}`}</Tag> : null: null}
+        {realCurrStage ? realCurrStage!.title ? <Tag variant='solid' colorScheme='teal' size="lg" p={4}>{`${realCurrStage.title}: ${realCurrStage.waves.length ? "Battle Stage" : "Story Stage"}`}</Tag> : null: null}
         <VStack as={Center}>
-        {realCurrStage ? realCurrStage.wave ? <HStack >{realCurrStage.wave.map((e, index) => 
+        {realCurrStage ? realCurrStage.waves.length ? <HStack >{realCurrStage.waves.map((e, index) =>
           <div onClick={() => setCurrWave(index)} key={index} className={styles["wave-button"]}>
             {index == currWave ? (<Image
               src="/images/map-current.png"
@@ -134,16 +103,16 @@ export default function Home() {
             />) : null}
             <Image src="/images/profile/NightChick.png" alt={`wave-${index}`} />
           </div>)}</HStack> : null : null}
-        {realCurrStage ? realCurrStage.wave 
+        {realCurrStage ? realCurrStage.waves.length
         ?<HStack as={Center} gap={8}>
           <Circle as={Button} size='40px' bg='red' color='white' isDisabled={currWave == 0} onClick={decreaseWave}>
             <ArrowLeftIcon />
           </Circle>
-          {realCurrStage?.wave[currWave]?.enemylist && <EnemyGrid wave={realCurrStage.wave[currWave].enemylist}></EnemyGrid>}
-          <Circle as={Button} size='40px' bg='red' color='white' isDisabled={currWave == realCurrStage!.wave.length - 1} onClick={increaseWave}>
+          {realCurrStage?.waves[currWave]?.enemies && <EnemyGrid wave={realCurrStage.waves[currWave].enemies}></EnemyGrid>}
+          <Circle as={Button} size='40px' bg='red' color='white' isDisabled={currWave == realCurrStage!.waves.length - 1} onClick={increaseWave}>
             <ArrowRightIcon />
           </Circle>
-        </HStack > 
+        </HStack >
         : null: null}
         </VStack>
       </>

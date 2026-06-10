@@ -1,6 +1,7 @@
 import { createAsyncThunk, createSlice, isRejectedWithValue, PayloadAction } from '@reduxjs/toolkit';
 import { RootState, AppThunk } from '../store';
 import { Skill } from '@/interfaces/skill';
+import { setRegion } from './regionSlice';
 
 export interface SkillState {
   value: {[key: string]: Skill};
@@ -21,7 +22,7 @@ export const fetchSkillAsync = createAsyncThunk<{[key: string]: Skill}, void, {s
     }
     else {
       try {
-        const response = await fetch("/api/skill").then(res => res.json())
+        const response = await fetch(`/api/skill?region=${thunkApi.getState().region.region}`).then(res => res.json())
         return response ? response : {}
       }
       catch {
@@ -51,6 +52,10 @@ export const skillSlice = createSlice({
       .addCase(fetchSkillAsync.rejected, (state, action) => {
         state.value = {};
         state.status = 'failed';
+      })
+      .addCase(setRegion, (state) => {
+        state.value = {};
+        state.status = 'idle';
       })
   },
 });

@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { EnemyData } from '@/interfaces/enemy';
 import { Button, ButtonGroup, Flex, InputGroup, Input, SimpleGrid } from '@chakra-ui/react'
 import SimpleCard from '@/components/simpleCard';
+import { t } from '@/lib/strings';
 import Head from 'next/head';
 
 export default function Home() {
@@ -38,9 +39,9 @@ export default function Home() {
     var dupe: string[] = [];
     for (var key in enemylist) {
       var val = enemylist[key];
-      if (!dupe.includes(val.name)) {
+      if (!dupe.includes(t(val.name))) {
         if (filterUsed(val) && filterName(val) && filterButton(val)) {
-          dupe.push(val.name);
+          dupe.push(t(val.name));
           render_enemies.push(val);
         }
       }
@@ -60,7 +61,7 @@ export default function Home() {
   function filterName(e: EnemyData) {
     
     if (searchTerm) {
-      return e.name.toLowerCase().includes(searchTerm.toLowerCase())
+      return t(e.name).toLowerCase().includes(searchTerm.toLowerCase())
     }
     return true
   }
@@ -113,7 +114,7 @@ export default function Home() {
           <Button colorScheme='red' onClick={e => setSearchTerm("")}>Reset</Button>
         </InputGroup>
         <SimpleGrid columns={[2,3,4,6,7]} spacing={4}>
-          {enemies(enemy).map(e => (<SimpleCard onClick={() => dispatch(setActive([e.id, 1]))} headingSize="sm" img={getImage(e.img)} key={e.id} alt={e.img}>{e.name}</SimpleCard>))}
+          {enemies(enemy).map(e => (<SimpleCard onClick={() => dispatch(setActive([e.id, 1]))} headingSize="sm" img={getImage(e.img)} key={e.id} alt={e.img}>{t(e.name)}</SimpleCard>))}
         </SimpleGrid>
       </>
     )

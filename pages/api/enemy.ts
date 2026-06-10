@@ -1,18 +1,14 @@
 // Next.js API route support: https://nextjs.org/docs/api-routes/introduction
 import type { NextApiRequest, NextApiResponse } from 'next'
-import { db } from '@/firebaseConfigs'
-import { getDatabase, ref, child, get } from "firebase/database";
+import { getNode, normalizeRegion } from '@/lib/datasource'
 import { EnemyData } from '@/interfaces/enemy';
-
-const dbRef = ref(db);
 
 export default async function GET(
   req: NextApiRequest,
   res: NextApiResponse<{[key: string]: EnemyData} | {}>
 ) {
-  const response = await get(child(dbRef, "EnemyData/")).then((snapshot) => snapshot)
-  if (response.exists()) {
-    var temp = response.val();
+  const temp = await getNode('EnemyData', normalizeRegion(req.query.region))
+  if (temp) {
     Object.keys(temp).forEach(key => temp[key].id = key)
     res.setHeader('Cache-Control','s-maxage=10800');
     return res.status(200).json(temp)

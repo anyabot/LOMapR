@@ -6,6 +6,7 @@ import { useRouter } from 'next/router'
 import Error from 'next/error';
 import Link from 'next/link';
 import SimpleCard from '@/components/simpleCard';
+import { t } from '@/lib/strings';
 import { SimpleGrid, Heading, Divider, Button } from '@chakra-ui/react';
 import { ArrowBackIcon } from '@chakra-ui/icons';
 import Head from 'next/head';
@@ -43,15 +44,15 @@ export default function Home() {
     return (
       <>
         <Head>
-          <title>{w.title}</title>
+          <title>{t(w.title)}</title>
         </Head>
         <Button as={Link} href={`/world/`} leftIcon={<ArrowBackIcon />} colorScheme='blackAlpha' variant='solid'>
           Back
         </Button>
-        <Heading size="2xl" p={4}>{w.title}</Heading>
+        <Heading size="2xl" p={4}>{t(w.title)}</Heading>
         <Divider/>
         <SimpleGrid columns={[1,2,2,3,4]} spacing={4}>
-          {w.zones.map((z,index) => (<Link key={index} href={`/world/${id}/${index+1}`}><SimpleCard img={imagelink[z.img]} alt={`${id}-${index}`}>{z.title}</SimpleCard></Link>))}
+          {w.zones.map((z,index) => (<Link key={index} href={`/world/${id}/${index+1}`}><SimpleCard img={imagelink[z.img]} alt={`${id}-${index}`}>{t(z.title)}</SimpleCard></Link>))}
         </SimpleGrid>
       </>
     )

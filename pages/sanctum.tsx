@@ -28,8 +28,12 @@ import {
   Box,
 } from "@chakra-ui/react";
 import { ArrowLeftIcon, ArrowRightIcon } from "@chakra-ui/icons";
+import {
+  Table, Thead, Tbody, Tr, Th, Td, TableContainer, Tag, Wrap, WrapItem,
+} from "@chakra-ui/react";
 import { Floor, Wave } from "@/interfaces/sanctum";
 import EnemyGrid from "@/components/enemyGrid";
+import { t } from "@/lib/strings";
 import styles from "@/styles/custom.module.css";
 
 export default function Home() {
@@ -65,6 +69,26 @@ export default function Home() {
     if (floorData) {
       wave < floorData!.waves.length - 1 ? setWave(wave + 1) : null;
     }
+  }
+
+  const DIFF_LABEL = ["Easy", "Normal", "Extreme"];
+
+  // Resource gain for the CURRENT floor, one row per difficulty variant, plus a
+  // total across the floor's difficulties.
+  function gainRows(): { label: string; gain: Floor["gain"] }[] {
+    const floor = sanctum[activeArea]?.[activeFloor] || [];
+    return floor.map((f, i) => ({ label: DIFF_LABEL[i] ?? `Diff ${i}`, gain: f.gain }));
+  }
+  function gainTotal() {
+    return gainRows().reduce(
+      (acc, r) => ({
+        mineralCharge: acc.mineralCharge + r.gain.mineralCharge,
+        mineralMax: acc.mineralMax + r.gain.mineralMax,
+        refinedCharge: acc.refinedCharge + r.gain.refinedCharge,
+        refinedMax: acc.refinedMax + r.gain.refinedMax,
+      }),
+      { mineralCharge: 0, mineralMax: 0, refinedCharge: 0, refinedMax: 0 }
+    );
   }
 
   if (sanctumStatus == "failed") {
@@ -129,9 +153,9 @@ export default function Home() {
                 width="100%"
               >
                 {sanctum[activeArea].map((e, index) => {
-                  return e ? (
+                  return e && e[0] ? (
                     <option key={index} value={index}>
-                      Floor {index}
+                      Floor {e[0].stage}
                     </option>
                   ) : null;
                 })}
@@ -201,6 +225,15 @@ export default function Home() {
               ))}
             </HStack>
           ) : null}
+          {/* Wave/enemy grid and the info tables, side by side (wrap on mobile) */}
+          <Flex
+            w="100%"
+            justifyContent="center"
+            alignItems="flex-start"
+            gap={{ base: 4, lg: 8 }}
+            flexDirection={{ base: "column", lg: "row" }}
+            flexWrap="wrap"
+          >
           {waveData ? (
             <HStack as={Center}>
               <Circle
@@ -226,6 +259,100 @@ export default function Home() {
               </Circle>
             </HStack>
           ) : null}
+
+          <VStack align="stretch" flex={1} minW={{ base: "100%", lg: "320px" }} maxW="640px">
+          {/* Ban / Suitable groups for the active floor (group member lists TBD) */}
+          {floorData ? (
+            <Box w="100%">
+              <Text as="b" fontSize="xl">Restrictions</Text>
+              <TableContainer>
+                <Table size="sm" variant="simple">
+                  <Tbody>
+                    <Tr>
+                      <Th color="red.300">Banned Groups</Th>
+                      <Td>
+                        {floorData.prohibition.length ? (
+                          <Wrap>
+                            {floorData.prohibition.map((g) => (
+                              <WrapItem key={g}>
+                                <Tag colorScheme="red">{g}</Tag>
+                              </WrapItem>
+                            ))}
+                          </Wrap>
+                        ) : (
+                          <Text color="gray.500">None</Text>
+                        )}
+                      </Td>
+                    </Tr>
+                    <Tr>
+                      <Th color="green.300">Suitable Groups</Th>
+                      <Td>
+                        {floorData.suitability.length ? (
+                          <Wrap>
+                            {floorData.suitability.map((g) => (
+                              <WrapItem key={g}>
+                                <Tag colorScheme="green">{g}</Tag>
+                              </WrapItem>
+                            ))}
+                          </Wrap>
+                        ) : (
+                          <Text color="gray.500">None</Text>
+                        )}
+                      </Td>
+                    </Tr>
+                    {floorData.suitabilityDesc ? (
+                      <Tr>
+                        <Th>Note</Th>
+                        <Td whiteSpace="normal">{t(floorData.suitabilityDesc)}</Td>
+                      </Tr>
+                    ) : null}
+                  </Tbody>
+                </Table>
+              </TableContainer>
+            </Box>
+          ) : null}
+
+          {/* Resource gain for the current floor: one row per difficulty + total */}
+          <Box w="100%">
+            <Text as="b" fontSize="xl">
+              Resource Gain (Floor {floorData ? floorData.stage : ""})
+            </Text>
+            <TableContainer>
+              <Table size="sm" variant="striped">
+                <Thead>
+                  <Tr>
+                    <Th>Difficulty</Th>
+                    <Th isNumeric>Mineral +Regen</Th>
+                    <Th isNumeric>Mineral +Max</Th>
+                    <Th isNumeric>Refined +Regen</Th>
+                    <Th isNumeric>Refined +Max</Th>
+                  </Tr>
+                </Thead>
+                <Tbody>
+                  {gainRows().map((r) => (
+                    <Tr key={r.label}>
+                      <Td>{r.label}</Td>
+                      <Td isNumeric>{r.gain.mineralCharge || ""}</Td>
+                      <Td isNumeric>{r.gain.mineralMax || ""}</Td>
+                      <Td isNumeric>{r.gain.refinedCharge || ""}</Td>
+                      <Td isNumeric>{r.gain.refinedMax || ""}</Td>
+                    </Tr>
+                  ))}
+                </Tbody>
+                <Thead>
+                  <Tr>
+                    <Th>Total</Th>
+                    <Th isNumeric>{gainTotal().mineralCharge}</Th>
+                    <Th isNumeric>{gainTotal().mineralMax}</Th>
+                    <Th isNumeric>{gainTotal().refinedCharge}</Th>
+                    <Th isNumeric>{gainTotal().refinedMax}</Th>
+                  </Tr>
+                </Thead>
+              </Table>
+            </TableContainer>
+          </Box>
+          </VStack>
+          </Flex>
         </VStack>
       </>
     );
