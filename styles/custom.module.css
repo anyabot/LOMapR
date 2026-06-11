@@ -1,20 +1,25 @@
 .area-container {
-  background-color: black;
+  background-color: var(--bg-elevated);
   padding: 1em;
   display: inline-grid;
   gap: 0.75em;
   width: 100%;
+  border-radius: var(--border-radius);
 }
 
-.active-stage{
-  background-color: red;
+/* Highlight for the selected stage label. */
+.active-stage {
+  background-color: var(--primary);
+  color: #1a1a1a;
+  border-radius: 6px;
+  font-weight: 700;
 }
 
 .enemy-grid {
   display: inline-grid;
   gap: 0.75em;
-  grid-template-columns: repeat(3,1fr);
-  grid-template-rows: repeat(3,1fr);
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
   max-width: 100%;
 }
 
@@ -23,70 +28,81 @@
   justify-content: center;
   align-items: center;
   height: inherit;
-}
-
-.stat-table :is(td, th) {
-  padding-left: 12px;
-  padding-right: 12px;
-  font-size: 1rem;
+  min-height: 40vh;
 }
 
 .stat-table {
-  border-collapse: collapse;
+  border-radius: 10px;
+  overflow: hidden;
+  width: 100%;
+  margin-top: 0.5rem;
 }
 
-@media screen and (max-width: 767px){
-  .skill-area {
-    scale: 0.75;
-  }
+.stat-table :is(td, th) {
+  padding: 5px 10px !important;
+  font-size: 0.9rem !important;
+  border: none !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
 }
 
-.skill-area::after {
-  display: block;
-  content: '';
+.stat-table tr:nth-of-type(odd) {
+  background: rgba(255, 255, 255, 0.03);
 }
 
-.skill-area tbody {
-  transform: skewX(-10deg);
+.stat-table th {
+  color: var(--text-muted);
+  font-weight: 600;
+  white-space: nowrap;
 }
 
-.skill-area td {
-  box-sizing: content-box;
-  width: 24px;
-  height: 24px;
-  border-radius: 5%;
-  background-position: -4px -4px, 4px 4px;
-  background-size: 100%, 100%;
-  background-repeat: no-repeat;
+.stat-table td {
+  font-variant-numeric: tabular-nums;
 }
 
+/* Enemy card tile (wave grid). */
 .enemy-card {
-  border-radius: 8px;
-  line-height: 120%;
+  border-radius: 10px;
   text-align: center;
-  position: relative;
   cursor: pointer;
+  background-color: var(--bg-elevated);
+  border: 1px solid var(--border);
+  transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2px;
 }
 
-.enemy-card > * {
-  display: inline-block;
-  margin: 2px auto;
+.enemy-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--primary);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
 }
 
-.enemy-card img {
-  max-height: 100px;
-  max-width: 100%;
-}
-
+/* Wave selector pips. */
 .wave-button {
-  margin: 0.5em;
+  margin: 0.4em;
   display: inline-block;
   cursor: pointer;
+  position: relative;
+  border-radius: 50%;
+  transition: transform 0.12s ease, filter 0.12s ease;
 }
+
+.wave-button:hover {
+  transform: scale(1.08);
+  filter: brightness(1.15);
+}
+
 .wave-button img {
   width: 42px;
+  border-radius: 50%;
 }
+
 .wave-current {
-  position: absolute; 
-  transform: scale(0.7)
+  position: absolute;
+  transform: scale(0.7);
+  pointer-events: none;
 }

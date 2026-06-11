@@ -35,7 +35,8 @@ export interface Zone {
 export interface World {
   id: string;
   title: string;       // display name (loc id, resolve with t())
-  img: string;         // image key
-  type: string;        // 'story' | 'event' | 'training' | 'sanctum' | ...
+  img: string;         // square icon key
+  banner?: string;     // wide banner key (permanent events only)
+  type: string;        // 'story' | 'current' | 'permanent' | 'past' | 'sanctum' | ...
   zones: Zone[];
 }

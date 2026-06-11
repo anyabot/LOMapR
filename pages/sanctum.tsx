@@ -19,7 +19,7 @@ import {
   Button,
   Center,
   Select,
-  Circle,
+  IconButton,
   HStack,
   VStack,
   Text,
@@ -61,6 +61,17 @@ export default function Home() {
       }
     }
   }, [sanctum, floorData, wave]);
+
+  // shared style for segmented toggle buttons (area / difficulty): subtle yellow
+  // when active, plain gray outline otherwise — matches the rest of the UI.
+  const toggleProps = (active: boolean) => ({
+    size: 'sm' as const,
+    variant: 'outline' as const,
+    bg: active ? 'whiteAlpha.100' : 'transparent',
+    color: active ? 'yellow.300' : 'gray.400',
+    borderColor: active ? 'yellow.400' : 'surface.border',
+    _hover: { bg: 'whiteAlpha.200' },
+  });
 
   function decreaseWave() {
     wave > 0 ? setWave(wave - 1) : null;
@@ -129,10 +140,8 @@ export default function Home() {
           >
             {Object.keys(sanctum).map((e, index) => (
               <Button
-                size="md"
                 key={e}
-                isActive={activeArea == e}
-                colorScheme="red"
+                {...toggleProps(activeArea == e)}
                 onClick={() => dispatch(setArea(e))}
               >
                 Sanctum {index + 1}
@@ -167,33 +176,16 @@ export default function Home() {
               justifyContent="space-evenly"
               margin="auto"
             >
-              <Button
-                size="md"
-                isActive={activeDiff == 0}
-                colorScheme="blue"
-                onClick={() => dispatch(setDiff(0))}
-              >
+              <Button {...toggleProps(activeDiff == 0)} onClick={() => dispatch(setDiff(0))}>
                 EASY
               </Button>
               {sanctum[activeArea][activeFloor]?.length >= 2 ? (
-                <Button
-                  size="md"
-                  isActive={activeDiff == 1}
-                  disabled={sanctum[activeArea][activeFloor]?.length < 2}
-                  colorScheme="blue"
-                  onClick={() => dispatch(setDiff(1))}
-                >
+                <Button {...toggleProps(activeDiff == 1)} onClick={() => dispatch(setDiff(1))}>
                   NORMAL
                 </Button>
               ) : null}
               {sanctum[activeArea][activeFloor]?.length >= 3 ? (
-                <Button
-                  size="md"
-                  isActive={activeDiff == 2}
-                  disabled={sanctum[activeArea][activeFloor]?.length < 3}
-                  colorScheme="blue"
-                  onClick={() => dispatch(setDiff(2))}
-                >
+                <Button {...toggleProps(activeDiff == 2)} onClick={() => dispatch(setDiff(2))}>
                   EXTREME
                 </Button>
               ) : null}
@@ -235,28 +227,14 @@ export default function Home() {
             flexWrap="wrap"
           >
           {waveData ? (
-            <HStack as={Center}>
-              <Circle
-                as={Button}
-                size="40px"
-                bg="red"
-                color="white"
-                isDisabled={wave == 0}
-                onClick={decreaseWave}
-              >
-                <ArrowLeftIcon />
-              </Circle>
+            <HStack as={Center} gap={[2, 4]}>
+              <IconButton aria-label="Previous wave" icon={<ArrowLeftIcon />}
+                isRound size="md" variant="outline" colorScheme="gray"
+                isDisabled={wave == 0} onClick={decreaseWave} />
               <EnemyGrid wave={waveData.e} />
-              <Circle
-                as={Button}
-                size="40px"
-                bg="red"
-                color="white"
-                isDisabled={wave == floorData!.waves.length - 1}
-                onClick={increaseWave}
-              >
-                <ArrowRightIcon />
-              </Circle>
+              <IconButton aria-label="Next wave" icon={<ArrowRightIcon />}
+                isRound size="md" variant="outline" colorScheme="gray"
+                isDisabled={wave == floorData!.waves.length - 1} onClick={increaseWave} />
             </HStack>
           ) : null}
 

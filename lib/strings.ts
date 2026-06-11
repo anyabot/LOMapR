@@ -17,48 +17,56 @@ export type Region = 'global' | 'kr';
 
 type StringTable = { [id: string]: { en?: string; ko?: string } };
 
-function tryRequire(region: Region, file: string): StringTable {
+function tryRequire(path: string): StringTable {
   try {
     // eslint-disable-next-line @typescript-eslint/no-var-requires, global-require
-    return require(`@/data/${region}/${file}`);
+    return require(`@/data/${path}`);
   } catch {
     return {};
   }
 }
 
+// Official game text per region.
 const official: Record<Region, StringTable> = {
-  global: tryRequire('global', 'strings.json'),
-  kr: tryRequire('kr', 'strings.json'),
+  global: tryRequire('global/strings.json'),
+  kr: tryRequire('kr/strings.json'),
 };
-const handTranslation: Record<Region, StringTable> = {
-  global: tryRequire('global', 'strings_old.json'),
-  kr: tryRequire('kr', 'strings_old.json'),
-};
+// Community translation overlay — a single SHARED, region-agnostic file from OLD.
+const community: StringTable = tryRequire('community_translation.json');
 
 let activeRegion: Region = 'global';
 export function setStringsRegion(region: Region) {
   activeRegion = region;
 }
 
+// 'community' prefers the OLD hand-translation overlay; 'official' uses only the
+// official in-game text. Set by the navbar toggle so t() call sites stay simple.
+let activeTranslation: 'community' | 'official' = 'community';
+export function setStringsTranslation(mode: 'community' | 'official') {
+  activeTranslation = mode;
+}
+
 // Resolve one localization id to text for the active region.
-//   lang    'en' | 'ko'
-//   useOld  when true, the hand-translation overlay wins over official text.
-// Unknown ids pass through unchanged (already-resolved strings, or untranslated).
-export function t(
-  value: string | undefined | null,
-  lang: Lang = 'en',
-  useOld = false,
-): string {
+//   lang   'en' | 'ko'
+//
+// Precedence depends on the active translation mode (navbar toggle):
+//   'community' (default): OLD hand-translation overlay FIRST, then official.
+//   'official':            official game text only.
+// Korean always uses official text (OLD has no KO). Unknown ids pass through.
+export function t(value: string | undefined | null, lang: Lang = 'en'): string {
   if (value == null) return '';
 
-  if (useOld) {
-    const o = handTranslation[activeRegion][value];
-    const ot = o?.[lang] ?? o?.en;
-    if (ot) return ot;
+  if (activeTranslation === 'community' && lang === 'en') {
+    const o = community[value];
+    if (o?.en) return o.en;
   }
 
   const e = official[activeRegion][value];
-  if (e) return e[lang] ?? e.en ?? value;
+  if (e) {
+    // requested language -> English -> Korean fallback. Never surface the raw
+    // localization id when KO text exists for it.
+    return e[lang] || e.en || e.ko || value;
+  }
 
-  return value; // pass-through: already text, or no translation yet
+  return value; // not a known id: pass through (already-resolved text)
 }

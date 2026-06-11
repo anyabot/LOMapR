@@ -1,8 +1,8 @@
-import styles from "@/styles/custom.module.css";
-import { TabPanel, Text, Image, Badge, Box, Tooltip } from "@chakra-ui/react";
+import { TabPanel, Text, Image, Box, Flex, VStack, HStack, Tag, Wrap, WrapItem } from "@chakra-ui/react";
 import { Skill } from "@/interfaces/skill";
 import { t } from "@/lib/strings";
 import EffectTooltip from "./effectTooltip";
+import SkillArea from "./skillArea";
 import { useCallback } from "react";
 
 const keyword = (count: number, e: string) => {
@@ -663,7 +663,7 @@ const keyword = (count: number, e: string) => {
       return <EffectTooltip label="Max Action Count +5" count={count} e={e} icon="Max_Action Count_Up" type="buff"/>
     default:
       return (
-        <Text as="b" bg="gray.300" p={0.5} rounded={6} key={count}>
+        <Text as="b" bg="gray.300" color="gray.800" px={1} py={0.5} rounded={6} key={count}>
           {e}
         </Text>
       );
@@ -684,19 +684,23 @@ export default function SkillTab({
   const splitTag = (str: string) => {
     var count = 0;
     let r = str
-      .split(/(<li>.+?<\/li>|<[^<]+?>|<br>|<br\/>|<br \/>)/)
+      .split(/(<li>.+?<\/li>|<[^<]+?>|\[[^\]]+?\]|<br>|<br\/>|<br \/>)/)
       .map((e) => {
         if (e.match(/<li>(.+?)<\/li>/)) {
           let liContent = e.replace(/<li>(.+?)<\/li>/, "$1")
           return <li key={count++}>{splitTag(liContent)}</li>;
         }
-          
+
         else if (e.match(/<br>|<br\/>|<br \/>/)) return <br key={count++} />;
-        else if (e.match(/<[^<]+?>/)) {
-          count++
-          return keyword(count - 1, e.replace(/<([^<]+?)>/, "$1"));
+        else if (e.match(/^<[^<]+?>$/)) {
+          // <keyword> -> plain emphasised text (chip/icon highlight removed)
+          return <b key={count++}>{e.replace(/<([^<]+?)>/, "$1")}</b>;
         }
-          
+        else if (e.match(/^\[[^\]]+?\]$/)) {
+          // [skill / effect reference] -> highlighted in the accent color
+          return <Text as="b" color="yellow.300" key={count++}>{e}</Text>;
+        }
+
         else return e;
       });
     return r;
@@ -724,84 +728,75 @@ export default function SkillTab({
     return r;
   }
 
-  function checkstyle(loc: number) {
-    var bg_color = "rgb(45, 45, 45)";
-    var cen_color = "rgb(22, 155, 155)";
-    let cur_color;
-    if (loc == skill.center) {
-      cur_color = cen_color;
-    } else {
-      cur_color = bg_color;
-    }
-    let color;
-    if (skill.area[loc - 1] == 0) {
-      color = "rgba(0, 0, 0, 0)";
-    } else {
-      color =
-        "rgb(200, " +
-        Math.round(((200 - 128) / 0.5) * (skill.area[loc - 1] - 0.5) + 128) +
-        ", 0)";
-    }
-    return {
-      backgroundImage: `linear-gradient(to right, ${color}, ${color}), linear-gradient(to right, ${cur_color}, ${cur_color})`,
-    };
-  }
+  const hasArea = skill.area.some((v) => v > 0);
 
   return (
-    <TabPanel key={skill.title}>
-      <Box
-        display="flex"
-        justifyContent="center"
-        float="right"
-        p={[1, 1, 2, 3, 4]}
-        flexDirection={{ base: "column-reverse", md: "row" }}
+    <TabPanel key={skill.title} px={0} py={3}>
+      <Flex
+        gap={4}
+        align="flex-start"
+        minH="180px"
+        direction={{ base: "column", md: "row" }}
       >
-        {skill.range || skill.AP ? (
-          <Box p={[0, 0, 2, 4, 4]}>
-            <Text as="b" fontSize={["sm", "sm", "md", "md", "lg"]}>
-              Range: {skill.range}
-            </Text>
-            <br />
-            <Text as="b" fontSize={["sm", "sm", "md", "md", "lg"]}>
-              AP Cost: {skill.AP}
-            </Text>
-          </Box>
+        {/* left: name + description */}
+        <Box flex={1} minW={0}>
+          <Text as="b" fontSize={["lg", "lg", "xl"]}>
+            <Image
+              alt={skill.attr ? skill.attr : "normal"}
+              src={`/images/${skill.attr ? skill.attr : "normal"}.png`}
+              boxSize={{ base: "16px", md: "18px" }}
+              display="inline"
+              mr={2}
+            />
+            {t(skill.name)}
+          </Text>
+
+          {/* property badges */}
+          {skill.accuracy || skill.guardPierce || (skill.center === 0 && hasArea) ? (
+            <Wrap mt={2} spacing={2}>
+              {skill.accuracy ? (
+                <WrapItem>
+                  <Tag size="sm" colorScheme="green" variant="solid" borderRadius="full">
+                    ACC Correction {skill.accuracy > 0 ? '+' : ''}{skill.accuracy}%
+                  </Tag>
+                </WrapItem>
+              ) : null}
+              {skill.guardPierce ? (
+                <WrapItem>
+                  <Tag size="sm" colorScheme="red" variant="solid" borderRadius="full">Ignore Protect</Tag>
+                </WrapItem>
+              ) : null}
+              {skill.center === 0 && hasArea ? (
+                <WrapItem>
+                  <Tag size="sm" colorScheme="purple" variant="solid" borderRadius="full">Fixed Grid</Tag>
+                </WrapItem>
+              ) : null}
+            </Wrap>
+          ) : null}
+
+          <Text fontSize={["sm", "md"]} mt={2} color="gray.300">
+            {renderDescription()}
+          </Text>
+        </Box>
+
+        {/* right: AoE grid + stats */}
+        {hasArea || skill.range || skill.AP ? (
+          <VStack
+            spacing={2}
+            flexShrink={0}
+            align="center"
+            alignSelf={{ base: "center", md: "flex-start" }}
+          >
+            {hasArea ? <SkillArea area={skill.area} center={skill.center} /> : null}
+            {skill.range || skill.AP ? (
+              <HStack spacing={2}>
+                <Tag size="sm" colorScheme="teal" variant="subtle" borderRadius="full">Range {skill.range}</Tag>
+                <Tag size="sm" colorScheme="blue" variant="subtle" borderRadius="full">AP {skill.AP}</Tag>
+              </HStack>
+            ) : null}
+          </VStack>
         ) : null}
-        <table className={styles["skill-area"]}>
-          <tbody>
-            <tr>
-              <td style={checkstyle(7)}></td>
-              <td style={checkstyle(8)}></td>
-              <td style={checkstyle(9)}></td>
-            </tr>
-            <tr>
-              <td style={checkstyle(4)}></td>
-              <td style={checkstyle(5)}></td>
-              <td style={checkstyle(6)}></td>
-            </tr>
-            <tr>
-              <td style={checkstyle(1)}></td>
-              <td style={checkstyle(2)}></td>
-              <td style={checkstyle(3)}></td>
-            </tr>
-          </tbody>
-        </table>
-      </Box>
-      <Text as="b" fontSize={["xl", "xl", "2xl", "2xl", "3xl"]}>
-        <Image
-          alt={skill.attr ? skill.attr : "normal"}
-          src={`/images/${skill.attr ? skill.attr : "normal"}.png`}
-          boxSize={{ base: "15px", md: "20px" }}
-          display="inline"
-          m={2}
-        />
-        {t(skill.name)}
-      </Text>
-      {
-        <Text fontSize={["md", "md", "lg", "lg", "xl"]}>
-          {renderDescription()}
-        </Text>
-      }
+      </Flex>
     </TabPanel>
   );
 }

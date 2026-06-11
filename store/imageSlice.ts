@@ -1,5 +1,6 @@
 import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { RootState, AppThunk } from '../store';
+import { setRegion } from './regionSlice';
 
 export interface ImageState {
   imagelink: {[key: string]: string};
@@ -18,7 +19,8 @@ export const fetchImageAsync = createAsyncThunk<{[key: string]: string}, void, {
       return thunkApi.getState().image.imagelink
     }
     try {
-      const response = await fetch(`/api/images`).then(res => res.json())
+      const region = thunkApi.getState().region.region;
+      const response = await fetch(`/api/images?region=${region}`).then(res => res.json())
       return response ? response : null
     }
     catch {
@@ -46,6 +48,11 @@ export const ImageSlice = createSlice({
       })
       .addCase(fetchImageAsync.rejected, (state) => {
         state.status = 'failed';
+      })
+      // images differ per region (KR has its own world icons); refetch on switch
+      .addCase(setRegion, (state) => {
+        state.imagelink = {};
+        state.status = 'idle';
       })
   },
 });

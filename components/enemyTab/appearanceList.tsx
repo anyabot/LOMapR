@@ -5,6 +5,7 @@ import Link from 'next/link';
 
 import { useAppSelector, useAppDispatch } from '@/hooks';
 import { selectWorld, selectWorldStatus, fetchWorldAsync } from '@/store/worldSlice';
+import { t } from '@/lib/strings';
 import Apperance from './appearance';
 
 export default function ApperanceList({used, usedSanctum} : {used: {[key: string]: [number, string][]}, usedSanctum:boolean}) {
@@ -21,12 +22,12 @@ export default function ApperanceList({used, usedSanctum} : {used: {[key: string
   }
   return (
     <Card align='center'>
-      <CardHeader bg="gray.300" w="100%" display="flex" flexDirection="column" alignItems="center"><Heading size='md'>Appeared In</Heading></CardHeader>
+      <CardHeader bg="surface.elevated" w="100%" display="flex" flexDirection="column" alignItems="center" borderTopRadius="xl"><Heading size='md'>Appeared In</Heading></CardHeader>
       <CardBody w="90%" display="flex" alignItems="center" flexDirection="column">
       {
         used ? Object.keys(used).map((e, index) => (world[e]?.title ? 
         <Box key={e} display="flex" alignItems="center" flexDirection="column" w="100%">
-          <Apperance ev={e} name={world[e].title} used={used[e]} />
+          <Apperance ev={e} name={t(world[e].title)} used={used[e]} />
           {index != Object.keys(used).length - 1 || usedSanctum ? <Divider/> : null}
         </Box>
         : null)) : null
@@ -43,7 +44,7 @@ export default function ApperanceList({used, usedSanctum} : {used: {[key: string
               variant='solid'
               colorScheme='blue'
               as={Link}
-              href={`sanctum`}
+              href="/sanctum"
             >
               <TagLabel>Sanctum of Alteration</TagLabel>
               <LinkIcon ml={1}/>

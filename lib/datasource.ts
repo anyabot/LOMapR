@@ -20,6 +20,7 @@ const NODE_TO_FILE: { [node: string]: string } = {
   Images: 'images',
   EnemyImage: 'enemyImage',
   InfiniteWar: 'iw',
+  AI: 'ai',
 };
 
 export const REGIONS = ['global', 'kr'] as const;
@@ -47,9 +48,19 @@ function readFile(region: Region, file: string): any | null {
 function readLocal(node: string, region: Region): any | null {
   const file = NODE_TO_FILE[node];
   if (!file) return null;
-  // Fall back to global for shared nodes a region doesn't generate (e.g. images
-  // are the same Firebase storage links across regions).
-  return readFile(region, file) ?? (region !== 'global' ? readFile('global', file) : null);
+
+  const local = readFile(region, file);
+  if (region === 'global') return local;
+
+  const global = readFile('global', file);
+  // Images: MERGE region over global — a region only generates its own world
+  // icons, but still needs global's enemy/profile images (and Firebase world
+  // links). Region keys win so KR's local world icons override.
+  if (node === 'Images' && global && local) {
+    return { ...global, ...local };
+  }
+  // Other nodes: region data if present, else fall back to global.
+  return local ?? global;
 }
 
 // Read a node from Firebase (live mode). Imported lazily so local dev never
