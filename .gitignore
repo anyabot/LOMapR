@@ -28,6 +28,13 @@ yarn-error.log*
 # local env files
 .env*.local
 
+# LOCAL-ONLY: extraction toolchain, generated data, and Firebase reference
+# exports are sensitive (extraction can enable cheating) and must never be
+# committed. Kept strictly on local machines.
+/tools/
+/data/
+/OLD/
+
 # vercel
 .vercel
 

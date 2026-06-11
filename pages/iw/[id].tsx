@@ -17,17 +17,19 @@ import {
   InputGroup,
   InputLeftAddon,
   InputRightAddon,
-  Flex, 
+  Flex,
   Center,
-  HStack, Input, Button
+  HStack, Input, Button, VStack, Heading, Spinner,
 } from "@chakra-ui/react";
+import { ArrowBackIcon } from "@chakra-ui/icons";
+import Link from "next/link";
 import Head from "next/head";
 import { useRouter } from "next/router";
-import Error from "next/error";
 import SkillTabList from "@/components/enemyTab/skillTabList";
 import { selectEnemy, fetchEnemyAsync } from "@/store/enemySlice";
 import { EnemyData } from "@/interfaces/enemy";
 import { useNumberInput } from "@chakra-ui/react";
+import { t } from "@/lib/strings";
 import styles from "@/styles/custom.module.css";
 
 export default function Home() {
@@ -61,6 +63,11 @@ export default function Home() {
   useEffect(() => {
     setRealEnemy(enemy[activeEnemy]);
   }, [enemy, activeEnemy]);
+  // clamp stage when switching to a boss (or region) with fewer stages
+  useEffect(() => {
+    const b = iw.bosses[id];
+    if (b && stage > b.length - 1) setStage(b.length - 1);
+  }, [iw, id, stage]);
   useEffect(() => {
     iw.bosses[id]
       ? iw.bosses[id][stage]
@@ -90,10 +97,16 @@ export default function Home() {
 
 
   function validStage(s: number) {
-    s >= 1 ? s <= iw.bosses[id].length ? setStage(s - 1)  : setStage(iw.bosses[id].length - 1) : setStage(0) 
+    const b = iw.bosses[id];
+    if (!b) return;
+    if (s < 1) setStage(0);
+    else if (s <= b.length) setStage(s - 1);
+    else setStage(b.length - 1);
   }
   function validPhase(s: number) {
-    s <= iw.bosses[id][stage].phase.length - 1 ? setPhase(s)  : setPhase(iw.bosses[id][stage].phase.length - 1) 
+    const st = iw.bosses[id]?.[stage];
+    if (!st) return;
+    setPhase(s <= st.phase.length - 1 ? s : st.phase.length - 1);
   }
   function getImage(id: string) {
     return imagelink[id] ? imagelink[id] : undefined;
@@ -107,19 +120,26 @@ export default function Home() {
         <h1>Fetch Failed</h1>
       </>
     );
-  } else if (iw.seasons.length === 0) {
+  } else if (iw.seasons.length === 0 || !id) {
     return (
       <>
-        <Head>
-          <title>Infinite War List</title>
-        </Head>
-        <h1>Loading</h1>
+        <Head><title>Infinite War</title></Head>
       </>
     );
   } else if (!(id in iw.bosses)) {
+    // e.g. switched region to one that doesn't have this boss — don't 404, offer
+    // a way back to the list for the active region.
     return (
       <>
-        <Error statusCode={404} />
+        <Head><title>Infinite War</title></Head>
+        <Center py={20}>
+          <VStack spacing={4}>
+            <Text color="gray.400">This raid boss isn&apos;t available in the selected region.</Text>
+            <Button as={Link} href="/iw" leftIcon={<ArrowBackIcon />} colorScheme="gray" variant="outline">
+              Back to Infinite War
+            </Button>
+          </VStack>
+        </Center>
       </>
     );
   } else {
@@ -133,44 +153,92 @@ export default function Home() {
     return (
       <>
         <Head>
-          <title>Raid Boss {realEnemy ? ` - ${realEnemy.name}` : null}</title>
+          <title>Raid Boss {realEnemy ? ` - ${t(realEnemy.name)}` : ""}</title>
         </Head>
         {realEnemy ? (
-          <>
-            <HStack maxW="450px" margin="auto">
-              <Button {...dec}>-</Button>
-              <InputGroup as={Center} display="flex">
-                <InputLeftAddon>Stage</InputLeftAddon>
-                <Input {...input} 
-                
-                min={1}
-                max={boss.length}/>
-                <InputRightAddon> {`/ ${boss.length}`}</InputRightAddon>
-              </InputGroup>
-              <Button {...inc}>+</Button>
-            </HStack>
+          <VStack align="stretch" spacing={4} py={4}>
+            <Button as={Link} href="/iw" leftIcon={<ArrowBackIcon />} colorScheme="gray" variant="outline" size="sm" alignSelf="start">
+              Back
+            </Button>
+            <Heading size="xl" textAlign="center">{t(realEnemy.name)}</Heading>
+            <Center>
+              <HStack maxW="520px" margin="auto">
+                <Button size="sm" variant="outline" colorScheme="gray" onClick={() => setStage(0)} isDisabled={stage === 0}>« Min</Button>
+                <Button {...dec}>-</Button>
+                <InputGroup as={Center} display="flex">
+                  <InputLeftAddon bg="surface.border" color="white" borderColor="surface.border">Stage</InputLeftAddon>
+                  <Input {...input} textAlign="center" borderColor="surface.border" min={1} max={boss.length}/>
+                  <InputRightAddon bg="surface.border" color="white" borderColor="surface.border">{`/ ${boss.length}`}</InputRightAddon>
+                </InputGroup>
+                <Button {...inc}>+</Button>
+                <Button size="sm" variant="outline" colorScheme="gray" onClick={() => setStage(boss.length - 1)} isDisabled={stage === boss.length - 1}>Max »</Button>
+              </HStack>
+            </Center>
             <Divider/>
             <Center>
-              <Flex flexWrap={"wrap"} justifyContent="center" margin="auto" gap={{base: '1', md: '2'}}>
-                {boss[stage].phase.map((e, index) => (<Button key={index} isActive={phase == index} colorScheme="red" onClick={() => validPhase(index)}><>Phase {index + 1}{e.damage > 0 ? <><br/> {`${e.damage} DMG`}</> : null }</></Button>))}
+              <Flex flexWrap="wrap" justifyContent="center" margin="auto" gap={2}>
+                {boss[stage].phase.map((e, index) => {
+                  const active = phase === index;
+                  return (
+                    <Button
+                      key={index}
+                      onClick={() => validPhase(index)}
+                      size="sm"
+                      h="auto"
+                      py={2}
+                      px={4}
+                      minW="110px"
+                      flexDirection="column"
+                      variant="outline"
+                      bg={active ? 'whiteAlpha.100' : 'transparent'}
+                      color={active ? 'yellow.300' : 'gray.400'}
+                      borderWidth="1px"
+                      borderColor={active ? 'yellow.400' : 'surface.border'}
+                      _hover={{ bg: 'whiteAlpha.200', borderColor: active ? 'yellow.400' : 'gray.500' }}
+                    >
+                      <Text fontWeight="bold">Phase {index + 1}</Text>
+                      <Text fontSize="xs" opacity={0.85} fontWeight="normal">
+                        {e.damage > 0 ? `${e.damage.toLocaleString()} DMG` : 'Final'}
+                      </Text>
+                    </Button>
+                  );
+                })}
               </Flex>
             </Center>
             <Divider/>
-            <SimpleGrid columns={[1, 1, 2]}>
+            <SimpleGrid columns={[1, 1, 2]} spacing={4}>
               <Box
                 display="flex"
                 justifyContent="center"
                 flexDirection="column"
+                alignItems="center"
               >
-                <Image
-                  src={getImage(realEnemy.img)}
-                  fallbackSrc="https://via.placeholder.com/128"
-                  margin="auto"
-                  maxW="128px"
-                  alt={realEnemy.img}
-                ></Image>
-                <TableContainer bg="darkgray" className={styles["stat-table"]}>
-                  <Table variant="simple">
+                {getImage(realEnemy.img) ? (
+                  <Image
+                    src={getImage(realEnemy.img)}
+                    boxSize="120px"
+                    objectFit="cover"
+                    borderRadius="lg"
+                    borderWidth="1px"
+                    borderColor="surface.border"
+                    alt={realEnemy.img}
+                  ></Image>
+                ) : (
+                  <Center
+                    boxSize="120px"
+                    borderRadius="lg"
+                    borderWidth="1px"
+                    borderColor="surface.border"
+                    bg="blackAlpha.400"
+                    color="gray.500"
+                    fontSize="3xl"
+                    fontWeight="bold"
+                  >
+                    ?
+                  </Center>
+                )}
+                <TableContainer w="100%" className={styles["stat-table"]}>
+                  <Table variant="simple" size="sm">
                     <Tbody>
                       <Tr>
                         <Th>Type</Th>
@@ -193,9 +261,9 @@ export default function Home() {
                 justifyContent="center"
                 flexDirection="column"
               >
-                <Text as="b" fontSize="2xl">Lv. {realLevel}</Text>
-                <TableContainer bg="darkgray" className={styles["stat-table"]}>
-                  <Table variant="simple">
+                <Text as="b" fontSize="lg" mb={1}>Lv. {realLevel}</Text>
+                <TableContainer w="100%" className={styles["stat-table"]}>
+                  <Table variant="simple" size="sm">
                     <Tbody>
                       <Tr>
                         <Th>
@@ -338,10 +406,11 @@ export default function Home() {
               atk={Math.floor(
                 realEnemy.ATK[0] + realEnemy.ATK[1] * (realLevel - 1)
               )}
-              info={realEnemy.info}
+              info={t(realEnemy.info)}
               rank={realEnemy.rank}
+              enemyId={activeEnemy}
             />
-          </>
+          </VStack>
         ) : null}
       </>
     );

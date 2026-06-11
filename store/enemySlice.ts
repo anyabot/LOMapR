@@ -1,6 +1,7 @@
 import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { RootState, AppThunk } from '../store';
 import { EnemyData } from '@/interfaces/enemy';
+import { setRegion } from './regionSlice';
 
 
 export interface EnemyState {
@@ -14,7 +15,7 @@ const initialState: EnemyState = {
   enemy: {},
   active: "",
   level: 1,
-  status: 'idle',
+  status: 'loading',
 };
 
 export const fetchEnemyAsync = createAsyncThunk<{[key: string]: EnemyData}, void, {state: RootState}>(
@@ -26,7 +27,8 @@ export const fetchEnemyAsync = createAsyncThunk<{[key: string]: EnemyData}, void
     }
     else {
       try {
-        const response = await fetch("/api/enemy").then(res => res.json())
+        const region = thunkApi.getState().region.region;
+        const response = await fetch(`/api/enemy?region=${region}`).then(res => res.json())
         return response ? response : {}
       }
       catch {
@@ -55,9 +57,15 @@ export const EnemySlice = createSlice({
       })
       .addCase(fetchEnemyAsync.fulfilled, (state, action) => {
         state.enemy = action.payload
+        state.status = 'idle';
       })
       .addCase(fetchEnemyAsync.rejected, (state) => {
         state.status = 'failed';
+      })
+      // switching region invalidates cached data so it refetches for the new region
+      .addCase(setRegion, (state) => {
+        state.enemy = {};
+        state.status = 'loading';
       })
   },
 });

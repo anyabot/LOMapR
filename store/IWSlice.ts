@@ -1,6 +1,7 @@
 import { createAsyncThunk, createSlice, isRejectedWithValue, PayloadAction } from '@reduxjs/toolkit';
 import { RootState, AppThunk } from '../store';
 import { InfiniteWar } from '@/interfaces/iw';
+import { setRegion } from './regionSlice';
 
 export interface IWState {
   value: InfiniteWar;
@@ -9,7 +10,7 @@ export interface IWState {
 
 const initialState: IWState = {
   value: {seasons:[], bosses: {}},
-  status: 'idle',
+  status: 'loading',
 };
 
 export const fetchIWAsync = createAsyncThunk<InfiniteWar, void, {state: RootState}>(
@@ -21,7 +22,7 @@ export const fetchIWAsync = createAsyncThunk<InfiniteWar, void, {state: RootStat
     }
     else {
       try {
-        const response = await fetch("/api/iw").then(res => res.json())
+        const response = await fetch(`/api/iw?region=${thunkApi.getState().region.region}`).then(res => res.json())
         return response ? response : {seasons:[], bosses: {}}
       }
       catch {
@@ -47,10 +48,15 @@ export const IWSlice = createSlice({
       })
       .addCase(fetchIWAsync.fulfilled, (state, action) => {
         state.value = action.payload;
+        state.status = 'idle';
       })
       .addCase(fetchIWAsync.rejected, (state, action) => {
         state.value = {seasons:[], bosses: {}};
         state.status = 'failed';
+      })
+      .addCase(setRegion, (state) => {
+        state.value = {seasons:[], bosses: {}};
+        state.status = 'loading';
       })
   },
 });

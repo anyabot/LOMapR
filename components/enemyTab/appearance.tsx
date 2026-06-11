@@ -19,17 +19,16 @@ export default function Apperance({name, ev, used} : {name:string, ev:string, us
   return (
     <>
     <Text align="center" as="b" fontSize='lg'>{name}</Text>
-    <Box>
-      {used.map(e => ( 
+    <Box display="flex" flexWrap="wrap" justifyContent="center" gap={2} py={2} w="100%">
+      {used.map((e, i) => (
         <Tag
-          m={1}
           size="md"
-          key={e[1]}
+          key={`${e[1]}-${e[0]}-${i}`}
           borderRadius='full'
           variant='solid'
           colorScheme='blue'
           as={Link}
-          href={`world/${ev}/${e[0]}/${e[1]}`}
+          href={`/world/${ev}/${e[0]}/${encodeURIComponent(e[1])}`}
         >
           <TagLabel>{e[1]}</TagLabel>
           <LinkIcon ml={1} />

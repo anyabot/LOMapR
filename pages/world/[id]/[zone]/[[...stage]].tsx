@@ -1,13 +1,16 @@
 import { useAppSelector, useAppDispatch } from '@/hooks';
 import { selectWorld, fetchWorldAsync } from '@/store/worldSlice';
 import { Stage, Zone } from '@/interfaces/world';
+import { t } from '@/lib/strings';
 import { useEffect, useState, useLayoutEffect } from 'react';
 import { useRouter } from 'next/router'
 import EnemyGrid from '@/components/enemyGrid'
+import StageGrid from '@/components/stageGrid'
+import CopyLink from '@/components/copyLink'
 import Error from 'next/error';
 import Link from 'next/link';
 import styles from "@/styles/custom.module.css"
-import { Grid, GridItem, Box, Image, VStack, HStack, Center, Tag, Text, Divider, Circle, Button } from '@chakra-ui/react';
+import { Box, Image, VStack, HStack, Center, Tag, Text, Badge, Heading, Divider, IconButton, Button, ButtonGroup } from '@chakra-ui/react';
 import { ArrowLeftIcon, ArrowRightIcon, ArrowBackIcon } from '@chakra-ui/icons';
 import Head from 'next/head';
 
@@ -27,6 +30,7 @@ export default function Home() {
   const [currStage, setCurrStage] = useState(stage)
   const [realCurrStage, setRealCurrStage] = useState<Stage | undefined | null>(null)
   const [currWave, setCurrWave] = useState(0)
+  const [currSubzone, setCurrSubzone] = useState(0)
 
   useEffect(() => setCurrStage(stage), [stage])
   useEffect(() => {
@@ -35,69 +39,44 @@ export default function Home() {
   useEffect(() => {
     realZone ? setRealCurrStage(findStage()) : null
   }, [realZone, currStage]);
+  // when a specific stage is requested (e.g. from an appearance link), switch to
+  // the subzone that contains it.
+  useEffect(() => {
+    if (realZone?.subzones && currStage) {
+      const idx = realZone.subzones.findIndex(
+        sz => sz.some(s => s.title.toLowerCase() === currStage.toLowerCase())
+      )
+      if (idx >= 0) setCurrSubzone(idx)
+    }
+  }, [realZone, currStage]);
   useLayoutEffect(() => {
     if (currWave && realCurrStage) {
       currWave >= 0 ? null : setCurrWave(0)
-      currWave <= realCurrStage!.wave.length - 1 ? null : setCurrWave(realCurrStage!.wave.length - 1)
+      currWave <= realCurrStage!.waves.length - 1 ? null : setCurrWave(realCurrStage!.waves.length - 1)
     }
   }, [realCurrStage, currWave])
 
-  const defaultMapType = ["B", "Main", "EX"]
-  const defaultFloat: Array<"right"| "left"> = ["right", "left"]
+  // all stages in the zone (flat list or flattened subzones), for lookup
+  function allStages(z: Zone): Stage[] {
+    return z.subzones ? z.subzones.flat() : z.stages
+  }
   function findStage() {
     if (realZone) {
-      if (realZone.multiple) {
-        for (var sz of realZone.subzones) {
-          var nextStage = sz.find(e => e.title.toLowerCase() == currStage.toLowerCase());
-          if (nextStage) return nextStage;
-        }
-        return null;
-      }
-      else return realZone.stages.find(e => e.title.toLowerCase() == currStage.toLowerCase())
+      return allStages(realZone).find(e => e.title.toLowerCase() == currStage.toLowerCase())
     }
     return null
-  }
-
-  function makeGrid(stages: Stage[], height: number, width: number) {
-    let a = [...Array(height)].map(e => Array(width));
-    stages.forEach(s => {
-      let [col, row] = s.grid;
-      a[row][col] = s
-    })
-    let ret = []
-    for (let i = 0; i < height; i++) {
-      for (let j = 0; j < width; j++) {
-        let cell = a[i][j]
-        cell 
-        ? ret.push(
-          <GridItem onClick={() => setCurrStage(cell!.title)} key={`${i}-${j}`}>
-            <Box float={defaultFloat[i % 2]} as={VStack} gap={0}>
-              <Image src={`/images/${cell.type ? cell.type : defaultMapType[i]} Stage.png`} alt={cell.type ? cell.type : defaultMapType[i]}/>
-              <Text w="100%" p={1} className={cell.title == currStage ? styles["active-stage"] : undefined}>{cell.title}</Text>
-            </Box>
-          </GridItem>) 
-        : ret.push(<GridItem key={`${i}-${j}`}></GridItem>)
-      }
-    }
-
-    return (
-      <Grid templateRows={`repeat(${height}, 1fr)`} templateColumns={`repeat(${width}, minmax(128px, 1fr))`} p={1} bg="blackAlpha.800" color="yellow.400" w="100%" overflowX="auto">
-        {ret}
-      </Grid>
-    )
   }
   function decreaseWave() {
     currWave > 0 ? setCurrWave(currWave - 1) : null
   }
   function increaseWave() {
-    currWave < realCurrStage!.wave.length - 1 ? setCurrWave(currWave + 1) : null
+    currWave < realCurrStage!.waves.length - 1 ? setCurrWave(currWave + 1) : null
   }
   if (Object.keys(world).length === 0 || !id || !zone) {
     return (<>
       <Head>
         <title>Stage List</title>
       </Head>
-      <h1>Loading</h1>
     </>)
   }
   else if (!(id in world) || !(real_zone_index in world[id].zones)) {
@@ -107,45 +86,138 @@ export default function Home() {
   }
   else {
     let z = world[id].zones[real_zone_index]
-    let [width, height] = z.gridsize
+    const subzones: Stage[][] | null = z.subzones ?? null
+    const sub = Math.min(currSubzone, (subzones?.length ?? 1) - 1)
+    const shownStages: Stage[] = subzones ? subzones[sub] : z.stages
 
     return (
       <>
       <Head>
-        <title>{z.title}</title>
+        <title>{t(z.title)}</title>
       </Head>
-      <Button as={Link} href={`/world/${id}`} leftIcon={<ArrowBackIcon />} colorScheme='blackAlpha' variant='solid'>
+      <VStack align="stretch" spacing={4} py={4}>
+        <Button as={Link} href={`/world/${id}`} leftIcon={<ArrowBackIcon />} colorScheme="gray" variant="outline" size="sm" alignSelf="start">
           Back
         </Button>
-        <h2>{z.title}</h2>
-        {
-          z.multiple ? z.subzones.map((sz, key) => <Box key={`subzone-${key}`} mb="5px">{makeGrid(sz, height, width)}</Box>)
-          : makeGrid(z.stages, height, width)
-        }
-        <Divider/>
-        {realCurrStage ? realCurrStage!.title ? <Tag variant='solid' colorScheme='teal' size="lg" p={4}>{`${realCurrStage.title}: ${realCurrStage.wave ? "Battle Stage" : "Story Stage"}`}</Tag> : null: null}
-        <VStack as={Center}>
-        {realCurrStage ? realCurrStage.wave ? <HStack >{realCurrStage.wave.map((e, index) => 
-          <div onClick={() => setCurrWave(index)} key={index} className={styles["wave-button"]}>
-            {index == currWave ? (<Image
-              src="/images/map-current.png"
-              alt="current-wave"
-              className={styles["wave-current"]}
-            />) : null}
-            <Image src="/images/profile/NightChick.png" alt={`wave-${index}`} />
-          </div>)}</HStack> : null : null}
-        {realCurrStage ? realCurrStage.wave 
-        ?<HStack as={Center} gap={8}>
-          <Circle as={Button} size='40px' bg='red' color='white' isDisabled={currWave == 0} onClick={decreaseWave}>
-            <ArrowLeftIcon />
-          </Circle>
-          {realCurrStage?.wave[currWave]?.enemylist && <EnemyGrid wave={realCurrStage.wave[currWave].enemylist}></EnemyGrid>}
-          <Circle as={Button} size='40px' bg='red' color='white' isDisabled={currWave == realCurrStage!.wave.length - 1} onClick={increaseWave}>
-            <ArrowRightIcon />
-          </Circle>
-        </HStack > 
-        : null: null}
-        </VStack>
+        <Heading size="xl">{t(z.title)}</Heading>
+
+        {/* subzone switcher (chapters 12/13) — show one sub-map at a time */}
+        {subzones && subzones.length > 1 ? (
+          <ButtonGroup isAttached size="sm" alignSelf="center" flexWrap="wrap" justifyContent="center">
+            {subzones.map((_, i) => (
+              <Button
+                key={i}
+                variant="outline"
+                bg={i === sub ? 'whiteAlpha.100' : 'transparent'}
+                color={i === sub ? 'yellow.300' : 'gray.400'}
+                borderColor={i === sub ? 'yellow.400' : 'surface.border'}
+                _hover={{ bg: 'whiteAlpha.200' }}
+                onClick={() => setCurrSubzone(i)}
+              >
+                Part {i + 1}
+              </Button>
+            ))}
+          </ButtonGroup>
+        ) : null}
+
+        <Box p={3} bg="surface.elevated" borderRadius="xl" borderWidth="1px" borderColor="surface.border" w="100%" overflowX="auto">
+          <StageGrid stages={shownStages} selected={currStage} onSelect={setCurrStage} />
+        </Box>
+
+        {realCurrStage ? (
+          <>
+            <Divider />
+            <VStack as={Center} spacing={4}>
+              {realCurrStage.title ? (
+                (() => {
+                  const isBattle = !!realCurrStage.waves.length;
+                  const SUBTYPE_ICON: Record<string, string> = {
+                    Side: '/images/Side Stage.png',
+                    Main: '/images/Main Stage.png',
+                    Ex: '/images/EX Stage.png',
+                    Story: '/images/Story Stage.png',
+                  };
+                  const icon = isBattle
+                    ? (SUBTYPE_ICON[realCurrStage.subtype] ?? SUBTYPE_ICON.Main)
+                    : SUBTYPE_ICON.Story;
+                  const hasName = realCurrStage.name && t(realCurrStage.name) !== realCurrStage.title;
+                  const shareLink = (
+                    <CopyLink
+                      path={`/world/${encodeURIComponent(id)}/${zone}/${encodeURIComponent(realCurrStage.title)}`}
+                    />
+                  );
+                  return (
+                    <HStack
+                      spacing={3}
+                      w="100%"
+                      maxW="container.md"
+                      bg="surface.elevated"
+                      borderWidth="1px"
+                      borderColor={isBattle ? 'teal.500' : 'surface.border'}
+                      borderRadius="2xl"
+                      px={4}
+                      py={2.5}
+                      boxShadow="0 4px 14px rgba(0,0,0,.35)"
+                    >
+                      <Image src={icon} alt={realCurrStage.subtype} boxSize="40px" objectFit="contain"
+                        filter="drop-shadow(0 2px 4px rgba(0,0,0,.5))" />
+                      <Box flex={1} minW={0}>
+                        <HStack spacing={2} align="center">
+                          <Heading size="md" lineHeight={1}>{realCurrStage.title}</Heading>
+                          <Badge
+                            colorScheme={isBattle ? 'teal' : 'purple'}
+                            variant="solid"
+                            borderRadius="full"
+                            px={2}
+                            textTransform="none"
+                            fontSize="0.7rem"
+                          >
+                            {isBattle ? 'Battle' : 'Story'}
+                          </Badge>
+                          {/* no separate name -> share sits next to the title */}
+                          {!hasName ? shareLink : null}
+                        </HStack>
+                        {hasName ? (
+                          <HStack spacing={2} align="center" mt={0.5}>
+                            <Text fontSize="sm" color="gray.400" noOfLines={1} flex={1} minW={0}>
+                              {t(realCurrStage.name)}
+                            </Text>
+                            {shareLink}
+                          </HStack>
+                        ) : null}
+                      </Box>
+                    </HStack>
+                  );
+                })()
+              ) : null}
+
+              {realCurrStage.waves.length ? (
+                <>
+                  <HStack spacing={2}>
+                    {realCurrStage.waves.map((e, index) => (
+                      <div onClick={() => setCurrWave(index)} key={index} className={styles['wave-button']}>
+                        {index == currWave ? (
+                          <Image src="/images/map-current.png" alt="current-wave" className={styles['wave-current']} />
+                        ) : null}
+                        <Image src="/images/profile/NightChick.png" alt={`wave-${index}`} />
+                      </div>
+                    ))}
+                  </HStack>
+                  <HStack as={Center} gap={[2, 4, 6]}>
+                    <IconButton aria-label="Previous wave" icon={<ArrowLeftIcon />}
+                      isRound size="md" variant="outline" colorScheme="gray"
+                      isDisabled={currWave == 0} onClick={decreaseWave} />
+                    {realCurrStage?.waves[currWave]?.enemies && <EnemyGrid wave={realCurrStage.waves[currWave].enemies} />}
+                    <IconButton aria-label="Next wave" icon={<ArrowRightIcon />}
+                      isRound size="md" variant="outline" colorScheme="gray"
+                      isDisabled={currWave == realCurrStage!.waves.length - 1} onClick={increaseWave} />
+                  </HStack>
+                </>
+              ) : null}
+            </VStack>
+          </>
+        ) : null}
+      </VStack>
       </>
     )
   }

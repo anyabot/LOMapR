@@ -1,10 +1,13 @@
-import { createAsyncThunk, createSlice, isRejectedWithValue, PayloadAction } from '@reduxjs/toolkit';
-import { RootState, AppThunk } from '../store';
+import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { RootState } from '../store';
 import { Floor } from '@/interfaces/sanctum';
+import { setRegion } from './regionSlice';
 
-export interface WorldState {
-  value: {[key: string]: Floor[][]};
-  imagelink: {[key: string]: string};
+// value: area key -> floors, each floor being an array of its difficulty variants.
+type SanctumData = { [area: string]: Floor[][] };
+
+export interface SanctumState {
+  value: SanctumData;
   status: 'idle' | 'loading' | 'failed';
   floorData?: Floor;
   activeArea: string;
@@ -12,16 +15,33 @@ export interface WorldState {
   activeDiff: number;
 }
 
-const initialState: WorldState = {
+const initialState: SanctumState = {
   value: {},
-  imagelink: {},
-  status: 'idle',
+  status: 'loading',
   activeArea: "EW01",
-  activeFloor: 1,
+  activeFloor: 0,
   activeDiff: 0,
 };
 
-export const fetchSanctumAsync = createAsyncThunk<{[key: string]: Floor[][]}, void, {state: RootState}>(
+// Clamp the active indices to what `value` actually contains and return the
+// matching Floor (or undefined if the area/floor/diff isn't present). Mutates
+// the (Immer draft) state's active* fields so they stay in range.
+function selectAndClamp(state: SanctumState): Floor | undefined {
+  const floors = state.value[state.activeArea];
+  if (!floors || floors.length === 0) return undefined;
+  if (state.activeFloor >= floors.length) state.activeFloor = floors.length - 1;
+  if (state.activeFloor < 0) state.activeFloor = 0;
+
+  const diffs = floors[state.activeFloor];
+  if (!diffs || diffs.length === 0) return undefined;
+  if (state.activeDiff >= diffs.length) state.activeDiff = diffs.length - 1;
+  if (state.activeDiff < 0) state.activeDiff = 0;
+
+  const floor = diffs[state.activeDiff];
+  return floor ? { ...floor } : undefined;
+}
+
+export const fetchSanctumAsync = createAsyncThunk<SanctumData, void, {state: RootState}>(
   'sanctum/fetch',
   async function (_, thunkApi)  {
     if (thunkApi.getState().sanctum.status == "failed") return {}
@@ -30,7 +50,7 @@ export const fetchSanctumAsync = createAsyncThunk<{[key: string]: Floor[][]}, vo
     }
     else {
       try {
-        const response = await fetch("/api/sanctum").then(res => res.json())
+        const response = await fetch(`/api/sanctum?region=${thunkApi.getState().region.region}`).then(res => res.json())
         return response ? response : {}
       }
       catch {
@@ -41,36 +61,21 @@ export const fetchSanctumAsync = createAsyncThunk<{[key: string]: Floor[][]}, vo
 );
 
 export const sanctumSlice = createSlice({
-  name: 'world',
+  name: 'sanctum',
   initialState,
   // The `reducers` field lets us define reducers and generate associated actions
   reducers: {
     setArea: (state, action: PayloadAction<string>) => {
       state.activeArea = action.payload;
-      if (state.activeFloor >= state.value[state.activeArea].length) {
-        state.activeFloor = state.value[state.activeArea].length - 1
-      }
-      if (state.activeDiff >= state.value[state.activeArea][state.activeFloor].length) {
-        state.activeDiff = state.value[state.activeArea][state.activeFloor].length - 1
-      }
-      state.floorData = {...state.value[state.activeArea][state.activeFloor][state.activeDiff]}
+      state.floorData = selectAndClamp(state);
     },
     setFloor: (state, action: PayloadAction<number>) => {
       state.activeFloor = action.payload;
-      if (state.activeFloor > state.value[state.activeArea].length) {
-        state.activeFloor = state.value[state.activeArea].length
-      }
-      if (state.activeDiff >= state.value[state.activeArea][state.activeFloor].length) {
-        state.activeDiff = state.value[state.activeArea][state.activeFloor].length - 1
-      }
-      state.floorData = {...state.value[state.activeArea][state.activeFloor][state.activeDiff]}
+      state.floorData = selectAndClamp(state);
     },
     setDiff: (state, action: PayloadAction<number>) => {
       state.activeDiff = action.payload;
-      if (state.activeDiff > state.value[state.activeArea][state.activeFloor].length) {
-        state.activeDiff = state.value[state.activeArea][state.activeFloor].length
-      }
-      state.floorData = {...state.value[state.activeArea][state.activeFloor][state.activeDiff]}
+      state.floorData = selectAndClamp(state);
     },
   },
   // The `extraReducers` field lets the slice handle actions defined elsewhere,
@@ -82,11 +87,19 @@ export const sanctumSlice = createSlice({
       })
       .addCase(fetchSanctumAsync.fulfilled, (state, action) => {
         state.value = action.payload;
-        state.floorData = {...state.value[state.activeArea][state.activeFloor][state.activeDiff]}
+        state.status = 'idle';
+        state.floorData = selectAndClamp(state);
       })
       .addCase(fetchSanctumAsync.rejected, (state, action) => {
         state.value = {};
         state.status = 'failed';
+      })
+      .addCase(setRegion, (state) => {
+        state.value = {};
+        state.status = 'loading';
+        state.floorData = undefined;
+        state.activeFloor = 0;
+        state.activeDiff = 0;
       })
   },
 });

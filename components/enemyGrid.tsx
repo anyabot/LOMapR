@@ -5,9 +5,10 @@ import { useAppSelector, useAppDispatch } from '@/hooks';
 import { setActive, fetchEnemyAsync, selectEnemy } from '@/store/enemySlice';
 import { selectImage, fetchImageAsync } from '@/store/imageSlice';
 import { Image, Text, Tag, Grid, GridItem } from '@chakra-ui/react';
+import { t } from '@/lib/strings';
 
 interface Props {
-  wave: EnemyIndex[]
+  wave: (EnemyIndex | null)[]
 }
 
 export default function EnemyGrid({wave}: Props) {
@@ -19,26 +20,66 @@ export default function EnemyGrid({wave}: Props) {
   }, [dispatch]);
   const details = useAppSelector(selectEnemy);
 
+  // fixed cell + image sizes so cells never reflow when an image loads late or a
+  // name is 1 vs 2 lines.
+  const cellW = ["84px", "104px", "128px", "140px", "150px"]
+  const cellH = ["112px", "132px", "156px", "168px", "178px"]
+  const imgSize = ["52px", "64px", "80px"]
+  // reserve exactly 2 lines for the name
+  const nameH = ["1.8em", "2.0em", "2.2em"]
+
   function makeGrid() {
     let ret: ReactNode[] = []
-    for (let index = 0; index < 9; index++){ 
-      let e = wave[index]
-      e ? details[e.id]? ret.push(
-      <GridItem p={[1, 2, 3, 4, 5]} key={index} w={["80px", "120px", "160px", "160px", "160px"]} bg='gray.400' className={styles["enemy-card"]} onClick={() => dispatch(setActive([e.id, e.lv]))}>
-        <Image src={imagelink[details[e.id].img]} alt={`${details[e.id].img}`} boxSize={["60px", "80px", "100px", "100px", "100px"]}/><br/>
-        <Text as="b" fontSize={["xs", "sm", "md", "md", "md"]} overflowWrap="break-word" maxW="90%">{details[e.id]?.name}</Text><br/>
-        <Tag variant='solid' colorScheme='blue' fontSize={["xs", "sm", "md", "md", "md"]}>Lv. {e.lv}</Tag>
-      </GridItem>) 
-      : ret.push(<GridItem p={[1, 2, 3, 4, 5]} key={index} w={["80px", "120px", "160px", "160px", "160px"]}  bg='gray.300' className={styles["enemy-card"]}></GridItem>) 
-      : ret.push(<GridItem p={[1, 2, 3, 4, 5]} key={index} w={["80px", "120px", "160px", "160px", "160px"]} bg='gray.300' className={styles["enemy-card"]}></GridItem>)
+    for (let index = 0; index < 9; index++){
+      const e = wave[index]
+      if (e && e.id && details[e.id]) {
+        ret.push(
+          <GridItem
+            key={index}
+            w={cellW}
+            h={cellH}
+            p={2}
+            className={styles["enemy-card"]}
+            onClick={() => dispatch(setActive([e.id, e.lv]))}
+          >
+            <Image
+              src={imagelink[details[e.id].img]}
+              alt={`${details[e.id].img}`}
+              boxSize={imgSize}
+              minH={imgSize}
+              objectFit="cover"
+              borderRadius="md"
+              bg="blackAlpha.400"
+              flexShrink={0}
+            />
+            <Text as="b" fontSize={["2xs", "xs", "sm"]} noOfLines={2} lineHeight={1.1}
+              w="100%" h={nameH} display="flex" alignItems="center" justifyContent="center">
+              {t(details[e.id]?.name)}
+            </Text>
+            <Tag size="sm" variant="subtle" colorScheme="yellow" fontSize="xs">Lv. {e.lv}</Tag>
+          </GridItem>
+        )
+      } else {
+        // empty slot: subtle dark placeholder, same fixed footprint
+        ret.push(
+          <GridItem
+            key={index}
+            w={cellW}
+            h={cellH}
+            borderRadius="10px"
+            borderWidth="1px"
+            borderStyle="dashed"
+            borderColor="whiteAlpha.200"
+            bg="blackAlpha.300"
+          />
+        )
+      }
     }
     return ret
   }
   return (
-    <>
-      <Grid templateColumns='repeat(3, 1fr)' templateRows='repeat(3, 1fr)'  gap={{base:1, md:3}}>
-        {makeGrid()}
-      </Grid >
-    </>
+    <Grid templateColumns='repeat(3, 1fr)' templateRows='repeat(3, 1fr)' gap={{base: 1.5, md: 2.5}}>
+      {makeGrid()}
+    </Grid>
   )
 }
