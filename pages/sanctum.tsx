@@ -14,6 +14,7 @@ import {
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Head from "next/head";
+import { useRouter } from "next/router";
 import {
   Flex,
   Button,
@@ -33,6 +34,8 @@ import {
 } from "@chakra-ui/react";
 import { Floor, Wave } from "@/interfaces/sanctum";
 import EnemyGrid from "@/components/enemyGrid";
+import GameText from "@/components/gameText";
+import CopyLink from "@/components/copyLink";
 import { t } from "@/lib/strings";
 import styles from "@/styles/custom.module.css";
 
@@ -47,10 +50,22 @@ export default function Home() {
   const [waveData, setWaveData] = useState<Wave | null>(null);
 
   const dispatch = useAppDispatch();
+  const router = useRouter();
 
   useEffect(() => {
     dispatch(fetchSanctumAsync());
   }, [dispatch]);
+
+  // Deep link: ?area=EW01&floor=<idx>&diff=<0-2> selects that floor once data is
+  // loaded. floor/diff are array indices (clamped by the slice reducers).
+  useEffect(() => {
+    if (!router.isReady || Object.keys(sanctum).length === 0) return;
+    const { area, floor, diff } = router.query;
+    if (typeof area === "string" && sanctum[area]) dispatch(setArea(area));
+    if (typeof floor === "string") dispatch(setFloor(parseInt(floor, 10) || 0));
+    if (typeof diff === "string") dispatch(setDiff(parseInt(diff, 10) || 0));
+    // run once data is present / query resolves
+  }, [router.isReady, router.query, sanctum, dispatch]);
   useEffect(() => {
     if (floorData?.waves) {
       if (wave >= floorData.waves.length) {
@@ -108,7 +123,7 @@ export default function Home() {
         <Head>
           <title>Sanctum of Alteration</title>
         </Head>
-        <h1>Fetch Failed</h1>
+        <Center py={20}><Text color="red.300">Failed to load Sanctum.</Text></Center>
       </>
     );
   }
@@ -118,7 +133,6 @@ export default function Home() {
         <Head>
           <title>Sanctum of Alteration</title>
         </Head>
-        <h1>Loading</h1>
       </>
     );
   } else {
@@ -192,6 +206,11 @@ export default function Home() {
             </Flex>
           </Flex>
 
+          <CopyLink
+            path={`/sanctum?area=${encodeURIComponent(activeArea)}&floor=${activeFloor}&diff=${activeDiff}`}
+            label={`Share — ${activeArea} Floor ${floorData?.stage ?? activeFloor + 1} (${DIFF_LABEL[activeDiff] ?? activeDiff})`}
+          />
+
           <Divider />
 
           {floorData ? (
@@ -249,7 +268,7 @@ export default function Home() {
                     <Tr>
                       <Th color="red.300">Banned Groups</Th>
                       <Td>
-                        {floorData.prohibition.length ? (
+                        {floorData.prohibition?.length ? (
                           <Wrap>
                             {floorData.prohibition.map((g) => (
                               <WrapItem key={g}>
@@ -265,7 +284,7 @@ export default function Home() {
                     <Tr>
                       <Th color="green.300">Suitable Groups</Th>
                       <Td>
-                        {floorData.suitability.length ? (
+                        {floorData.suitability?.length ? (
                           <Wrap>
                             {floorData.suitability.map((g) => (
                               <WrapItem key={g}>
@@ -281,7 +300,7 @@ export default function Home() {
                     {floorData.suitabilityDesc ? (
                       <Tr>
                         <Th>Note</Th>
-                        <Td whiteSpace="normal">{t(floorData.suitabilityDesc)}</Td>
+                        <Td whiteSpace="normal"><GameText>{t(floorData.suitabilityDesc)}</GameText></Td>
                       </Tr>
                     ) : null}
                   </Tbody>

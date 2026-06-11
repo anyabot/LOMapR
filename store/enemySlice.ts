@@ -15,7 +15,7 @@ const initialState: EnemyState = {
   enemy: {},
   active: "",
   level: 1,
-  status: 'idle',
+  status: 'loading',
 };
 
 export const fetchEnemyAsync = createAsyncThunk<{[key: string]: EnemyData}, void, {state: RootState}>(
@@ -57,6 +57,7 @@ export const EnemySlice = createSlice({
       })
       .addCase(fetchEnemyAsync.fulfilled, (state, action) => {
         state.enemy = action.payload
+        state.status = 'idle';
       })
       .addCase(fetchEnemyAsync.rejected, (state) => {
         state.status = 'failed';
@@ -64,7 +65,7 @@ export const EnemySlice = createSlice({
       // switching region invalidates cached data so it refetches for the new region
       .addCase(setRegion, (state) => {
         state.enemy = {};
-        state.status = 'idle';
+        state.status = 'loading';
       })
   },
 });

@@ -6,10 +6,11 @@ import { useEffect, useState, useLayoutEffect } from 'react';
 import { useRouter } from 'next/router'
 import EnemyGrid from '@/components/enemyGrid'
 import StageGrid from '@/components/stageGrid'
+import CopyLink from '@/components/copyLink'
 import Error from 'next/error';
 import Link from 'next/link';
 import styles from "@/styles/custom.module.css"
-import { Box, Image, VStack, HStack, Center, Tag, Heading, Divider, IconButton, Button, ButtonGroup } from '@chakra-ui/react';
+import { Box, Image, VStack, HStack, Center, Tag, Text, Badge, Heading, Divider, IconButton, Button, ButtonGroup } from '@chakra-ui/react';
 import { ArrowLeftIcon, ArrowRightIcon, ArrowBackIcon } from '@chakra-ui/icons';
 import Head from 'next/head';
 
@@ -76,7 +77,6 @@ export default function Home() {
       <Head>
         <title>Stage List</title>
       </Head>
-      <h1>Loading</h1>
     </>)
   }
   else if (!(id in world) || !(real_zone_index in world[id].zones)) {
@@ -129,9 +129,66 @@ export default function Home() {
             <Divider />
             <VStack as={Center} spacing={4}>
               {realCurrStage.title ? (
-                <Tag variant="solid" colorScheme={realCurrStage.waves.length ? 'teal' : 'gray'} size="lg" px={4} py={2} borderRadius="full">
-                  {realCurrStage.title} · {realCurrStage.waves.length ? 'Battle Stage' : 'Story Stage'}
-                </Tag>
+                (() => {
+                  const isBattle = !!realCurrStage.waves.length;
+                  const SUBTYPE_ICON: Record<string, string> = {
+                    Side: '/images/Side Stage.png',
+                    Main: '/images/Main Stage.png',
+                    Ex: '/images/EX Stage.png',
+                    Story: '/images/Story Stage.png',
+                  };
+                  const icon = isBattle
+                    ? (SUBTYPE_ICON[realCurrStage.subtype] ?? SUBTYPE_ICON.Main)
+                    : SUBTYPE_ICON.Story;
+                  const hasName = realCurrStage.name && t(realCurrStage.name) !== realCurrStage.title;
+                  const shareLink = (
+                    <CopyLink
+                      path={`/world/${encodeURIComponent(id)}/${zone}/${encodeURIComponent(realCurrStage.title)}`}
+                    />
+                  );
+                  return (
+                    <HStack
+                      spacing={3}
+                      w="100%"
+                      maxW="container.md"
+                      bg="surface.elevated"
+                      borderWidth="1px"
+                      borderColor={isBattle ? 'teal.500' : 'surface.border'}
+                      borderRadius="2xl"
+                      px={4}
+                      py={2.5}
+                      boxShadow="0 4px 14px rgba(0,0,0,.35)"
+                    >
+                      <Image src={icon} alt={realCurrStage.subtype} boxSize="40px" objectFit="contain"
+                        filter="drop-shadow(0 2px 4px rgba(0,0,0,.5))" />
+                      <Box flex={1} minW={0}>
+                        <HStack spacing={2} align="center">
+                          <Heading size="md" lineHeight={1}>{realCurrStage.title}</Heading>
+                          <Badge
+                            colorScheme={isBattle ? 'teal' : 'purple'}
+                            variant="solid"
+                            borderRadius="full"
+                            px={2}
+                            textTransform="none"
+                            fontSize="0.7rem"
+                          >
+                            {isBattle ? 'Battle' : 'Story'}
+                          </Badge>
+                          {/* no separate name -> share sits next to the title */}
+                          {!hasName ? shareLink : null}
+                        </HStack>
+                        {hasName ? (
+                          <HStack spacing={2} align="center" mt={0.5}>
+                            <Text fontSize="sm" color="gray.400" noOfLines={1} flex={1} minW={0}>
+                              {t(realCurrStage.name)}
+                            </Text>
+                            {shareLink}
+                          </HStack>
+                        ) : null}
+                      </Box>
+                    </HStack>
+                  );
+                })()
               ) : null}
 
               {realCurrStage.waves.length ? (

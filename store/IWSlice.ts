@@ -10,7 +10,7 @@ export interface IWState {
 
 const initialState: IWState = {
   value: {seasons:[], bosses: {}},
-  status: 'idle',
+  status: 'loading',
 };
 
 export const fetchIWAsync = createAsyncThunk<InfiniteWar, void, {state: RootState}>(
@@ -48,6 +48,7 @@ export const IWSlice = createSlice({
       })
       .addCase(fetchIWAsync.fulfilled, (state, action) => {
         state.value = action.payload;
+        state.status = 'idle';
       })
       .addCase(fetchIWAsync.rejected, (state, action) => {
         state.value = {seasons:[], bosses: {}};
@@ -55,7 +56,7 @@ export const IWSlice = createSlice({
       })
       .addCase(setRegion, (state) => {
         state.value = {seasons:[], bosses: {}};
-        state.status = 'idle';
+        state.status = 'loading';
       })
   },
 });

@@ -6,6 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "test:local": "cross-env DATA_SOURCE=firebase next dev",
+    "build:prod": "cross-env DATA_SOURCE=firebase next build",
+    "start:prod": "cross-env DATA_SOURCE=firebase next start",
     "lint": "next lint"
   },
   "dependencies": {
@@ -31,5 +34,8 @@
     "reactflow": "^11.11.4",
     "redux": "^4.2.1",
     "typescript": "5.0.3"
+  },
+  "devDependencies": {
+    "cross-env": "^10.1.0"
   }
 }

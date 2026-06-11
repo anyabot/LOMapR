@@ -3,10 +3,12 @@ import { selectWorld, fetchWorldAsync } from '@/store/worldSlice';
 import { selectImage, fetchImageAsync } from '@/store/imageSlice';
 import { useEffect } from 'react';
 import {
-  Heading, Text, Divider, Center, VStack, HStack, Box, Image,
+  Heading, Text, Divider, Center, VStack, HStack, Box,
   SimpleGrid, Wrap, WrapItem, Tag, TagLabel, Badge,
+  AspectRatio,
 } from '@chakra-ui/react';
 import { ArrowForwardIcon, ExternalLinkIcon } from '@chakra-ui/icons';
+import EventImage from '@/components/eventImage';
 import { t } from '@/lib/strings';
 import Link from 'next/link';
 import Head from 'next/head';
@@ -75,13 +77,11 @@ export default function Home() {
               _hover={{ transform: 'translateY(-3px)', borderColor: 'yellow.400', boxShadow: '0 6px 20px rgba(0,0,0,.5)' }}
             >
               <HStack spacing={4} align="stretch">
-                <Image
-                  src={imagelink[current.img]}
-                  alt={current.id}
-                  objectFit="cover"
-                  w={['120px', '180px', '220px']}
-                  fallbackSrc="https://via.placeholder.com/220x120?text=Event"
-                />
+                <Box w={['120px', '180px', '220px']} flexShrink={0}>
+                  <AspectRatio ratio={1}>
+                    <EventImage src={imagelink[current.img]} alt={current.id} fit="cover" />
+                  </AspectRatio>
+                </Box>
                 <VStack align="start" justify="center" py={3} pr={4} spacing={1}>
                   <Badge colorScheme="yellow">Current Event</Badge>
                   <Heading size={['sm', 'md', 'lg']}>{t(current.title)}</Heading>

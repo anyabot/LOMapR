@@ -6,9 +6,10 @@ import { useRouter } from 'next/router'
 import Error from 'next/error';
 import Link from 'next/link';
 import SimpleCard from '@/components/simpleCard';
+import CopyLink from '@/components/copyLink';
 import { t } from '@/lib/strings';
 import {
-  SimpleGrid, Heading, Divider, Button, HStack, Badge, Spinner, Center, VStack,
+  SimpleGrid, Heading, Divider, Button, HStack, Badge, Center, VStack,
 } from '@chakra-ui/react';
 import { ArrowBackIcon } from '@chakra-ui/icons';
 import Head from 'next/head';
@@ -30,7 +31,6 @@ export default function Home() {
     return (
       <>
         <Head><title>Zone List</title></Head>
-        <Center py={20}><Spinner size="xl" color="yellow.400" /></Center>
       </>
     );
   }
@@ -50,6 +50,7 @@ export default function Home() {
         <HStack>
           <Heading size="xl">{t(w.title)}</Heading>
           <Badge colorScheme="yellow" borderRadius="full" px={2}>{w.zones.length} zones</Badge>
+          <CopyLink path={`/world/${encodeURIComponent(id)}`} />
         </HStack>
         <Divider />
         <SimpleGrid columns={[2, 3, 3, 4, 5]} spacing={4}>

@@ -10,7 +10,7 @@ export interface WorldState {
 
 const initialState: WorldState = {
   value: {},
-  status: 'idle',
+  status: 'loading',
 };
 
 export const fetchWorldAsync = createAsyncThunk<{[key: string]: World}, void, {state: RootState}>(
@@ -48,6 +48,7 @@ export const worldSlice = createSlice({
       })
       .addCase(fetchWorldAsync.fulfilled, (state, action) => {
         state.value = action.payload;
+        state.status = 'idle';
       })
       .addCase(fetchWorldAsync.rejected, (state, action) => {
         state.value = {};
@@ -55,7 +56,7 @@ export const worldSlice = createSlice({
       })
       .addCase(setRegion, (state) => {
         state.value = {};
-        state.status = 'idle';
+        state.status = 'loading';
       })
   },
 });

@@ -8,7 +8,7 @@ export interface AIState {
   status: 'idle' | 'loading' | 'failed';
 }
 
-const initialState: AIState = { value: {}, status: 'idle' };
+const initialState: AIState = { value: {}, status: 'loading' };
 
 export const fetchAIAsync = createAsyncThunk<{ [key: string]: AIGraph }, void, { state: RootState }>(
   'ai/fetch',
@@ -34,9 +34,9 @@ export const aiSlice = createSlice({
   extraReducers: (builder) => {
     builder
       .addCase(fetchAIAsync.pending, (state) => { state.status = 'loading'; })
-      .addCase(fetchAIAsync.fulfilled, (state, action) => { state.value = action.payload; })
+      .addCase(fetchAIAsync.fulfilled, (state, action) => { state.value = action.payload; state.status = 'idle'; })
       .addCase(fetchAIAsync.rejected, (state) => { state.value = {}; state.status = 'failed'; })
-      .addCase(setRegion, (state) => { state.value = {}; state.status = 'idle'; });
+      .addCase(setRegion, (state) => { state.value = {}; state.status = 'loading'; });
   },
 });
 

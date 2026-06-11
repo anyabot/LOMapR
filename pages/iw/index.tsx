@@ -5,7 +5,7 @@ import { useEffect } from 'react';
 import Link from 'next/link'
 import { Season } from '@/interfaces/iw';
 import {
-  SimpleGrid, Heading, Divider, HStack, Badge, Spinner, Center, VStack, Text,
+  SimpleGrid, Heading, Divider, HStack, Badge, Center, VStack, Text,
   Box, AspectRatio, Image,
 } from '@chakra-ui/react';
 import Head from 'next/head';
@@ -48,7 +48,7 @@ export default function Home() {
     return <Frame><Center py={20}><Text color="red.300">Failed to load Infinite War.</Text></Center></Frame>;
   }
   if (iw.seasons.length === 0) {
-    return <Frame><Center py={20}><Spinner size="xl" color="yellow.400" /></Center></Frame>;
+    return <Frame><></></Frame>;
   }
 
   const Section = (title: string, items: Season[]) =>

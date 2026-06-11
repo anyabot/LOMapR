@@ -9,7 +9,7 @@ export interface ImageState {
 
 const initialState: ImageState = {
   imagelink: {},
-  status: 'idle',
+  status: 'loading',
 };
 
 export const fetchImageAsync = createAsyncThunk<{[key: string]: string}, void, {state: RootState}>(
@@ -45,6 +45,7 @@ export const ImageSlice = createSlice({
       })
       .addCase(fetchImageAsync.fulfilled, (state, action) => {
         state.imagelink = action.payload
+        state.status = 'idle';
       })
       .addCase(fetchImageAsync.rejected, (state) => {
         state.status = 'failed';
@@ -52,7 +53,7 @@ export const ImageSlice = createSlice({
       // images differ per region (KR has its own world icons); refetch on switch
       .addCase(setRegion, (state) => {
         state.imagelink = {};
-        state.status = 'idle';
+        state.status = 'loading';
       })
   },
 });

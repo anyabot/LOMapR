@@ -4,11 +4,12 @@ import { selectImage, fetchImageAsync } from '@/store/imageSlice';
 import { useEffect } from 'react';
 import Link from 'next/link'
 import SimpleCard from '@/components/simpleCard';
+import EventImage from '@/components/eventImage';
 import { t } from '@/lib/strings';
 import { World } from '@/interfaces/world';
 import {
-  SimpleGrid, Heading, Divider, HStack, Badge, Spinner, Center, VStack, Text,
-  Box, Image, AspectRatio,
+  SimpleGrid, Heading, Divider, HStack, Badge, Center, VStack, Text,
+  Box, AspectRatio,
 } from '@chakra-ui/react';
 import { ArrowForwardIcon } from '@chakra-ui/icons';
 import Head from 'next/head';
@@ -51,7 +52,7 @@ export default function Home() {
     return <Frame><Center py={20}><Text color="red.300">Failed to load worlds.</Text></Center></Frame>;
   }
   if (Object.keys(world).length === 0) {
-    return <Frame><Center py={20}><Spinner size="xl" color="yellow.400" /></Center></Frame>;
+    return <Frame><></></Frame>;
   }
 
   // section of square icon cards
@@ -90,8 +91,7 @@ export default function Home() {
       _hover={{ transform: 'translateY(-3px)', borderColor: 'yellow.400', boxShadow: '0 6px 18px rgba(0,0,0,.45)' }}
     >
       <AspectRatio ratio={BANNER_RATIO}>
-        <Image src={getImage(w.banner || w.img)} alt={w.id} objectFit="cover"
-          fallbackSrc="https://via.placeholder.com/320x156?text=Event" />
+        <EventImage src={getImage(w.banner || w.img)} alt={w.id} fit="contain" />
       </AspectRatio>
       <Box position="absolute" bottom={0} left={0} right={0} pt={8} px={3} pb={2}
         bgGradient="linear(to-t, blackAlpha.900 20%, blackAlpha.800 55%, transparent)">
@@ -119,15 +119,9 @@ export default function Home() {
             transition="transform .12s ease, box-shadow .12s ease"
             _hover={{ transform: 'translateY(-3px)', boxShadow: '0 8px 24px rgba(0,0,0,.5)', textDecoration: 'none', color: 'white' }}
           >
-            <Image
-              src={getImage(current.img)}
-              alt={current.id}
-              boxSize={['90px', '120px', '140px']}
-              objectFit="cover"
-              borderRadius="lg"
-              flexShrink={0}
-              fallbackSrc="https://via.placeholder.com/140?text=Event"
-            />
+            <Box boxSize={['90px', '120px', '140px']} flexShrink={0} borderRadius="lg" overflow="hidden">
+              <EventImage src={getImage(current.img)} alt={current.id} fit="cover" borderRadius="lg" />
+            </Box>
             <VStack align="start" spacing={2} flex={1} minW={0}>
               <Badge colorScheme="yellow">Current Event</Badge>
               <Heading size={['lg', 'xl', '2xl']} lineHeight={1.1} color="white">{t(current.title)}</Heading>

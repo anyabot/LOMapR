@@ -19,10 +19,9 @@ export default function Apperance({name, ev, used} : {name:string, ev:string, us
   return (
     <>
     <Text align="center" as="b" fontSize='lg'>{name}</Text>
-    <Box>
+    <Box display="flex" flexWrap="wrap" justifyContent="center" gap={2} py={2} w="100%">
       {used.map((e, i) => (
         <Tag
-          m={1}
           size="md"
           key={`${e[1]}-${e[0]}-${i}`}
           borderRadius='full'

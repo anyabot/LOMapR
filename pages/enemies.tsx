@@ -8,6 +8,7 @@ import {
   VStack, HStack, Spinner, Center, Text, Heading, Badge, IconButton,
 } from '@chakra-ui/react';
 import { CloseIcon, SearchIcon } from '@chakra-ui/icons';
+import { useRouter } from 'next/router';
 import SimpleCard from '@/components/simpleCard';
 import { t } from '@/lib/strings';
 import Head from 'next/head';
@@ -21,10 +22,23 @@ export default function Home() {
   const imagelink = useAppSelector(selectImage);
   const dispatch = useAppDispatch();
 
+  const router = useRouter();
+
   useEffect(() => {
     dispatch(fetchEnemyAsync());
     dispatch(fetchImageAsync());
   }, [dispatch]);
+
+  // Deep link: ?enemy=<id> (optionally &lv=<n>) opens that enemy's popup once the
+  // data is loaded. Runs when the query or the loaded set changes.
+  useEffect(() => {
+    if (!router.isReady) return;
+    const id = router.query.enemy as string | undefined;
+    if (id && enemy[id]) {
+      const lv = parseInt((router.query.lv as string) || '1', 10);
+      dispatch(setActive([id, Number.isFinite(lv) && lv > 0 ? lv : 1]));
+    }
+  }, [router.isReady, router.query.enemy, router.query.lv, enemy, dispatch]);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [showUnused, setShowUnused] = useState(false);
@@ -73,7 +87,8 @@ export default function Home() {
     return (<><Head><title>Enemy List</title></Head><Center py={20}><Text color="red.300">Failed to load enemies.</Text></Center></>);
   }
   if (Object.keys(enemy).length === 0) {
-    return (<><Head><title>Enemy List</title></Head><Center py={20}><Spinner size="xl" color="yellow.400" /></Center></>);
+    // empty -> render nothing here; the layout's GlobalLoader shows the spinner
+    return (<><Head><title>Enemy List</title></Head></>);
   }
 
   const list = enemies(enemy);

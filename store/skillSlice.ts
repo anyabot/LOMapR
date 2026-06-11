@@ -10,7 +10,7 @@ export interface SkillState {
 
 const initialState: SkillState = {
   value: {},
-  status: 'idle',
+  status: 'loading',
 };
 
 export const fetchSkillAsync = createAsyncThunk<{[key: string]: Skill}, void, {state: RootState}>(
@@ -48,6 +48,7 @@ export const skillSlice = createSlice({
       })
       .addCase(fetchSkillAsync.fulfilled, (state, action) => {
         state.value = action.payload;
+        state.status = 'idle';
       })
       .addCase(fetchSkillAsync.rejected, (state, action) => {
         state.value = {};
@@ -55,7 +56,7 @@ export const skillSlice = createSlice({
       })
       .addCase(setRegion, (state) => {
         state.value = {};
-        state.status = 'idle';
+        state.status = 'loading';
       })
   },
 });

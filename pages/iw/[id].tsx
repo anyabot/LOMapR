@@ -124,7 +124,6 @@ export default function Home() {
     return (
       <>
         <Head><title>Infinite War</title></Head>
-        <Center py={20}><Spinner size="xl" color="yellow.400" /></Center>
       </>
     );
   } else if (!(id in iw.bosses)) {

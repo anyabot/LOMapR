@@ -5,7 +5,7 @@ import { ChakraProvider } from '@chakra-ui/react'
 import { useEffect, useRef } from 'react'
 import { store, RootState } from '@/store'
 import { setStringsRegion, setStringsTranslation } from '@/lib/strings'
-import { loadRegion, setRegion } from '@/store/regionSlice'
+import { loadRegion, setRegion, Region } from '@/store/regionSlice'
 import { loadTranslation, setTranslation } from '@/store/translationSlice'
 import { fetchEnemyAsync } from '@/store/enemySlice'
 import { fetchWorldAsync } from '@/store/worldSlice'
@@ -112,17 +112,31 @@ const theme = extendTheme({
 // re-dispatch the data fetches. The setRegion reducer already cleared each
 // slice's cache, but the active page's mount-time fetch effect won't re-run, so
 // we kick the fetches here. (Each thunk self-skips if data is already present.)
+// Optional ?server= override (only used when forcing a region). Maps the game
+// server name to a region: global -> global; kr / korea / korean -> kr.
+// Returns null when the param is absent/unrecognized.
+function forcedRegionFromUrl(): Region | null {
+  if (typeof window === 'undefined') return null;
+  const v = (new URLSearchParams(window.location.search).get('server') || '').toLowerCase();
+  if (v === 'global' || v === 'gl' || v === 'en') return 'global';
+  if (v === 'kr' || v === 'korea' || v === 'korean') return 'kr';
+  return null;
+}
+
 function RegionSync() {
   const region = useSelector((s: RootState) => s.region.region);
   const dispatch = useDispatch<typeof store.dispatch>();
   const first = useRef(true);
 
-  // After mount, apply the persisted region. The store starts at 'global' on
-  // both server and client (no hydration mismatch); the saved choice is applied
-  // here, which (via setRegion -> slice resets -> the effect below) refetches.
+  // After mount, pick the active region. A ?server= query param (global | kr /
+  // korea / korean) FORCES the region and wins over the persisted choice — it's
+  // only meant as an explicit override. Otherwise fall back to the persisted
+  // region. Either applied via setRegion -> slice resets -> the effect below
+  // refetches. (Store starts at 'global' on server + client: no hydration drift.)
   useEffect(() => {
-    const saved = loadRegion();
-    if (saved && saved !== 'global') dispatch(setRegion(saved));
+    const forced = forcedRegionFromUrl();
+    const target = forced ?? loadRegion();
+    if (target && target !== 'global') dispatch(setRegion(target));
   }, [dispatch]);
 
   // Keep the string resolver on the active region; on a region CHANGE, refetch
