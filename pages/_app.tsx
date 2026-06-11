@@ -2,9 +2,9 @@ import '@/styles/globals.css'
 import type { AppProps } from 'next/app'
 import { Provider, useSelector, useDispatch } from 'react-redux'
 import { ChakraProvider } from '@chakra-ui/react'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { store, RootState } from '@/store'
-import { setStringsRegion, setStringsTranslation } from '@/lib/strings'
+import { setStringsRegion, setStringsTranslation, setStringsData, setCommunityData } from '@/lib/strings'
 import { loadRegion, setRegion, Region } from '@/store/regionSlice'
 import { loadTranslation, setTranslation } from '@/store/translationSlice'
 import { fetchEnemyAsync } from '@/store/enemySlice'
@@ -180,12 +180,38 @@ export default function App({ Component, pageProps }: AppProps) {
   );
 }
 
+// Load the localization tables from the API (Firebase in prod, where the /data
+// files aren't deployed) into the t() resolver. Strings are per-region; the
+// community overlay is shared/fetched once. Returns a version token that bumps
+// when tables arrive so the page subtree re-renders with resolved text.
+function useStringsLoader(): string {
+  const region = useSelector((s: RootState) => s.region.region);
+  const [ver, setVer] = useState('');
+  // shared community overlay — fetch once
+  useEffect(() => {
+    fetch('/api/community')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d) { setCommunityData(d); setVer((v) => v + 'c'); } })
+      .catch(() => {});
+  }, []);
+  // per-region official strings — fetch on mount and region change
+  useEffect(() => {
+    fetch(`/api/strings?region=${region}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d) { setStringsData(region, d); setVer((v) => v + region[0]); } })
+      .catch(() => {});
+  }, [region]);
+  return ver;
+}
+
 function AppBody({ Component, pageProps }: Pick<AppProps, 'Component' | 'pageProps'>) {
   const translation = useTranslationSync();
-  // Re-key the page subtree on translation change so cached t() output refreshes.
+  const stringsVer = useStringsLoader();
+  // Re-key the page subtree on translation change / strings load so cached t()
+  // output refreshes.
   return (
     <Layout>
-      <div key={translation}>
+      <div key={`${translation}-${stringsVer}`}>
         <Component {...pageProps} />
       </div>
     </Layout>

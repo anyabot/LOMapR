@@ -25,13 +25,25 @@ function tryRequire(path: string): StringTable {
   }
 }
 
-// Official game text per region.
+// Official game text per region. Seeded from the local /data files when present
+// (dev), and overwritten at runtime by setStringsData() once the app fetches the
+// tables from the API (which serves them from Firebase in production, where the
+// /data files are not deployed).
 const official: Record<Region, StringTable> = {
   global: tryRequire('global/strings.json'),
   kr: tryRequire('kr/strings.json'),
 };
-// Community translation overlay — a single SHARED, region-agnostic file from OLD.
-const community: StringTable = tryRequire('community_translation.json');
+// Community translation overlay — a single SHARED, region-agnostic file.
+let community: StringTable = tryRequire('community_translation.json');
+
+// Populate a region's official table at runtime (from the /api/strings fetch).
+export function setStringsData(region: Region, table: StringTable) {
+  if (table && Object.keys(table).length) official[region] = table;
+}
+// Populate the shared community overlay at runtime (from /api/community).
+export function setCommunityData(table: StringTable) {
+  if (table && Object.keys(table).length) community = table;
+}
 
 let activeRegion: Region = 'global';
 export function setStringsRegion(region: Region) {
