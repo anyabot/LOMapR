@@ -19,7 +19,6 @@ type StringTable = { [id: string]: { en?: string; ko?: string } };
 
 function tryRequire(path: string): StringTable {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires, global-require
     return require(`@/data/${path}`);
   } catch {
     return {};
