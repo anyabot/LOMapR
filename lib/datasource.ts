@@ -173,12 +173,40 @@ function preferPublicImages(map: { [key: string]: string }): { [key: string]: st
 
 // ── entry point ──────────────────────────────────────────────────────────────
 
-// Fetch one node's data for a region. Images get the public-path rewrite in both
-// modes. Returns null when the node has no data, letting the caller 404.
+// Fetch one node's data for a region. In local mode we read the generated /data
+// files, but those are NOT committed/deployed — so if they're absent (e.g. on a
+// hosted build that happens to have DATA_SOURCE=local) we fall back to Firebase
+// instead of returning nothing. Images get the public-path rewrite in both modes.
 export async function getNode(node: string, region: Region = 'global'): Promise<any | null> {
-  const data = isLocal() ? readLocal(node, region) : await readFirebase(node, region);
+  let data: any | null = null;
+  if (isLocal()) {
+    data = readLocal(node, region);
+    if (data == null) data = await readFirebase(node, region);   // files missing -> Firebase
+  } else {
+    data = await readFirebase(node, region);
+  }
   if (data && node === 'Images') {
     return preferPublicImages(data as { [key: string]: string });
   }
   return data;
+}
+
+// Fetch a region-agnostic node stored at LOMapInfo/<node> (e.g. Community).
+// `localFile` is its path under /data for local mode. Falls back to Firebase if
+// the local file is missing.
+export async function getShared(node: string, localFile: string): Promise<any | null> {
+  const fbRead = async () => {
+    const { db } = await import('@/firebaseConfigs');
+    const snap = await db.ref(`${ROOT}/${node}`).once('value');
+    return snap.exists() ? snap.val() : null;
+  };
+  if (isLocal()) {
+    try {
+      const p = path.join(process.cwd(), 'data', localFile);
+      return JSON.parse(fs.readFileSync(p, 'utf-8'));
+    } catch {
+      return await fbRead();
+    }
+  }
+  return await fbRead();
 }
