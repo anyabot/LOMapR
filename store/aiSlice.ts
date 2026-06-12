@@ -4,25 +4,30 @@ import { AIGraph } from '@/interfaces/ai';
 import { setRegion } from './regionSlice';
 
 export interface AIState {
-  value: { [key: string]: AIGraph };
-  status: 'idle' | 'loading' | 'failed';
+  value: { [enemyId: string]: AIGraph };
+  loaded: { [enemyId: string]: boolean };
 }
 
-const initialState: AIState = { value: {}, status: 'loading' };
+const initialState: AIState = { value: {}, loaded: {} };
 
-export const fetchAIAsync = createAsyncThunk<{ [key: string]: AIGraph }, void, { state: RootState }>(
-  'ai/fetch',
-  async function (_, thunkApi) {
-    if (thunkApi.getState().ai.status == 'failed') return {};
-    if (Object.keys(thunkApi.getState().ai.value).length > 0) {
-      return thunkApi.getState().ai.value;
+export const fetchEnemyAIAsync = createAsyncThunk<
+  { enemyId: string; graph: AIGraph | null },
+  string,
+  { state: RootState }
+>(
+  'ai/fetchForEnemy',
+  async (enemyId, thunkApi) => {
+    const state = thunkApi.getState();
+    if (state.ai.loaded[enemyId]) {
+      return { enemyId, graph: state.ai.value[enemyId] ?? null };
     }
     try {
-      const region = thunkApi.getState().region.region;
-      const response = await fetch(`/api/ai?region=${region}`).then(res => res.json());
-      return response ? response : {};
+      const region = state.region.region;
+      const res = await fetch(`/api/split/ai/${encodeURIComponent(enemyId)}?region=${region}`);
+      const graph = res.ok ? await res.json() : null;
+      return { enemyId, graph };
     } catch {
-      return thunkApi.rejectWithValue({});
+      return { enemyId, graph: null };
     }
   }
 );
@@ -33,12 +38,18 @@ export const aiSlice = createSlice({
   reducers: {},
   extraReducers: (builder) => {
     builder
-      .addCase(fetchAIAsync.pending, (state) => { state.status = 'loading'; })
-      .addCase(fetchAIAsync.fulfilled, (state, action) => { state.value = action.payload; state.status = 'idle'; })
-      .addCase(fetchAIAsync.rejected, (state) => { state.value = {}; state.status = 'failed'; })
-      .addCase(setRegion, (state) => { state.value = {}; state.status = 'loading'; });
+      .addCase(fetchEnemyAIAsync.fulfilled, (state, action) => {
+        const { enemyId, graph } = action.payload;
+        if (graph) state.value[enemyId] = graph;
+        state.loaded[enemyId] = true;
+      })
+      .addCase(setRegion, (state) => {
+        state.value = {};
+        state.loaded = {};
+      });
   },
 });
 
 export const selectAI = (state: RootState) => state.ai.value;
+
 export default aiSlice.reducer;

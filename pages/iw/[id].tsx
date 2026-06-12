@@ -26,8 +26,8 @@ import Link from "next/link";
 import Head from "next/head";
 import { useRouter } from "next/router";
 import SkillTabList from "@/components/enemyTab/skillTabList";
-import { selectEnemy, fetchEnemyAsync } from "@/store/enemySlice";
-import { EnemyData } from "@/interfaces/enemy";
+import { selectEnemy, selectEnemyFull, fetchEnemyAsync, fetchEnemyFullAsync } from "@/store/enemySlice";
+import { EnemyFull } from "@/interfaces/enemy";
 import { useNumberInput } from "@chakra-ui/react";
 import { t } from "@/lib/strings";
 import styles from "@/styles/custom.module.css";
@@ -41,7 +41,6 @@ export default function Home() {
   const [stage, setStage] = useState(0);
   const [phase, setPhase] = useState(0);
   const [activeEnemy, setActiveEnemy] = useState<string>("");
-  const [realEnemy, setRealEnemy] = useState<EnemyData | null>(null);
   const [realLevel, setRealLevel] = useState<number>(1);
   const [id, setId] = useState("");
 
@@ -52,6 +51,7 @@ export default function Home() {
     setId(router.query.id as string);
   }, [router.isReady, router.query.id]);
 
+  const realEnemy = useAppSelector(state => selectEnemyFull(state, activeEnemy));
   const dispatch = useAppDispatch();
 
   useEffect(() => {
@@ -61,8 +61,8 @@ export default function Home() {
   }, [dispatch]);
 
   useEffect(() => {
-    setRealEnemy(enemy[activeEnemy]);
-  }, [enemy, activeEnemy]);
+    if (activeEnemy) dispatch(fetchEnemyFullAsync(activeEnemy));
+  }, [activeEnemy, dispatch]);
   // clamp stage when switching to a boss (or region) with fewer stages
   useEffect(() => {
     const b = iw.bosses[id];

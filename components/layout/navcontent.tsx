@@ -43,21 +43,26 @@ function NavContent({ isOpen }: { isOpen: boolean }) {
     <Box
       display={{ base: isOpen ? "block" : "none", md: "block" }}
       flexBasis={{ base: "100%", md: "auto" }}
+      flex={{ md: 1 }}
+      ml={{ md: 6 }}
     >
       <Stack
         spacing={[3, 3, 5]}
         align="center"
-        justify={["center", "center", "flex-end"]}
+        justify={["center", "center", "space-between"]}
         direction={["column", "column", "row"]}
         pt={[3, 3, 0]}
+        w="100%"
       >
-        <NavLink to="/">Home</NavLink>
-        <NavLink to="/world">World</NavLink>
-        <NavLink to="/sanctum">Sanctum</NavLink>
-        <NavLink to="/enemies">Enemies</NavLink>
-        <NavLink to="/iw">Infinite War</NavLink>
+        <HStack spacing={[3, 3, 4]} flexWrap="wrap" justify={["center", "center", "flex-start"]}>
+          <NavLink to="/">Home</NavLink>
+          <NavLink to="/world">World</NavLink>
+          <NavLink to="/sanctum">Sanctum</NavLink>
+          <NavLink to="/enemies">Enemies</NavLink>
+          <NavLink to="/iw">Infinite War</NavLink>
+        </HStack>
 
-        <HStack spacing={4} pl={[0, 0, 2]} flexWrap="wrap" justify="center">
+        <HStack spacing={4} flexWrap="wrap" justify="center">
           <SegToggle<Region>
             label="Server"
             value={region}

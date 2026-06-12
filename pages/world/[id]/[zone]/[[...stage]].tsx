@@ -2,7 +2,7 @@ import { useAppSelector, useAppDispatch } from '@/hooks';
 import { selectWorld, fetchWorldAsync } from '@/store/worldSlice';
 import { Stage, Zone } from '@/interfaces/world';
 import { t } from '@/lib/strings';
-import { useEffect, useState, useLayoutEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router'
 import EnemyGrid from '@/components/enemyGrid'
 import StageGrid from '@/components/stageGrid'
@@ -49,7 +49,7 @@ export default function Home() {
       if (idx >= 0) setCurrSubzone(idx)
     }
   }, [realZone, currStage]);
-  useLayoutEffect(() => {
+  useEffect(() => {
     if (currWave && realCurrStage) {
       currWave >= 0 ? null : setCurrWave(0)
       currWave <= realCurrStage!.waves.length - 1 ? null : setCurrWave(realCurrStage!.waves.length - 1)
