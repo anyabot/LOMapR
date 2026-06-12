@@ -5,13 +5,15 @@ export default function EffectTooltip({
   count,
   e,
   type,
-  icon
+  icon,
+  src,
 }: {
   label: string;
   count: number;
   e: string;
   type: string;
-  icon: string
+  icon?: string;
+  src?: string;
 }) {
   let color = "gray"
   switch (type) {
@@ -25,10 +27,11 @@ export default function EffectTooltip({
       color = "blue"
       break
   }
+  const imgSrc = src ?? `/images/effects/${icon}_Icon.webp`;
   return (
     <Tooltip hasArrow label={label} bg="gray.300" color="black" key={count} shouldWrapChildren >
       <Text as="b" bg={`${color}.300`} p={0.5} rounded={6} display="flex" alignItems="center">
-        <Image display="inline-block" src={`/images/effects/${icon}_Icon.webp`} boxSize="20px" verticalAlign="inherit"/>{e}
+        <Image display="inline-block" src={imgSrc} boxSize="20px" verticalAlign="inherit"/>{e}
       </Text>
     </Tooltip>
   );

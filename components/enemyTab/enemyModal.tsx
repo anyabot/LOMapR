@@ -30,12 +30,14 @@ import SkillTabList from './skillTabList';
 import ApperanceList from './appearanceList';
 import CopyLink from '@/components/copyLink';
 
-import { EnemyData } from '@/interfaces/enemy';
+import { EnemyFull } from '@/interfaces/enemy';
 import { t } from '@/lib/strings';
 
 import { useAppSelector, useAppDispatch } from '@/hooks';
-import { selectEnemy, selectActiveEnemy, selectActiveLevel, setActive, fetchEnemyAsync } from '@/store/enemySlice';
+import { selectEnemy, selectEnemyFull, selectEnemyFullStatus, selectActiveEnemy, selectActiveLevel, setActive, fetchEnemyAsync, fetchEnemyFullAsync } from '@/store/enemySlice';
 import { selectImage, fetchImageAsync } from '@/store/imageSlice';
+import { fetchEnemySkillsAsync } from '@/store/skillSlice';
+import { fetchEnemyAIAsync } from '@/store/aiSlice';
 
 // One icon + label + value row inside a stat section.
 function StatRow({ icon, label, value }: { icon?: string; label: string; value: React.ReactNode }) {
@@ -97,28 +99,33 @@ export default function EnemyModal() {
 
   const activeEnemy = useAppSelector(selectActiveEnemy);
   const initialLevel = useAppSelector(selectActiveLevel);
-  const imagelink = useAppSelector(selectImage)
+  const imagelink = useAppSelector(selectImage);
   const enemy = useAppSelector(selectEnemy);
+  const realEnemy = useAppSelector(state => selectEnemyFull(state, activeEnemy));
+  const fullStatus = useAppSelector(state => selectEnemyFullStatus(state, activeEnemy));
   const dispatch = useAppDispatch();
 
-  const [realEnemy, setRealEnemy] = useState<EnemyData | null>(enemy[activeEnemy])
-  const [realLevel, setRealLevel] = useState<number>(initialLevel)
+  const [realLevel, setRealLevel] = useState<number>(initialLevel);
 
   function doShow() {
-    return activeEnemy? true : false
+    return activeEnemy ? true : false;
   }
   function hide() {
-    dispatch(setActive(["", 1]))
+    dispatch(setActive(["", 1]));
   }
   useEffect(() => {
     dispatch(fetchEnemyAsync());
     dispatch(fetchImageAsync());
-  }, [dispatch])
+  }, [dispatch]);
   useEffect(() => {
-    setRealEnemy(enemy[activeEnemy])
-  }, [activeEnemy, enemy]);
+    if (activeEnemy) {
+      dispatch(fetchEnemyFullAsync(activeEnemy));
+      dispatch(fetchEnemySkillsAsync(activeEnemy));
+      dispatch(fetchEnemyAIAsync(activeEnemy));
+    }
+  }, [activeEnemy, dispatch]);
   useEffect(() => {
-    setRealLevel(initialLevel)
+    setRealLevel(initialLevel);
   }, [initialLevel]);
 
   function getImage(id:string) {
@@ -149,7 +156,7 @@ export default function EnemyModal() {
     <Modal isOpen={doShow()} onClose={hide} isCentered scrollBehavior="inside"
       aria-labelledby="contained-modal-title-vcenter">
       <ModalOverlay bg="blackAlpha.700" backdropFilter="blur(2px)" />
-      {realEnemy ? (
+      {realEnemy && fullStatus === 'idle' && realEnemy.HP ? (
         <>
           <ModalContent
             bg="surface.elevated"
@@ -169,7 +176,7 @@ export default function EnemyModal() {
               </Text>
             </ModalHeader>
             <ModalCloseButton />
-            <ModalBody pb={6}>
+            <ModalBody pb={6} overflowY="auto" maxH="75vh">
               {duplicate().length > 1 ? (
                 <Select value={activeEnemy} size="sm" mb={3}
                   onChange={(e) => dispatch(setActive([e.target.value, realLevel]))}>
@@ -260,7 +267,17 @@ export default function EnemyModal() {
             </ModalBody>
           </ModalContent>
         </>
-      ) :  (<ModalContent bg="transparent" boxShadow="none"><Center py={20}><Spinner size="xl" color="yellow.400" thickness="3px" speed="0.7s" emptyColor="whiteAlpha.200" /></Center></ModalContent>)
+      ) : (
+        <ModalContent bg="surface.elevated" color="white" borderWidth="1px" borderColor="surface.border" mx={4}>
+          <ModalCloseButton />
+          <Center py={20}>
+            {fullStatus === 'failed'
+              ? <Text color="red.300">Failed to load enemy data.</Text>
+              : <Spinner size="xl" color="yellow.400" thickness="3px" speed="0.7s" emptyColor="whiteAlpha.200" />
+            }
+          </Center>
+        </ModalContent>
+      )
     }
     </Modal>
   );

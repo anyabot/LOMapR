@@ -1,9 +1,330 @@
-import { TabPanel, Text, Image, Box, Flex, VStack, HStack, Tag, Wrap, WrapItem } from "@chakra-ui/react";
-import { Skill } from "@/interfaces/skill";
+import { TabPanel, Text, Image, Box, Flex, VStack, HStack, Tag, Wrap, WrapItem, Tooltip } from "@chakra-ui/react";
+
+// TARGET_TYPE ordinal -> label (BETT2); 0=SELF omitted (self is default/obvious)
+const TARGET_LABELS: Record<number, string> = {
+  1: "→ ally",
+  2: "→ ally (grid)",
+  3: "→ enemy",
+  4: "→ enemy (grid)",
+  5: "→ all units",
+  6: "→ all (grid)",
+  8: "→ all allies",
+  9: "→ all enemies",
+};
+
+// BUFFEFFECT_TRIGGER_TYPE ordinal -> human-readable activation condition
+// {0} in the label is replaced with triggerVal (e.g. HP threshold)
+const TRIGGER_LABELS: Record<number, string> = {
+  0:  "On skill use",
+  1:  "When hit",
+  2:  "On hit",
+  3:  "When target is buffed",
+  4:  "Based on grid position",
+  5:  "HP ≤ {0}%",
+  6:  "HP ≥ {0}%",
+  7:  "Targeting ally",
+  8:  "When enemy present (wave start)",
+  9:  "On ally death",
+  10: "On death",
+  11: "On enemy kill",
+  12: "Always",
+  13: "Battle start",
+  14: "After using specific skill",
+  15: "On attack",
+  16: "When attacked",
+  17: "On wait",
+  18: "On move",
+  19: "On evade",
+  20: "After wave",
+  21: "If buffed: {key}",
+  22: "On kill",
+  23: "On hit + if buffed",
+  24: "On kill (passive)",
+  25: "HP ≤ {0}%",
+  26: "HP ≥ {0}%",
+  27: "If self in front row",
+  28: "If self in mid row",
+  29: "If self in back row",
+  30: "Round start",
+  31: "On critical hit",
+  32: "If self buffed: {key}",
+  33: "If self debuffed: {key}",
+  34: "If {key} in grid",
+  35: "When enemy uses skill",
+  36: "On hit (passive)",
+  37: "On resurrect",
+  38: "When hit (physical)",
+  39: "When hit (fire)",
+  40: "When hit (ice)",
+  41: "When hit (lightning)",
+  42: "After counter-attack",
+  43: "After being attacked",
+  44: "When hit by active skill",
+  45: "When damaged by active skill",
+  46: "On evade (active skill)",
+  47: "On summon",
+  48: "On hit (active skill)",
+  49: "When hit by specific active skill",
+  50: "On use skill 1",
+  51: "On use skill 2",
+  52: "After support attack",
+  53: "After joint attack",
+  54: "On skill miss (self)",
+  55: "When active skill misses",
+  56: "On kill + counter-kill",
+  57: "When ally is hit",
+  58: "When ally hit (physical)",
+  59: "When ally hit (fire)",
+  60: "When ally hit (ice)",
+  61: "When ally hit (lightning)",
+  62: "When ally hit (active skill)",
+  63: "When ally hits",
+  64: "When ally uses skill",
+};
+
+// BUFFEFFECT_TRIGGER_APPLY_CONDITION ordinal -> label template
+// {0} = applyCondVal (count or key); 63 = NONE (omit)
+const APPLY_COND_LABELS: Record<number, string> = {
+  0:  "If self has [buff type]",
+  1:  "If self has [buff]",
+  2:  "If self in front row",
+  3:  "If self in mid row",
+  4:  "If self in back row",
+  5:  "If self HP ≥ {0}%",
+  6:  "If self HP ≤ {0}%",
+  7:  "If self HP < {0}%",
+  8:  "If self HP > {0}%",
+  9:  "If self has [buff] stacks",
+  10: "If target has [buff type]",
+  11: "If target has [buff]",
+  12: "If target HP ≥ {0}%",
+  13: "If target HP ≤ {0}%",
+  14: "If target is [char]",
+  15: "If [char] in battle",
+  16: "If target in front row",
+  17: "If target in mid row",
+  18: "If target in back row",
+  19: "If self has [buff] (joint)",
+  20: "If self has ≥ {0} [buff]",
+  21: "If self HP in range",
+  22: "If self missing [buff]",
+  23: "If target has ≥ {0} stacks",
+  24: "If self missing [buff] (joint)",
+  25: "If ≥ {0} other allies alive",
+  26: "If ≥ {0} allies alive",
+  27: "If ≥ {0} units alive",
+  28: "On round {0} and after",
+  29: "On round {0} and before",
+  30: "If [char] not in battle",
+  31: "If self has ≥ {0} buffs",
+  32: "On round {0}",
+  33: "If ≥ {0} Bio allies",
+  34: "If ≥ {0} AGS allies",
+  35: "If ≥ {0} Bio enemies",
+  36: "If ≥ {0} AGS enemies",
+  37: "If ally has [buff]",
+  38: "If ≥ {0} allies of class",
+  39: "If ≥ {0} allies of role",
+  40: "If self is troop type",
+  41: "On even round",
+  42: "On odd round",
+  43: "If target missing any [buff]",
+  44: "If target missing [buff]",
+  45: "If ≥ {0} enemies of class",
+  46: "If ≥ {0} enemies of role",
+  47: "If self ATK > self DEF",
+  48: "If self ATK < self DEF",
+  49: "If self ATK > target ATK",
+  50: "If self ATK < target ATK",
+  51: "If self DEF > target DEF",
+  52: "If self DEF < target DEF",
+  53: "If self EVD > target EVD",
+  54: "If self EVD < target EVD",
+  55: "If self SPD > target SPD",
+  56: "If self SPD < target SPD",
+  57: "If self missing [buff type]",
+  58: "If target missing [buff type]",
+  59: "If ally nearby",
+  60: "If no ally nearby",
+  61: "If target has ≥ {0} [buff]",
+  62: "If target missing [buff] (joint)",
+  64: "Random: if target has [buff]",
+  65: "If ≥ {0} of [char] in battle",
+  66: "If enemy has [buff]",
+  67: "If ≥ {0} of ally [buff]",
+  68: "If ≥ {0} of enemy [buff]",
+};
+const BODY_NAMES:  Record<number, string> = { 0: "AGS", 1: "Bioroid" };
+const CLASS_NAMES: Record<number, string> = { 0: "Light", 1: "Heavy", 2: "Flying" };
+const ROLE_NAMES:  Record<number, string> = { 0: "Defender", 1: "Attacker", 2: "Supporter" };
+
+const BUFF_TYPE_NAMES: Record<number, string> = {
+  0:  "ATK",              // STAT_ATK_VALUE
+  1:  "ATK",              // STAT_ATK_RATIO
+  2:  "DEF",              // STAT_DEF_VALUE
+  3:  "DEF",              // STAT_DEF_RATIO
+  4:  "HP",               // STAT_HP_VALUE
+  5:  "HP",               // STAT_HP_RATIO
+  6:  "ACC",              // STAT_RATING_VALUE
+  7:  "ACC",              // STAT_RATING_RATIO
+  8:  "CRIT",             // STAT_CRITICAL_VALUE
+  9:  "CRIT",             // STAT_CRITICAL_RATIO
+  10: "EVA",              // STAT_AVOID_VALUE
+  11: "EVA",              // STAT_AVOID_RATIO
+  12: "SPD",              // STAT_SPEED_VALUE
+  13: "SPD",              // STAT_SPEED_RATIO
+  14: "Fire RES",         // STAT_RESFIRE_VALUE
+  15: "Fire RES",         // STAT_RESFIRE_RATIO
+  16: "Ice RES",          // STAT_RESICE_VALUE
+  17: "Ice RES",          // STAT_RESICE_RATIO
+  18: "Lightning RES",    // STAT_RESLIGHTNING_VALUE
+  19: "Lightning RES",    // STAT_RESLIGHTNING_RATIO
+  20: "AP",               // STAGE_AP_VALUE
+  21: "Set AP",               // STAGE_AP_SHIFT
+  22: "Stun",             // STAGE_AP_STOP
+  23: "Recon",  // UI_INFO_NEXTENEMY
+  24: "Thorns",           // STAGE_THORNS_RATIO
+  25: "Phys Reflect",     // STAGE_REFLECTPHYSICS_VALUE
+  26: "Fire Reflect",     // STAGE_REFLECTFIRE_VALUE
+  27: "Ice Reflect",      // STAGE_REFLECTICE_VALUE
+  28: "Lightning Reflect",// STAGE_REFLECTLIGHTNIG_VALUE
+  29: "Counterattack",    // STAGE_REFLECTPHYSICS_RATIO_DEFENDER
+  30: "Fire Reflect",     // STAGE_REFLECTFIRE_RATIO_DEFENDER
+  31: "Ice Reflect",      // STAGE_REFLECTICE_RATIO_DEFENDER
+  32: "Lightning Reflect",// STAGE_REFLECTLIGHTNIG_RATIO_DEFENDER
+  33: "Damage Nullify",   // STAGE_IMMUNESHIELD_TIME  (val = count of hits nullified)
+  34: "Damage Minimize",  // STAGE_SHIELD_VALUE       (val = damage threshold)
+  35: "Damage Minimize",  // STAGE_SHIELD_VALUE_LIMITED
+  36: "DMG Reduction",       // STAGE_SHIELD_RATIO       (val = ratio)
+  37: "DMG Reduction",       // STAGE_SHIELD_RATIO_LIMITED
+  38: "Barrier",           // STAGE_IMMUNESHIELD_VALUE  (val = flat HP absorbed)
+  39: "Phys DMG Taken",   // STAGE_DAMAGEPHYSICS_RATIO
+  40: "Phys DMG Taken",   // STAGE_DAMAGEPHYSICS_VALUE
+  41: "Fire DMG Taken",   // STAGE_DAMAGEFIRE_RATIO
+  42: "Fire DMG Taken",   // STAGE_DAMAGEFIRE_VALUE
+  43: "Ice DMG Taken",    // STAGE_DAMAGEICE_RATIO
+  44: "Ice DMG Taken",    // STAGE_DAMAGEICE_VALUE
+  45: "Lightning DMG Taken", // STAGE_DAMAGELIGHTNING_RATIO
+  46: "Lightning DMG Taken", // STAGE_DAMAGELIGHTNING_VALUE
+  47: "Marked",          // STAGE_LOCKON01_TIME
+  48: "DMG Taken Increased",          // STAGE_ADDDAMAGE_RATIO
+  49: "DMG Taken Increased",          // STAGE_ADDDAMAGE_VALUE
+  50: "Column Protect",   // STAGE_BLOCK_LINE
+  51: "Row Protect",     // STAGE_BLOCK_GRID
+  52: "Push Back",        // STAGE_MOVE_BACK
+  53: "Pull Forward",     // STAGE_MOVE_FRONT
+  54: "CRIT (Next Attack)",      // STAGE_CRITICAL_NEXTATTACK
+  55: "Range",            // STAT_RANGE_VALUE
+  56: "Aggro",            // STAGE_AGRO_VALUE
+  57: "DEF Penetration",       // STAGE_DEFPIERCE_VALUE
+  58: "DEF Penetration",       // STAGE_DEFPIERCE_RATIO
+  59: "Grid Change",      // STAGE_GRID_CHANGE
+  60: "Anti-Light DMG",   // STAGE_TROOPERTYPEDMGBONUS_RATIO
+  61: "Anti-Heavy DMG",   // STAGE_ARMOREDTYPEDMGBONUS_RATIO
+  62: "Anti-Air DMG",     // STAGE_MOBILITYTYPEDMGBONUS_RATIO
+  63: "Change Form",      // STAGE_CHARCHANGE_PERMANENT
+  64: "Change Form",// STAGE_CHARCHANGE_LIMITED
+  65: "Phys DoT",         // STAGE_PHYSICS_DOT
+  66: "Fire DoT",         // STAGE_FIRE_DOT
+  67: "Ice DoT",          // STAGE_ICE_DOT
+  68: "Lightning DoT",    // STAGE_LIGHTNING_DOT
+  69: "Remove Buff (type)",// STAGE_REMOVE_BUFF_ENUM
+  70: "Fixed Phys DMG",         // STAGE_PHYSICS_DAMAGE_APPLY
+  71: "Fixed Fire DMG",         // STAGE_FIRE_DAMAGE_APPLY
+  72: "Fixed Ice DMG",          // STAGE_ICE_DAMAGE_APPLY
+  73: "Fixed Lightning DMG",    // STAGE_LIGHTNING_DAMAGE_APPLY
+  74: "Provoked",            // STAGE_PROVOKE
+  75: "Row Protect",      // STAGE_BLOCK_ROW
+  76: "Target Protect",   // STAGE_BLOCK_CHARACTER
+  77: "Follow-up Attack",        // STAGE_SUPPORT_ATTACK
+  78: "Rooted",             // STAGE_SNARE
+  79: "Silenced",          // STAGE_SEAL_SKILL
+  80: "DMG Amp (by own HP)", // STAGE_DAMAGEAMP_BYHP_ME
+  81: "DMG Amp (by target HP)", // STAGE_DAMAGEAMP_BYHP_OPP
+  82: "Battle Continuation",           // STAGE_RESURRECT
+  83: "Additional Phys DMG",   // STAGE_DAMAGEPHYSICS_RATIO_INS
+  84: "Additional Fire DMG",   // STAGE_DAMAGEFIRE_RATIO_INS
+  85: "Additional Ice DMG",    // STAGE_DAMAGEICE_RATIO_INS
+  86: "Additional Lightning DMG", // STAGE_DAMAGELIGHTNING_RATIO_INS
+  87: "Marked",             // STAGE_MARKING
+  88: "Remove Buff",      // STAGE_REMOVE_BUFF
+  89: "Remove Debuff",    // STAGE_REMOVE_DEBUFF
+  90: "Status Resist",      // STAGE_DEBUFF_RATEUP
+  91: "Status Resist",    // STAGE_DEBUFF_PERDOWN
+  92: "Buff Rate", // STAGE_BUFFEFFECTRATE_CHANGE
+  93: "Remove Summon",    // REMOVE_SUMMON_INSTENV
+  94: "Ignore Barrier / DMG Reduction",   // BARRIER_PIERCE
+  95: "EXP Up",           // STAGE_EXP_UP
+  96: "Analyze",          // STAGE_ANALYZE
+  97: "Remove ALL Effects",// STAGE_REMOVE_BUFF_KEY_ALL_ATTRTYPE
+  98: "Battle Continuation",        // STAGE_RESURRECT_RATIO
+  99: "Remove All Buffs", // STAGE_REMOVE_ALL_BUFF
+  100: "Remove All Debuffs", // STAGE_REMOVE_ALL_DEBUFF
+  101: "Debuff Immunity",  // STAGE_IMMUNITY_DEBUFF
+  102: "Cooperative Attack with Active Skill 1", // STAGE_TOGETHER_ATTACK_ACTIVE_SKILL_1
+  103: "Cooperative Attack with Active Skill 2", // STAGE_TOGETHER_ATTACK_ACTIVE_SKILL_2
+  104: "Max HP",           // STAT_MAXHP_VALUE
+  105: "Max HP",           // STAT_MAXHP_RATIO
+  106: "Skill Power",        // STAT_SKILL_RATIO
+  107: "Range (skill 1)",  // STAT_RANGE_VALUE_ACTIVE_SKILL_1
+  108: "Range (skill 2)",  // STAT_RANGE_VALUE_ACTIVE_SKILL_2
+  109: "Area DMG Focus",   // FOCUSED_ATTACK
+  110: "Area DMG Dispersion", // DAMAGE_DISPERSE
+  111: "Skill Power Proportional to Own EVA", // EVADE_SKILLDMGUP_ME
+  112: "Skill Power Resist Proportional to Own EVA", // EVADE_SKILLDMGDOWN
+  113: "Skill Power Proportional to Own DEF", // DEF_SKILLDMGUP_ME
+  114: "CRIT Resist Proportional to Own DEF",  // DEF_CRTDOWN
+  115: "Proportional ATK Up", // BUFFER_ATK_ATKUP
+  116: "Min Fire RES",     // RESFIRE_VALUE_MIN
+  117: "Min Ice RES",      // RESICE_VALUE_MIN
+  118: "Min Lightning RES",// RESLIGHTNING_VALUE_MIN
+  119: "Fire RES Fix",     // RESFIRE_VALUE_FIX
+  120: "Ice RES Fix",      // RESICE_VALUE_FIX
+  121: "Lightning RES Fix",// RESLIGHTNING_VALUE_FIX
+  122: "Reverse Fire RES Debuff",       // RESFIRE_DEBUFF_REVERSE
+  123: "Reverse Ice RES Debuff",        // RESICE_DEBUFF_REVERSE
+  124: "Reverse Lightning RES Debuff",  // RESLIGHTNING_DEBUFF_REVERSE
+  125: "Buff Prevention",  // BUFF_DISALLOW
+  126: "Buff Removal Resist", // REMOVE_BUFF_RESIST
+  127: "Max Action Count",     // ACTION_NUMBER_CHANGE
+  128: "Taunt (attacker)", // PROVOKE_ATTACKER
+  129: "DEF Penetration Resist Proportional to Own current HP", // CURRENT_HP_PIERCEDOWN
+  130: "Ignore Protection Activated", // GUARDPIERCE_APPLY
+  131: "Ignore Protection Disabled",    // GUARDPIERCE_NO_APPLY
+  132: "DMG Recovery (round)", // DAMAGE_RECOVER_THISROUND
+  133: "Same Skill DMG Reduce", // SAME_SKILL_HIT_DAMAGE_REDUCE
+  134: "Silenced (skill 1)", // STAGE_SEAL_SKILL_ACTIVE_1
+  135: "Silenced (skill 2)", // STAGE_SEAL_SKILL_ACTIVE_2
+  136: "Silenced (passive)", // STAGE_SEAL_SKILL_PASSIVE
+  137: "Add Role Type",    // ADD_ROLE_TYPE
+  138: "Area Skill Power", // WIDE_SKILL_RATIO
+  139: "Area DMG",         // WIDE_DAMAGE_RATIO
+  140: "Double Attack",    // STAGE_DOUBLE_ATTACK_RATIO
+  141: "Resist Check ATK", // RESIST_CHECK_ATTACK_POWER
+  142: "DEF DMG Reduce",   // DEF_DAMAGE_REDUCE
+  143: "DEF DMG Add",      // DEF_DMG_ADD
+  144: "DMG (% giver max HP)",     // RATIO_DMG_GIVER_MAX_HP
+  145: "DMG (% giver cur HP)",     // RATIO_DMG_GIVER_CURRENT_HP
+  146: "DMG (% target max HP)",    // RATIO_DMG_TARGET_MAX_HP
+  147: "DMG (% target cur HP)",    // RATIO_DMG_TARGET_CURRENT_HP
+  148: "AP Cost Adjust (skill 1)", // ADJUST_AP_ACTIVE_SKILL_1
+  149: "AP Cost Adjust (skill 2)", // ADJUST_AP_ACTIVE_SKILL_2
+  150: "Buff Prevention (specific)", // BUFF_DISALLOW_SPECIFIC
+  151: "All Effect Prevention (specific)", // ENUM_DISALLOW_SPECIFIC
+  // 152: __MAX__
+};
+
+const NOTE_EXPLANATIONS: Record<string, string> = {
+  Instant: "Applied immediately and does not persist.",
+  Renew: "Removes all existing stacks of this effect and replaces them with a new one.",
+  Single: "Only applied if no instance of this effect already exists.",
+  Update: "Adds a new stack until the limit is reached; once at the limit, removes the oldest stack and adds a new one.",
+};
+import { Skill, SkillBuff } from "@/interfaces/skill";
 import { t } from "@/lib/strings";
 import EffectTooltip from "./effectTooltip";
 import SkillArea from "./skillArea";
-import { useCallback } from "react";
+import React, { useCallback } from "react";
 
 const keyword = (count: number, e: string) => {
   switch (e.toLowerCase()) {
@@ -676,9 +997,11 @@ const keyword = (count: number, e: string) => {
 export default function SkillTab({
   skill,
   atk,
+  showBuffs,
 }: {
   skill: Skill;
   atk: number;
+  showBuffs: boolean;
 }) {
 
   const splitTag = (str: string) => {
@@ -726,6 +1049,343 @@ export default function SkillTab({
     var count = 0;
     let r = splitTag(copy)
     return r;
+  }
+
+  const tr = (id: string) => { const r = t(id); return (r && r !== id) ? r.split(":")[0].trim() : ""; };
+
+  // resolveCondVal: used only for applyCond=NONE extra tags (BUFFEFFECT_TYPE ordinals + Effect_ keys).
+  function resolveCondVal(v: string, nam: string): string {
+    const numV = v ? parseInt(v, 10) : NaN;
+    const isNumeric = !isNaN(numV) && String(numV) === v;
+    return isNumeric
+      ? (BUFF_TYPE_NAMES[numV] ?? String(numV))
+      : v
+        ? (tr(nam) || tr(`BuffName_${v}`) || v.replace(/^Effect_[^_]+_/, "").replace(/^Char_[^_]+_/, "").replace(/_/g, " "))
+        : "";
+  }
+
+  // Resolve a [buff type] token value: integer → BUFF_TYPE_NAMES.
+  function resolveBuffTypeName(v: string): string {
+    const numV = parseInt(v, 10);
+    return !isNaN(numV) ? (BUFF_TYPE_NAMES[numV] ?? String(numV)) : v;
+  }
+
+  // Resolve a [buff] or [char] token value: Effect_/Char_ key → display name.
+  function resolveKeyName(v: string, nam: string): string {
+    return tr(nam) || tr(`BuffName_${v}`) || v.replace(/^Effect_[^_]+_/, "").replace(/^Char_[^_]+_/, "").replace(/_/g, " ");
+  }
+
+  // Resolve a {0} placeholder that is a count or HP threshold — never a type ID.
+  // HP conditions (labels containing "%") store a float (0.5 = 50%); counts are integers.
+  function resolveCountVal(v: string, isHp: boolean): string {
+    const numV = parseFloat(v);
+    if (isNaN(numV)) return v || "?";
+    return isHp ? String(Math.round(numV * 100)) : String(Math.round(numV));
+  }
+
+  // Returns { before, name, after } so the caller can underline the name fragment.
+  // Each condition type expects a specific kind of value in applyCondVals[0]:
+  //   [buff type] → BUFF_TYPE_NAMES lookup (integer type ordinal)
+  //   [buff]      → Effect_/Skill_ key → display name
+  //   [char]      → Char_/MOB_ key → display name
+  //   {0}         → count (integer) or HP% (float×100) — never BUFF_TYPE_NAMES
+  function resolveApplyCondParts(buff: SkillBuff): { before: string; name: string; after: string } | null {
+    const applyCondRaw = buff.applyCond !== 63 ? APPLY_COND_LABELS[buff.applyCond] : null;
+    if (!applyCondRaw) return null;
+
+    const v   = buff.applyCondVals[0] ?? "";
+    const nam = buff.applyCondNames[0] ?? "";
+
+    const nameToken = /\[buff type\]/.test(applyCondRaw) ? "[buff type]"
+      : /\[buff\]/.test(applyCondRaw) ? "[buff]"
+      : /\[char\]/.test(applyCondRaw) ? "[char]"
+      : null;
+
+    const has0  = /\{0\}/.test(applyCondRaw);
+    const isHp  = has0 && /\{0\}%/.test(applyCondRaw);
+
+    // Resolve the named token (underlined in UI).
+    let nameVal = "";
+    if (nameToken === "[buff type]") {
+      nameVal = resolveBuffTypeName(v);
+    } else if (nameToken === "[buff]") {
+      if (!v) return null;
+      nameVal = resolveKeyName(v, nam);
+    } else if (nameToken === "[char]") {
+      if (!v) return null;
+      nameVal = resolveKeyName(v, nam);
+    }
+
+    // Resolve the {0} count/threshold — only when there is no named token consuming
+    // the same value, or when the label has both (e.g. "If ≥ {0} [buff]").
+    let val0 = "";
+    if (has0) {
+      // When the named token also uses v, {0} count isn't in CV2; show nothing.
+      if (nameToken && v && !v.match(/^\d/)) {
+        val0 = "";  // Effect_/Char_ key — count unknown, omit
+      } else {
+        val0 = resolveCountVal(v, isHp);
+      }
+    }
+
+    // Build the template.
+    let template = applyCondRaw;
+    if (has0) template = template.replace("{0}", val0 || "?");
+
+    // Reject if unresolved [tokens] remain (besides the known nameToken).
+    if (/\[|\]/.test(template.replace(nameToken ?? "$$NOMATCH$$", ""))) return null;
+
+    if (nameToken) {
+      const idx = template.indexOf(nameToken);
+      const before = template.slice(0, idx).replace(/\s{2,}/g, " ").trimStart();
+      const after  = template.slice(idx + nameToken.length).replace(/\s{2,}/g, " ").trimEnd();
+      return { before, name: nameVal, after };
+    }
+    const label = template.replace(/\s{2,}/g, " ").trim();
+    return label ? { before: label, name: "", after: "" } : null;
+  }
+
+  // For buffs where applyCond=NONE but applyCondVals has entries: each val is a
+  // standalone condition ordinal or buff-type reference (e.g. Phys DoT checking
+  // multiple elemental effect types).
+  function resolveExtraCondTags(buff: SkillBuff): string[] {
+    if (buff.applyCond !== 63 || buff.applyCondVals.length === 0) return [];
+    // When applyCond=NONE, each value is a BUFFEFFECT_TYPE ordinal or effect key,
+    // not an apply-condition ordinal — resolve via BUFF_TYPE_NAMES / effect name.
+    return buff.applyCondVals.map((v, i) => {
+      return resolveCondVal(v, buff.applyCondNames[i] ?? "") || v;
+    }).filter(Boolean);
+  }
+
+  function renderBuffGroup(group: SkillBuff[], groupIdx: number) {
+    const rep = group[0];
+    const attrLabel = ["Buff", "Debuff", "Skill Buff", "Normal Effect", "Rogue Buff", "Rogue Debuff"][rep.attr] ?? "Normal Effect";
+    const attrBg   = rep.attr === 0 ? "#276749" : rep.attr === 1 ? "#9b2c2c" : rep.attr === 2 ? "#2c5282" : rep.attr === 4 ? "#9c4221" : rep.attr === 5 ? "#702459" : "#2d3748";
+    const attrFg   = rep.attr === 0 ? "#9ae6b4" : rep.attr === 1 ? "#feb2b2" : rep.attr === 2 ? "#90cdf4" : rep.attr === 4 ? "#fbd38d" : rep.attr === 5 ? "#fbb6ce" : "#e2e8f0";
+    const attrBorder = rep.attr === 0 ? "#38a169" : rep.attr === 1 ? "#e53e3e" : rep.attr === 2 ? "#3182ce" : rep.attr === 4 ? "#dd6b20" : rep.attr === 5 ? "#d53f8c" : "#4a5568";
+    const trg = (id: string) => { const r = t(id); return r ? r.split(":")[0].trim() : ""; };
+    const groupName = trg(rep.name);
+
+    const resolveTriggerLabel = (triggerType: number) => {
+      const raw = TRIGGER_LABELS[triggerType];
+      if (!raw) return null;
+      const valStr = rep.triggerVal ? String(Math.round(rep.triggerVal * 100)) : "?";
+      const keyStr = rep.triggerName
+        ? (trg(rep.triggerName) || rep.triggerName)
+        : rep.triggerKey || "?";
+      return raw.replace("{0}", valStr).replace("{key}", keyStr);
+    };
+    const triggerLabel = resolveTriggerLabel(rep.trigger);
+    const targetLabel  = TARGET_LABELS[rep.targetType] ?? null;
+    const applyCondParts = resolveApplyCondParts(rep);
+    const extraCondTags  = resolveExtraCondTags(rep);
+    const condIsBuff = applyCondParts !== null && /\[buff|\[char/.test(APPLY_COND_LABELS[rep.applyCond] ?? "");
+    const effectiveCondAttr = rep.condAttr !== 6
+      ? rep.condAttr
+      : ((rep.applyCondAttrs ?? []).find(a => a >= 0) ?? 6);
+    const condAttrLabel = effectiveCondAttr === 0 ? " (buff)"
+      : effectiveCondAttr === 1 ? " (debuff)"
+      : effectiveCondAttr >= 2 && effectiveCondAttr !== 6 ? " (all)"
+      : (condIsBuff || extraCondTags.length > 0) ? " (all)"
+      : "";
+
+    // ── small pill helper ────────────────────────────────────────────────────
+    const Pill = ({ bg, color, children }: { bg: string; color: string; children: React.ReactNode }) => (
+      <Box as="span" display="inline-block" px="6px" py="1px" borderRadius="3px"
+        bg={bg} color={color} fontSize="11px" lineHeight="18px" whiteSpace="nowrap">
+        {children}
+      </Box>
+    );
+
+    return (
+      <Box
+        key={groupIdx}
+        w="100%"
+        borderLeftWidth="3px"
+        borderLeftColor={attrBorder}
+        borderRadius="4px"
+        overflow="clip"
+        bg="gray.800"
+      >
+        {/* ── header ── */}
+        <Box px={2} pt={1.5} pb={1} bg="blackAlpha.300" borderBottomWidth="1px" borderBottomColor="whiteAlpha.100">
+          {/* name row — full width, attr badge right-aligned */}
+          <Flex align="center" justify="space-between" w="100%" mb={1}>
+            <Text fontSize="sm" color="gray.100" fontWeight="bold" textDecoration="underline" flexShrink={1} minW={0}>
+              {groupName || attrLabel}
+            </Text>
+            <Box ml={2} px="7px" py="1px" borderRadius="3px" bg={attrBg} color={attrFg}
+              fontSize="11px" fontWeight="bold" lineHeight="18px" flexShrink={0}>
+              {attrLabel}
+            </Box>
+          </Flex>
+
+          {/* pills row */}
+          <Flex gap={1.5} flexWrap="wrap" align="center">
+            {triggerLabel ? <Pill bg="purple.900" color="purple.200">{triggerLabel}</Pill> : null}
+            {targetLabel  ? <Pill bg="gray.700"   color="gray.300">{targetLabel}</Pill>  : null}
+
+            {applyCondParts ? (
+              <Pill bg="teal.900" color="teal.200">
+                {applyCondParts.before}
+                {applyCondParts.name
+                  ? <Box as="span" fontWeight="semibold" color="teal.100">{applyCondParts.name}</Box>
+                  : null}
+                {applyCondParts.after}
+                {condAttrLabel ? <Box as="span" color="teal.400">{condAttrLabel}</Box> : null}
+              </Pill>
+            ) : extraCondTags.length > 0 ? (
+              <Pill bg="teal.900" color="teal.200">
+                if: {extraCondTags.join(" / ")}
+                {condAttrLabel ? <Box as="span" color="teal.400">{condAttrLabel}</Box> : null}
+              </Pill>
+            ) : null}
+
+            {rep.rate < 1 ? <Pill bg="yellow.900" color="yellow.300">{Math.round(rep.rate * 100)}% chance</Pill> : null}
+            {rep.eraseType === 2 ? <Pill bg="orange.900" color="orange.300">on trigger</Pill>   : null}
+            {rep.eraseType === 4 ? <Pill bg="orange.900" color="orange.300">preserved</Pill>    : null}
+
+            {(rep.filterBody?.length  ?? 0) > 0 ? <Pill bg="cyan.900"   color="cyan.200"  >{rep.filterBody.map(v  => BODY_NAMES[v]  ?? v).join("/")} only</Pill> : null}
+            {(rep.filterClass?.length ?? 0) > 0 ? <Pill bg="blue.900"   color="blue.200"  >{rep.filterClass.map(v => CLASS_NAMES[v] ?? v).join("/")} only</Pill> : null}
+            {(rep.filterRole?.length  ?? 0) > 0 ? <Pill bg="green.900"  color="green.200" >{rep.filterRole.map(v  => ROLE_NAMES[v]  ?? v).join("/")} only</Pill> : null}
+          </Flex>
+        </Box>
+
+        {/* ── effect rows ── */}
+        <VStack spacing={0} align="stretch">
+          {group.map((buff, i) => {
+            if (!buff.icon && !BUFF_TYPE_NAMES[buff.type]) return null;
+
+            let valStr = "";
+            let descFill = "";
+            let valPositive = true;
+            if (buff.type === 33 && buff.val !== 0) {
+              valStr = `×${buff.val}`; descFill = String(buff.val);
+            } else if ((buff.type === 34 || buff.type === 35) && buff.val !== 0) {
+              valStr = `< ${buff.val}`; descFill = String(buff.val);
+            } else if (buff.fmt === "pct" && buff.val !== 0) {
+              const pct = Math.round(buff.val * 100);
+              valStr = `${buff.val > 0 ? "+" : ""}${pct}%`;
+              descFill = String(pct); valPositive = buff.val > 0;
+            } else if (buff.type === 21 && buff.val !== 0) {
+              valStr = String(buff.val); descFill = String(buff.val);
+            } else if (buff.fmt === "flat" && buff.val !== 0) {
+              valStr = `${buff.val > 0 ? "+" : ""}${buff.val}`;
+              descFill = String(buff.val); valPositive = buff.val > 0;
+            } else if (buff.fmt === "tid" && buff.val !== 0) {
+              const n = BUFF_TYPE_NAMES[buff.val] ?? String(buff.val);
+              valStr = n; descFill = n;
+            }
+
+            let durStr = "";
+            if (buff.eraseType === 3) durStr = "Permanent";
+            else if (buff.eraseType === 0 && buff.turns > 0) durStr = `${buff.turns} rounds`;
+            else if (buff.eraseType === 1) durStr = buff.turns > 1 ? `×${buff.turns}` : "×1";
+
+            const stackStr = buff.eraseType === 2 ? ""
+              : buff.overlapType === 4 && buff.overlapMax === 0 ? "Unlimited stacks"
+              : buff.overlapType === 4 ? ` Max ${buff.overlapMax} stacks`
+              : buff.overlapType === 2 ? "+duration"
+              : "";
+
+            const rawDesc = t(buff.desc);
+            const filledDesc = descFill ? rawDesc.replace("{0}", descFill) : rawDesc;
+            const descResolved = rawDesc && rawDesc !== buff.desc;
+
+            let noteStr = "";
+            if (buff.eraseType === 0 && buff.turns === 0) noteStr = "Instant";
+            else if (buff.overlapType == 1) noteStr = "Renew";
+            else if (buff.overlapType == 3) noteStr = "Single";
+            else if (buff.overlapType == 4  && buff.overlapMax != 0) noteStr = "Update";
+
+            const valColor = buff.fmt === "tid" || buff.type === 21 || buff.type === 33 || buff.type === 34 || buff.type === 35
+              ? "gray.200" : valPositive ? "green.300" : "red.300";
+
+            return (
+              <Flex key={`${groupIdx}-${i}`} px={2} py={1.5} gap={2} align="flex-start"
+                borderTopWidth={i > 0 ? "1px" : "0"} borderTopColor="whiteAlpha.100">
+                <Box flexShrink={0} w="18px" h="18px" mt="1px">
+                  {buff.icon ? <Image src={`/images/effects/BuffIcon_${buff.icon}.png`} boxSize="18px" /> : null}
+                </Box>
+                <Box flex={1} minW={0}>
+                  <HStack spacing={1.5} flexWrap="wrap">
+                    <Text fontSize="sm" fontWeight="bold" textDecoration="underline" color="gray.200">{BUFF_TYPE_NAMES[buff.type]}</Text>
+                    {valStr ? <Text fontSize="sm" fontWeight="bold" color={valColor}>{valStr}</Text> : null}
+                  </HStack>
+                  {descResolved
+                    ? <Text fontSize="xs" color="gray.500" mt="2px" lineHeight="short">{filledDesc}</Text>
+                    : null}
+                </Box>
+                <HStack spacing={1} flexShrink={0} mt="2px">
+                  {durStr   ? <Box px="5px" py="1px" borderRadius="3px" bg="gray.700" color="gray.300" fontSize="11px" lineHeight="16px">{durStr}</Box>   : null}
+                  {stackStr ? <Box px="5px" py="1px" borderRadius="3px" bg="gray.700" color="cyan.300"  fontSize="11px" lineHeight="16px">{stackStr}</Box> : null}
+                  {noteStr ? (
+                    <Box
+                      as="span"
+                      position="relative"
+                      display="inline-flex"
+                      alignItems="center"
+                      gap="3px"
+                      px="5px"
+                      py="1px"
+                      borderRadius="3px"
+                      bg="gray.700"
+                      color="yellow.300"
+                      fontSize="11px"
+                      lineHeight="16px"
+                      cursor="help"
+                      role="group"
+                    >
+                      {noteStr}
+                      <Box as="span" opacity={0.6} fontSize="10px">?</Box>
+                      <Box
+                        as="span"
+                        position="absolute"
+                        bottom="calc(100% + 4px)"
+                        right="0"
+                        px="8px"
+                        py="5px"
+                        borderRadius="md"
+                        bg="gray.900"
+                        color="gray.100"
+                        fontSize="11px"
+                        lineHeight="1.4"
+                        whiteSpace="nowrap"
+                        pointerEvents="none"
+                        boxShadow="md"
+                        borderWidth="1px"
+                        borderColor="whiteAlpha.200"
+                        display="none"
+                        _groupHover={{ display: "block" }}
+                        zIndex={9999}
+                      >
+                        {NOTE_EXPLANATIONS[noteStr]}
+                      </Box>
+                    </Box>
+                  ) : null}
+                </HStack>
+              </Flex>
+            );
+          })}
+        </VStack>
+      </Box>
+    );
+  }
+
+  function renderBuffs(buffs: SkillBuff[]) {
+    // Group consecutive buffs that share the same LBEI entry (same group index)
+    const groups: SkillBuff[][] = [];
+    for (const buff of buffs) {
+      if (!buff.icon && !BUFF_TYPE_NAMES[buff.type]) continue;
+      const last = groups[groups.length - 1];
+      const rep = last?.[0];
+      if (rep && rep.group === buff.group) {
+        last.push(buff);
+      } else {
+        groups.push([buff]);
+      }
+    }
+    return groups.map((g, i) => renderBuffGroup(g, i));
   }
 
   const hasArea = skill.area.some((v) => v > 0);
@@ -797,6 +1457,12 @@ export default function SkillTab({
           </VStack>
         ) : null}
       </Flex>
+
+      {skill.buffs?.length && showBuffs ? (
+        <VStack mt={3} spacing={2} align="stretch">
+          {renderBuffs(skill.buffs)}
+        </VStack>
+      ) : null}
     </TabPanel>
   );
 }

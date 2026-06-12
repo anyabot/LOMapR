@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Tabs,
   Tab,
@@ -7,42 +7,51 @@ import {
   TabPanel,
   Image,
   Text,
+  Flex,
+  Box,
 } from '@chakra-ui/react'
 import SkillTab from './skillTab';
 import AIGraphView from './aiGraph';
 
 import { useAppSelector, useAppDispatch } from '@/hooks';
-import { selectSkill, selectSkillStatus, fetchSkillAsync } from '@/store/skillSlice';
-import { selectAI, fetchAIAsync } from '@/store/aiSlice';
+import { selectEnemySkills, selectEnemySkillStatus, fetchEnemySkillsAsync } from '@/store/skillSlice';
+import { selectAI, fetchEnemyAIAsync } from '@/store/aiSlice';
 
-
+const BUFF_SHOW_KEY = "skillTab_showBuffs";
 
 export default function SkillTabList({skills, atk, info, rank, enemyId} : {skills: string[], atk:number, info:string, rank:string, enemyId?: string}) {
 
-  const skillInfo = useAppSelector(selectSkill);
-  const skillstatus = useAppSelector(selectSkillStatus);
-  const aiData = useAppSelector(selectAI);
   const dispatch = useAppDispatch();
+  const id = enemyId ?? '';
+
+  const skillInfo = useAppSelector(state => selectEnemySkills(state, id));
+  const skillStatus = useAppSelector(state => selectEnemySkillStatus(state, id));
+  const aiData = useAppSelector(selectAI);
+
+  const [showBuffs, setShowBuffs] = useState<boolean>(() => {
+    try { return localStorage.getItem(BUFF_SHOW_KEY) !== "0"; } catch { return true; }
+  });
+  const toggleBuffs = () => {
+    const next = !showBuffs;
+    setShowBuffs(next);
+    try { localStorage.setItem(BUFF_SHOW_KEY, next ? "1" : "0"); } catch {}
+  };
 
   useEffect(() => {
-    dispatch(fetchSkillAsync());
-    dispatch(fetchAIAsync());
-  }, [dispatch])
+    if (!id) return;
+    dispatch(fetchEnemySkillsAsync(id));
+    dispatch(fetchEnemyAIAsync(id));
+  }, [dispatch, id]);
 
-  const aiGraph = enemyId ? aiData[enemyId] : undefined;
+  const aiGraph = id ? aiData[id] : undefined;
 
   function convertRank(rank: string): number {
     switch (rank) {
-      case "B":
-        return 2;
-      case "A":
-        return 3;
-      case "S":
-        return 4;
-      case "SS":
-        return 5;
-      default:
-        return 6;
+      case "B": return 2;
+      case "A": return 3;
+      case "S": return 4;
+      case "SS": return 5;
+      default: return 6;
     }
   }
 
@@ -58,8 +67,6 @@ export default function SkillTabList({skills, atk, info, rank, enemyId} : {skill
     return ret
   }
 
-  // line/underline highlight instead of a filled yellow chip (which looked bad
-  // behind the white AI icon)
   const tabStyle = {
     p: 1.5,
     borderRadius: 'md',
@@ -71,16 +78,32 @@ export default function SkillTabList({skills, atk, info, rank, enemyId} : {skill
     _selected: { opacity: 1, borderBottomColor: 'yellow.400', bg: 'whiteAlpha.100' },
   } as const;
 
-  if (skillstatus == "failed") return (<h2>Fetch Skill Info Failed</h2>)
+  if (skillStatus === 'failed') return (<h2>Fetch Skill Info Failed</h2>)
   return (
       <Tabs variant='unstyled' size="sm">
-        <TabList flexWrap="wrap" gap={1}>
-          {getSkills().map(s => <Tab key={s.title} {...tabStyle}><Image src={`/images/SkillIcon/${s.img}_${s.type}.png`} boxSize={["32px", "38px", "42px"]} alt={`${s.title}`}/></Tab>)}
-          <Tab {...tabStyle}><Image src='/images/info.png' boxSize={["32px", "38px", "42px"]} alt="info"/></Tab>
-          {aiGraph ? <Tab {...tabStyle}><Image src='/images/UI_Common_Icon_ItemSlot_Chip.png' boxSize={["32px", "38px", "42px"]} alt="AI"/></Tab> : null}
-        </TabList>
+        <Flex align="center" gap={2}>
+          <TabList flexWrap="wrap" gap={1} flex={1}>
+            {getSkills().map(s => <Tab key={s.title} {...tabStyle}><Image src={`/images/SkillIcon/${s.img}_${s.type}.png`} boxSize={["32px", "38px", "42px"]} alt={`${s.title}`}/></Tab>)}
+            <Tab {...tabStyle}><Image src='/images/info.png' boxSize={["32px", "38px", "42px"]} alt="info"/></Tab>
+            {aiGraph ? <Tab {...tabStyle}><Image src='/images/UI_Common_Icon_ItemSlot_Chip.png' boxSize={["32px", "38px", "42px"]} alt="AI"/></Tab> : null}
+          </TabList>
+          <Box
+            as="button"
+            onClick={toggleBuffs}
+            px={2} py={1}
+            borderRadius="4px"
+            bg="gray.700"
+            color="gray.300"
+            fontSize="xs"
+            fontWeight="medium"
+            flexShrink={0}
+            _hover={{ bg: "gray.600" }}
+          >
+            {showBuffs ? "▾ Effects" : "▸ Effects"}
+          </Box>
+        </Flex>
         <TabPanels>
-          {getSkills().map(s => <SkillTab key={s.title} skill={s} atk={atk}/>)}
+          {getSkills().map(s => <SkillTab key={s.title} skill={s} atk={atk} showBuffs={showBuffs}/>)}
           <TabPanel>{info}</TabPanel>
           {aiGraph ? (
             <TabPanel px={0}>

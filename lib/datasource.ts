@@ -18,6 +18,7 @@ import path from 'path';
 const NODE_TO_FILE: { [node: string]: string } = {
   EnemyData: 'enemy',
   Skills: 'skill',
+  Strings: 'strings',
   World: 'world',
   Sanctum: 'sanctum',
   Images: 'images',
@@ -32,14 +33,49 @@ export type Region = (typeof REGIONS)[number];
 // Root path under which the admin panel pushes each node, per region.
 const ROOT = 'LOMapInfo';
 
-type DataSource = 'local' | 'firebase';
+type DataSource = 'local' | 'firebase' | 'blob';
 
 function dataSource(): DataSource {
-  return process.env.DATA_SOURCE === 'local' ? 'local' : 'firebase';
+  const v = process.env.DATA_SOURCE;
+  if (v === 'local') return 'local';
+  if (v === 'blob') return 'blob';
+  return 'firebase';
 }
 
-export function isLocal(): boolean {
-  return dataSource() === 'local';
+export function isLocal(): boolean { return dataSource() === 'local'; }
+export function isBlob(): boolean {
+  return dataSource() === 'blob' && !!(process.env.R2_PUBLIC_URL ?? '');
+}
+
+// In-process cache: survives across requests on a warm serverless instance.
+// Prevents redundant R2 reads when multiple requests hit the same instance
+// before Vercel's CDN has cached the API route response.
+const _blobCache = new Map<string, { data: any; exp: number }>();
+const BLOB_TTL_MS = 3600 * 1000; // 1 hour
+
+// Fetch a split file from R2 using the S3 client (server-side, authenticated).
+async function fetchBlobJson(pathname: string): Promise<any | null> {
+  const cached = _blobCache.get(pathname);
+  if (cached && cached.exp > Date.now()) return cached.data;
+
+  try {
+    const { r2Client, R2_BUCKET } = await import('@/lib/r2');
+    if (!R2_BUCKET) return null;
+    const { GetObjectCommand } = await import('@aws-sdk/client-s3');
+    const client = r2Client();
+    const resp = await client.send(new GetObjectCommand({ Bucket: R2_BUCKET, Key: pathname }));
+    const body = resp.Body;
+    if (!body) return null;
+    // Body is a ReadableStream (Node.js); collect chunks and parse.
+    const chunks: Uint8Array[] = [];
+    for await (const chunk of body as AsyncIterable<Uint8Array>) chunks.push(chunk);
+    const text = Buffer.concat(chunks).toString('utf-8');
+    const data = JSON.parse(text);
+    _blobCache.set(pathname, { data, exp: Date.now() + BLOB_TTL_MS });
+    return data;
+  } catch {
+    return null;
+  }
 }
 
 export function normalizeRegion(r: unknown): Region {
@@ -57,7 +93,22 @@ function readFile(region: Region, file: string): any | null {
   }
 }
 
+function readSplitFile(region: Region, name: string): any | null {
+  const p = path.join(process.cwd(), 'data', region, 'split', `${name}.json`);
+  try { return JSON.parse(fs.readFileSync(p, 'utf-8')); } catch { return null; }
+}
+
 function readLocal(node: string, region: Region): any | null {
+  // EnemyData: read from split/enemy_list.json (full records).
+  if (node === 'EnemyData') {
+    const regions = region === 'global' ? ['global'] : [region, 'global'];
+    for (const r of regions as Region[]) {
+      const data = readSplitFile(r, 'enemy_list');
+      if (data) return data;
+    }
+    return null;
+  }
+
   const file = NODE_TO_FILE[node];
   if (!file) return null;
 
@@ -171,6 +222,99 @@ function preferPublicImages(map: { [key: string]: string }): { [key: string]: st
   return out;
 }
 
+// ── blob: full-node helpers ──────────────────────────────────────────────────
+
+// Fetch EnemyData in blob mode from split/enemy_list.json (full records).
+async function fetchBlobEnemyData(region: Region): Promise<any | null> {
+  const data = await fetchBlobJson(`${region}/split/enemy_list.json`);
+  if (!data) return null;
+  return shapeEnemy(data);
+}
+
+// ── per-enemy split helpers ──────────────────────────────────────────────────
+
+function readSplitLocal(kind: string, id: string, region: Region): any | null {
+  for (const r of region === 'global' ? ['global'] : [region, 'global']) {
+    try {
+      const p = path.join(process.cwd(), 'data', r, 'split', kind, `${id}.json`);
+      return JSON.parse(fs.readFileSync(p, 'utf-8'));
+    } catch {}
+  }
+  return null;
+}
+
+// Read a single enemy's full record. enemy_list.json holds all fields.
+export async function getSplitEnemy(id: string, region: Region): Promise<any | null> {
+  if (isLocal()) {
+    const regions = region === 'global' ? ['global'] : [region, 'global'];
+    for (const r of regions as Region[]) {
+      const all = readSplitFile(r, 'enemy_list');
+      if (all?.[id]) return all[id];
+    }
+    return null;
+  }
+  if (isBlob()) {
+    const regions = region === 'global' ? ['global'] : [region, 'global'];
+    for (const r of regions as Region[]) {
+      const all = await fetchBlobJson(`${r}/split/enemy_list.json`);
+      if (all?.[id]) return all[id];
+    }
+    // Fall back to Firebase.
+    const allEnemy = await readFirebase('EnemyData', region);
+    return allEnemy?.[id] ?? null;
+  }
+  const allEnemy = await readFirebase('EnemyData', region);
+  return allEnemy?.[id] ?? null;
+}
+
+// Return the skill subset for a single enemy.
+export async function getSplitSkills(id: string, region: Region): Promise<any | null> {
+  if (isLocal()) {
+    const split = readSplitLocal('skills', id, region);
+    if (split) return split;
+    // Fallback: derive from enemy_list + full skills file.
+    const allSkills = readLocal('Skills', region);
+    const regions = region === 'global' ? ['global'] : [region, 'global'];
+    let keys: string[] = [];
+    for (const r of regions as Region[]) {
+      const all = readSplitFile(r, 'enemy_list');
+      if (all?.[id]?.skills) { keys = all[id].skills; break; }
+    }
+    if (!allSkills || !keys.length) return null;
+    return Object.fromEntries(keys.filter(k => k in allSkills).map(k => [k, allSkills[k]]));
+  }
+  if (isBlob()) {
+    const data = await fetchBlobJson(`${region}/split/skills/${id}.json`);
+    if (data) return data;
+    // KR file wasn't pushed (identical to global) — fall back to global
+    if (region !== 'global') return fetchBlobJson(`global/split/skills/${id}.json`);
+    return null;
+  }
+  const [allEnemy, allSkills] = await Promise.all([
+    readFirebase('EnemyData', region),
+    readFirebase('Skills', region),
+  ]);
+  const keys: string[] = allEnemy?.[id]?.skills ?? [];
+  if (!allSkills || !keys.length) return null;
+  return Object.fromEntries(keys.filter(k => k in allSkills).map(k => [k, allSkills[k]]));
+}
+
+export async function getSplitAI(id: string, region: Region): Promise<any | null> {
+  if (isLocal()) {
+    const split = readSplitLocal('ai', id, region);
+    if (split) return split;
+    return readLocal('AI', region)?.[id] ?? null;
+  }
+  if (isBlob()) {
+    const data = await fetchBlobJson(`${region}/split/ai/${id}.json`);
+    if (data) return data;
+    if (region !== 'global') return fetchBlobJson(`global/split/ai/${id}.json`);
+    return null;
+  }
+  const all = await readFirebase('AI', region);
+  return all?.[id] ?? null;
+}
+
 // ── entry point ──────────────────────────────────────────────────────────────
 
 // Fetch one node's data for a region. In local mode we read the generated /data
@@ -182,6 +326,16 @@ export async function getNode(node: string, region: Region = 'global'): Promise<
   if (isLocal()) {
     data = readLocal(node, region);
     if (data == null) data = await readFirebase(node, region);   // files missing -> Firebase
+  } else if (isBlob()) {
+    if (node === 'EnemyData') {
+      data = await fetchBlobEnemyData(region);
+    } else if (node === 'Strings') {
+      // strings.json is pushed to R2 (includes numeric buff-name IDs missing from Firebase)
+      data = await fetchBlobJson(`${region}/strings.json`);
+      if (data == null && region !== 'global') data = await fetchBlobJson(`global/strings.json`);
+    }
+    // Other nodes not yet in blob — fall back to Firebase.
+    if (data == null) data = await readFirebase(node, region);
   } else {
     data = await readFirebase(node, region);
   }
@@ -207,6 +361,10 @@ export async function getShared(node: string, localFile: string): Promise<any | 
     } catch {
       return await fbRead();
     }
+  }
+  if (isBlob()) {
+    const data = await fetchBlobJson(localFile);
+    if (data != null) return data;
   }
   return await fbRead();
 }

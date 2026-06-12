@@ -9,11 +9,11 @@ import { loadRegion, setRegion, Region } from '@/store/regionSlice'
 import { loadTranslation, setTranslation } from '@/store/translationSlice'
 import { fetchEnemyAsync } from '@/store/enemySlice'
 import { fetchWorldAsync } from '@/store/worldSlice'
-import { fetchSkillAsync } from '@/store/skillSlice'
+// fetchEnemySkillsAsync is dispatched lazily in skillTabList when an enemy is selected
 import { fetchSanctumAsync } from '@/store/sanctumSlice'
 import { fetchIWAsync } from '@/store/IWSlice'
 import { fetchImageAsync } from '@/store/imageSlice'
-import { fetchAIAsync } from '@/store/aiSlice'
+// fetchEnemyAIAsync is dispatched lazily in skillTabList when an enemy is selected
 import Layout from '@/components/layout'
 
 import { extendTheme } from '@chakra-ui/react'
@@ -146,11 +146,9 @@ function RegionSync() {
     if (first.current) { first.current = false; return; }  // pages handle initial load
     dispatch(fetchEnemyAsync());
     dispatch(fetchWorldAsync());
-    dispatch(fetchSkillAsync());
     dispatch(fetchSanctumAsync());
     dispatch(fetchIWAsync());
     dispatch(fetchImageAsync());
-    dispatch(fetchAIAsync());
   }, [region, dispatch]);
   return null;
 }
