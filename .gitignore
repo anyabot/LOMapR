@@ -34,6 +34,8 @@ yarn-error.log*
 /tools/
 /data/
 /OLD/
+# dev-only copy of data/ served statically by `npm run dev:local`
+/public/local-data/
 
 # vercel
 .vercel

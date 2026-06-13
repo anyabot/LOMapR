@@ -2,6 +2,7 @@ import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { RootState } from '../store';
 import { Floor } from '@/interfaces/sanctum';
 import { setRegion } from './regionSlice';
+import { fetchSanctum } from '@/lib/fetchData';
 
 // value: area key -> floors, each floor being an array of its difficulty variants.
 type SanctumData = { [area: string]: Floor[][] };
@@ -50,7 +51,7 @@ export const fetchSanctumAsync = createAsyncThunk<SanctumData, void, {state: Roo
     }
     else {
       try {
-        const response = await fetch(`/api/sanctum?region=${thunkApi.getState().region.region}`).then(res => res.json())
+        const response = await fetchSanctum(thunkApi.getState().region.region)
         return response ? response : {}
       }
       catch {

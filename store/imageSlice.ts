@@ -1,6 +1,7 @@
 import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { RootState, AppThunk } from '../store';
 import { setRegion } from './regionSlice';
+import { fetchImages } from '@/lib/fetchData';
 
 export interface ImageState {
   imagelink: {[key: string]: string};
@@ -20,11 +21,11 @@ export const fetchImageAsync = createAsyncThunk<{[key: string]: string}, void, {
     }
     try {
       const region = thunkApi.getState().region.region;
-      const response = await fetch(`/api/images?region=${region}`).then(res => res.json())
-      return response ? response : null
+      const response = await fetchImages(region)
+      return response ? response : {}
     }
     catch {
-      return null
+      return {}
     }
   }
 );

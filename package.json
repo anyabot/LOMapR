@@ -4,17 +4,19 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "prebuild": "node scripts/gen-public-images.js",
     "build": "next build",
     "start": "next start",
-    "dev:local": "cross-env DATA_SOURCE=local next dev",
-    "dev:test": "cross-env DATA_SOURCE=firebase next dev",
-    "dev:blob": "cross-env DATA_SOURCE=blob next dev",
-    "build:prod": "cross-env DATA_SOURCE=firebase next build",
-    "start:prod": "cross-env DATA_SOURCE=firebase next start",
-    "lint": "next lint"
+    "sync:local-data": "node scripts/sync-local-data.js",
+    "dev:local": "npm run sync:local-data && cross-env NEXT_PUBLIC_DATA_SOURCE=local next dev",
+    "dev:bucket": "cross-env NEXT_PUBLIC_DATA_SOURCE=bucket next dev",
+    "lint": "next lint",
+    "gen:images": "node scripts/gen-public-images.js",
+    "pages:build": "node scripts/sync-local-data.js --clean && npm run gen:images && cross-env DATA_SOURCE=blob vercel build --prod",
+    "pages:preview": "npm run pages:build && wrangler pages dev .vercel/output/static",
+    "pages:deploy": "npm run pages:build && wrangler pages deploy .vercel/output/static"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1067.0",
     "@chakra-ui/icons": "^2.0.18",
     "@chakra-ui/react": "^2.5.5",
     "@dagrejs/dagre": "^3.0.0",
@@ -24,14 +26,11 @@
     "@types/node": "18.15.11",
     "@types/react": "18.0.31",
     "@types/react-dom": "18.0.11",
-    "@vercel/blob": "^2.4.0",
     "bootstrap": "^5.2.3",
-    "eslint": "8.37.0",
-    "eslint-config-next": "13.2.4",
-    "firebase": "^9.19.1",
-    "firebase-admin": "^11.7.0",
+    "eslint": "8.57.0",
+    "eslint-config-next": "15.5.2",
     "framer-motion": "^10.11.2",
-    "next": "13.2.4",
+    "next": "15.5.2",
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "react-redux": "^8.0.5",
@@ -40,6 +39,9 @@
     "typescript": "5.0.3"
   },
   "devDependencies": {
-    "cross-env": "^10.1.0"
+    "@cloudflare/next-on-pages": "^1.13.7",
+    "cross-env": "^10.1.0",
+    "vercel": "^37.0.0",
+    "wrangler": "^3.78.0"
   }
 }
