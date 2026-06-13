@@ -2,6 +2,7 @@ import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import { RootState } from '../store';
 import { Skill } from '@/interfaces/skill';
 import { setRegion } from './regionSlice';
+import { fetchSplitSkills } from '@/lib/fetchData';
 
 export interface SkillState {
   byEnemy: { [enemyId: string]: { [key: string]: Skill } };
@@ -23,8 +24,7 @@ export const fetchEnemySkillsAsync = createAsyncThunk<
     }
     try {
       const region = state.region.region;
-      const res = await fetch(`/api/split/skills/${encodeURIComponent(enemyId)}?region=${region}`);
-      const skills = res.ok ? await res.json() : {};
+      const skills = await fetchSplitSkills(enemyId, region);
       return { enemyId, skills: skills || {} };
     } catch {
       return thunkApi.rejectWithValue({ enemyId, skills: {} }) as any;

@@ -2,6 +2,7 @@ import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import { RootState } from '../store';
 import { AIGraph } from '@/interfaces/ai';
 import { setRegion } from './regionSlice';
+import { fetchSplitAI } from '@/lib/fetchData';
 
 export interface AIState {
   value: { [enemyId: string]: AIGraph };
@@ -23,8 +24,7 @@ export const fetchEnemyAIAsync = createAsyncThunk<
     }
     try {
       const region = state.region.region;
-      const res = await fetch(`/api/split/ai/${encodeURIComponent(enemyId)}?region=${region}`);
-      const graph = res.ok ? await res.json() : null;
+      const graph = await fetchSplitAI(enemyId, region);
       return { enemyId, graph };
     } catch {
       return { enemyId, graph: null };

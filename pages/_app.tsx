@@ -5,6 +5,7 @@ import { ChakraProvider } from '@chakra-ui/react'
 import { useEffect, useRef, useState } from 'react'
 import { store, RootState } from '@/store'
 import { setStringsRegion, setStringsTranslation, setStringsData, setCommunityData } from '@/lib/strings'
+import { fetchStrings, fetchCommunity } from '@/lib/fetchData'
 import { loadRegion, setRegion, Region } from '@/store/regionSlice'
 import { loadTranslation, setTranslation } from '@/store/translationSlice'
 import { fetchEnemyAsync } from '@/store/enemySlice'
@@ -187,15 +188,13 @@ function useStringsLoader(): string {
   const [ver, setVer] = useState('');
   // shared community overlay — fetch once
   useEffect(() => {
-    fetch('/api/community')
-      .then((r) => (r.ok ? r.json() : null))
+    fetchCommunity()
       .then((d) => { if (d) { setCommunityData(d); setVer((v) => v + 'c'); } })
       .catch(() => {});
   }, []);
   // per-region official strings — fetch on mount and region change
   useEffect(() => {
-    fetch(`/api/strings?region=${region}`)
-      .then((r) => (r.ok ? r.json() : null))
+    fetchStrings(region)
       .then((d) => { if (d) { setStringsData(region, d); setVer((v) => v + region[0]); } })
       .catch(() => {});
   }, [region]);

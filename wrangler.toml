@@ -1,0 +1,8 @@
+# Cloudflare Pages config for `wrangler pages dev/deploy`.
+# The app builds to a fully STATIC site (no server functions): data is fetched
+# in the browser straight from R2's public URL. `vercel build` emits the Pages-
+# compatible output under .vercel/output/static, which is what we deploy.
+
+name = "lomapr"
+pages_build_output_dir = ".vercel/output/static"
+compatibility_date = "2024-09-23"
