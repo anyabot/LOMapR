@@ -2,6 +2,7 @@ import { createAsyncThunk, createSlice, isRejectedWithValue, PayloadAction } fro
 import { RootState, AppThunk } from '../store';
 import { World } from '@/interfaces/world';
 import { setRegion } from './regionSlice';
+import { fetchWorld } from '@/lib/fetchData';
 
 export interface WorldState {
   value: {[key: string]: World};
@@ -22,7 +23,7 @@ export const fetchWorldAsync = createAsyncThunk<{[key: string]: World}, void, {s
     }
     else {
       try {
-        const response = await fetch(`/api/world?region=${thunkApi.getState().region.region}`).then(res => res.json())
+        const response = await fetchWorld(thunkApi.getState().region.region)
         return response ? response : {}
       }
       catch {

@@ -9,32 +9,24 @@
 // the ACTIVE region. The region is set once (by the region toggle) so the many
 // `t(id)` call sites don't each need to pass it. Unknown ids pass through.
 //
-// All JSON is local-only (gitignored) and may be absent until the transform has
-// produced it; the requires are guarded.
+// Tables start empty and are filled at runtime: the app fetches strings and the
+// community overlay from R2 (see _app.tsx) and calls setStringsData /
+// setCommunityData. They are NOT bundled — importing the /data JSON statically
+// would inline the entire dataset (tens of MB) into the client bundle.
 
 export type Lang = 'en' | 'ko';
 export type Region = 'global' | 'kr';
 
 type StringTable = { [id: string]: { en?: string; ko?: string } };
 
-function tryRequire(path: string): StringTable {
-  try {
-    return require(`@/data/${path}`);
-  } catch {
-    return {};
-  }
-}
-
-// Official game text per region. Seeded from the local /data files when present
-// (dev), and overwritten at runtime by setStringsData() once the app fetches the
-// tables from the API (which serves them from Firebase in production, where the
-// /data files are not deployed).
+// Official game text per region — populated at runtime by setStringsData().
 const official: Record<Region, StringTable> = {
-  global: tryRequire('global/strings.json'),
-  kr: tryRequire('kr/strings.json'),
+  global: {},
+  kr: {},
 };
-// Community translation overlay — a single SHARED, region-agnostic file.
-let community: StringTable = tryRequire('community_translation.json');
+// Community translation overlay — a single SHARED, region-agnostic file,
+// populated at runtime by setCommunityData().
+let community: StringTable = {};
 
 // Populate a region's official table at runtime (from the /api/strings fetch).
 export function setStringsData(region: Region, table: StringTable) {

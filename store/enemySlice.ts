@@ -2,6 +2,7 @@ import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { RootState } from '../store';
 import { EnemyData, EnemyFull } from '@/interfaces/enemy';
 import { setRegion } from './regionSlice';
+import { fetchEnemyList, fetchEnemy } from '@/lib/fetchData';
 
 
 export interface EnemyState {
@@ -32,7 +33,7 @@ export const fetchEnemyAsync = createAsyncThunk<{[key: string]: EnemyData}, void
     else {
       try {
         const region = thunkApi.getState().region.region;
-        const response = await fetch(`/api/enemy?region=${region}`).then(res => res.json())
+        const response = await fetchEnemyList(region)
         return response ? response : {}
       }
       catch {
@@ -50,12 +51,12 @@ export const fetchEnemyFullAsync = createAsyncThunk<EnemyFull, string, {state: R
     // enemy_list.json now carries full records — promote directly if already loaded.
     const fromList = state.enemy[id] as unknown as EnemyFull;
     if (fromList?.HP) return { ...fromList, id };
-    // Not yet in store — fetch via API (firebase fallback path).
+    // Not yet in store — fetch the full record directly from R2.
     try {
       const region = thunkApi.getState().region.region;
-      const res = await fetch(`/api/enemy/${encodeURIComponent(id)}?region=${region}`);
-      if (!res.ok) return thunkApi.rejectWithValue(id) as any;
-      return await res.json();
+      const data = await fetchEnemy(id, region);
+      if (!data) return thunkApi.rejectWithValue(id) as any;
+      return data;
     } catch {
       return thunkApi.rejectWithValue(id) as any;
     }

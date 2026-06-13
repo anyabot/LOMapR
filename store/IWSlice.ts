@@ -2,6 +2,7 @@ import { createAsyncThunk, createSlice, isRejectedWithValue, PayloadAction } fro
 import { RootState, AppThunk } from '../store';
 import { InfiniteWar } from '@/interfaces/iw';
 import { setRegion } from './regionSlice';
+import { fetchIW } from '@/lib/fetchData';
 
 export interface IWState {
   value: InfiniteWar;
@@ -22,7 +23,7 @@ export const fetchIWAsync = createAsyncThunk<InfiniteWar, void, {state: RootStat
     }
     else {
       try {
-        const response = await fetch(`/api/iw?region=${thunkApi.getState().region.region}`).then(res => res.json())
+        const response = await fetchIW(thunkApi.getState().region.region)
         return response ? response : {seasons:[], bosses: {}}
       }
       catch {
