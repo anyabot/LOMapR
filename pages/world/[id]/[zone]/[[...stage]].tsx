@@ -132,10 +132,10 @@ export default function Home() {
                 (() => {
                   const isBattle = !!realCurrStage.waves.length;
                   const SUBTYPE_ICON: Record<string, string> = {
-                    Side: '/images/Side Stage.png',
-                    Main: '/images/Main Stage.png',
-                    Ex: '/images/EX Stage.png',
-                    Story: '/images/Story Stage.png',
+                    Side: '/images/SideStage.png',
+                    Main: '/images/MainStage.png',
+                    Ex: '/images/EXStage.png',
+                    Story: '/images/StoryStage.png',
                   };
                   const icon = isBattle
                     ? (SUBTYPE_ICON[realCurrStage.subtype] ?? SUBTYPE_ICON.Main)
@@ -199,7 +199,7 @@ export default function Home() {
                         {index == currWave ? (
                           <Image src="/images/map-current.png" alt="current-wave" className={styles['wave-current']} />
                         ) : null}
-                        <Image src="/images/profile/NightChick.png" alt={`wave-${index}`} />
+                        <Image src="/images/tbaricon/TbarIcon_MP_NightChick_N.png" alt={`wave-${index}`} />
                       </div>
                     ))}
                   </HStack>

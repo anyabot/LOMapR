@@ -140,8 +140,11 @@ function RegionSync() {
     if (target && target !== 'global') dispatch(setRegion(target));
   }, [dispatch]);
 
-  // Keep the string resolver on the active region; on a region CHANGE, refetch
-  // (the active page's mount-time effect won't re-run on its own).
+  // Keep the string resolver on the active region; on a region CHANGE, kick the
+  // fetches for the now-active region (the active page's mount-time effect won't
+  // re-run on its own). Each thunk self-skips if that region's bucket is already
+  // loaded, and switching regions no longer wipes any data — so a repeat visit
+  // to a region is instant with no loader flash.
   useEffect(() => {
     setStringsRegion(region);
     if (first.current) { first.current = false; return; }  // pages handle initial load
@@ -203,12 +206,18 @@ function useStringsLoader(): string {
 
 function AppBody({ Component, pageProps }: Pick<AppProps, 'Component' | 'pageProps'>) {
   const translation = useTranslationSync();
-  const stringsVer = useStringsLoader();
-  // Re-key the page subtree on translation change / strings load so cached t()
-  // output refreshes.
+  // stringsVer drives a re-render when string tables arrive (it's state on this
+  // component, so updating it re-renders the subtree and re-runs t()) — but it's
+  // deliberately NOT in the key: keying on it would UNMOUNT/REMOUNT the page on
+  // every async table load, flashing the loader and wiping local UI state
+  // (search box, filters) a few seconds after the page settled. A plain
+  // re-render refreshes t() output without tearing the tree down.
+  useStringsLoader();
+  // Translation toggle is user-initiated and rare; re-key on it so the whole
+  // subtree re-resolves cleanly.
   return (
     <Layout>
-      <div key={`${translation}-${stringsVer}`}>
+      <div key={translation}>
         <Component {...pageProps} />
       </div>
     </Layout>

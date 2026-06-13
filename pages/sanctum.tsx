@@ -229,7 +229,7 @@ export default function Home() {
                     />
                   ) : null}
                   <Image
-                    src="/images/profile/NightChick.png"
+                    src="/images/tbaricon/TbarIcon_MP_NightChick_N.png"
                     alt={`wave-${index}`}
                   />
                 </div>
