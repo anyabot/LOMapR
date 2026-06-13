@@ -28,7 +28,7 @@ export default function Apperance({name, ev, used} : {name:string, ev:string, us
           variant='solid'
           colorScheme='blue'
           as={Link}
-          href={`/world/${ev}/${e[0]}/${encodeURIComponent(e[1])}`}
+          href={`/world/stage?id=${encodeURIComponent(ev)}&zone=${e[0]}&stage=${encodeURIComponent(e[1])}`}
         >
           <TagLabel>{e[1]}</TagLabel>
           <LinkIcon ml={1} />

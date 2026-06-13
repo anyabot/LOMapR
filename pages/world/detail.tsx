@@ -50,12 +50,12 @@ export default function Home() {
         <HStack>
           <Heading size="xl">{t(w.title)}</Heading>
           <Badge colorScheme="yellow" borderRadius="full" px={2}>{w.zones.length} zones</Badge>
-          <CopyLink path={`/world/${encodeURIComponent(id)}`} />
+          <CopyLink path={`/world/detail?id=${encodeURIComponent(id)}`} />
         </HStack>
         <Divider />
         <SimpleGrid columns={[2, 3, 3, 4, 5]} spacing={4}>
           {w.zones.map((z, index) => (
-            <Link key={index} href={`/world/${id}/${index + 1}`}>
+            <Link key={index} href={`/world/stage?id=${encodeURIComponent(id)}&zone=${index + 1}`}>
               <SimpleCard img={imagelink[z.img]} alt={`${id}-${index}`}>{t(z.title)}</SimpleCard>
             </Link>
           ))}

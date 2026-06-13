@@ -26,7 +26,7 @@ export default function Home() {
   const zone = router.query.zone as string
   const real_zone_index = parseInt(zone) - 1
   const [realZone, setRealZone] = useState<Zone | undefined | null>(null)
-  const stage = router.query.stage ? router.query.stage[0]: ""
+  const stage = (router.query.stage as string) || ""
   const [currStage, setCurrStage] = useState(stage)
   const [realCurrStage, setRealCurrStage] = useState<Stage | undefined | null>(null)
   const [currWave, setCurrWave] = useState(0)
@@ -96,7 +96,7 @@ export default function Home() {
         <title>{t(z.title)}</title>
       </Head>
       <VStack align="stretch" spacing={4} py={4}>
-        <Button as={Link} href={`/world/${id}`} leftIcon={<ArrowBackIcon />} colorScheme="gray" variant="outline" size="sm" alignSelf="start">
+        <Button as={Link} href={`/world/detail?id=${encodeURIComponent(id)}`} leftIcon={<ArrowBackIcon />} colorScheme="gray" variant="outline" size="sm" alignSelf="start">
           Back
         </Button>
         <Heading size="xl">{t(z.title)}</Heading>
@@ -143,7 +143,7 @@ export default function Home() {
                   const hasName = realCurrStage.name && t(realCurrStage.name) !== realCurrStage.title;
                   const shareLink = (
                     <CopyLink
-                      path={`/world/${encodeURIComponent(id)}/${zone}/${encodeURIComponent(realCurrStage.title)}`}
+                      path={`/world/stage?id=${encodeURIComponent(id)}&zone=${zone}&stage=${encodeURIComponent(realCurrStage.title)}`}
                     />
                   );
                   return (

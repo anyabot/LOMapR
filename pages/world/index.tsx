@@ -29,7 +29,7 @@ export default function Home() {
     return a.id.localeCompare(b.id, undefined, { numeric: true, sensitivity: 'base' });
   }
   const getImage = (id: string) => imagelink[id] || undefined;
-  const href = (w: World) => `/world/${encodeURIComponent(w.id)}`;
+  const href = (w: World) => `/world/detail?id=${encodeURIComponent(w.id)}`;
 
   const all = Object.values(world);
   const inTypes = (...types: string[]) =>

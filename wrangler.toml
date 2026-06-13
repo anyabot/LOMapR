@@ -1,11 +1,9 @@
 # Cloudflare Pages config for `wrangler pages dev/deploy`.
-# The app builds to a fully STATIC site (no server functions): data is fetched
-# in the browser straight from R2's public URL. `vercel build` emits the Pages-
-# compatible output under .vercel/output/static, which is what we deploy.
+# The app is a pure static SPA: `next build` (output: 'export') emits plain
+# HTML/JS/CSS to /out with NO _worker.js, so requests are served straight from
+# the CDN and never count against the Workers/Functions request quota. Data and
+# route params are resolved client-side (data from R2, params from ?id= query).
 
 name = "lomapr"
-pages_build_output_dir = ".vercel/output/static"
+pages_build_output_dir = "out"
 compatibility_date = "2024-09-23"
-# next-on-pages always emits a routing _worker.js (even with no app functions),
-# and it imports Node built-ins like node:stream — which require nodejs_compat.
-compatibility_flags = ["nodejs_compat"]
