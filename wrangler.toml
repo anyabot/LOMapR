@@ -6,3 +6,6 @@
 name = "lomapr"
 pages_build_output_dir = ".vercel/output/static"
 compatibility_date = "2024-09-23"
+# next-on-pages always emits a routing _worker.js (even with no app functions),
+# and it imports Node built-ins like node:stream — which require nodejs_compat.
+compatibility_flags = ["nodejs_compat"]
