@@ -4,14 +4,15 @@ import { Stage, Zone } from '@/interfaces/world';
 import { t } from '@/lib/strings';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router'
-import EnemyGrid from '@/components/enemyGrid'
 import StageGrid from '@/components/stageGrid'
 import CopyLink from '@/components/copyLink'
+import StageTabs from '@/components/stageTabs'
+import { ClearExp } from '@/components/rewardList'
 import Error from 'next/error';
 import Link from 'next/link';
 import styles from "@/styles/custom.module.css"
-import { Box, Image, VStack, HStack, Center, Tag, Text, Badge, Heading, Divider, IconButton, Button, ButtonGroup } from '@chakra-ui/react';
-import { ArrowLeftIcon, ArrowRightIcon, ArrowBackIcon } from '@chakra-ui/icons';
+import { Box, Image, VStack, HStack, Center, Text, Badge, Heading, Divider, Button, ButtonGroup } from '@chakra-ui/react';
+import { ArrowBackIcon } from '@chakra-ui/icons';
 import Head from 'next/head';
 
 export default function Home() {
@@ -65,12 +66,6 @@ export default function Home() {
       return allStages(realZone).find(e => e.title.toLowerCase() == currStage.toLowerCase())
     }
     return null
-  }
-  function decreaseWave() {
-    currWave > 0 ? setCurrWave(currWave - 1) : null
-  }
-  function increaseWave() {
-    currWave < realCurrStage!.waves.length - 1 ? setCurrWave(currWave + 1) : null
   }
   if (Object.keys(world).length === 0 || !id || !zone) {
     return (<>
@@ -185,35 +180,21 @@ export default function Home() {
                             {shareLink}
                           </HStack>
                         ) : null}
+                        {/* clear EXP (player / unit) under the stage name */}
+                        {realCurrStage.rewards?.clear ? (
+                          <ClearExp rewards={realCurrStage.rewards.clear} />
+                        ) : null}
                       </Box>
                     </HStack>
                   );
                 })()
               ) : null}
 
-              {realCurrStage.waves.length ? (
-                <>
-                  <HStack spacing={2}>
-                    {realCurrStage.waves.map((e, index) => (
-                      <div onClick={() => setCurrWave(index)} key={index} className={styles['wave-button']}>
-                        {index == currWave ? (
-                          <Image src="/images/map-current.png" alt="current-wave" className={styles['wave-current']} />
-                        ) : null}
-                        <Image src="/images/tbaricon/TbarIcon_MP_NightChick_N.png" alt={`wave-${index}`} />
-                      </div>
-                    ))}
-                  </HStack>
-                  <HStack as={Center} gap={[2, 4, 6]}>
-                    <IconButton aria-label="Previous wave" icon={<ArrowLeftIcon />}
-                      isRound size="md" variant="outline" colorScheme="gray"
-                      isDisabled={currWave == 0} onClick={decreaseWave} />
-                    {realCurrStage?.waves[currWave]?.enemies && <EnemyGrid wave={realCurrStage.waves[currWave].enemies} />}
-                    <IconButton aria-label="Next wave" icon={<ArrowRightIcon />}
-                      isRound size="md" variant="outline" colorScheme="gray"
-                      isDisabled={currWave == realCurrStage!.waves.length - 1} onClick={increaseWave} />
-                  </HStack>
-                </>
-              ) : null}
+              {/* per-stage detail tabs: Clear Rewards / Drops / Squad / Enemies
+                  / Exploration — only the sections this stage has are shown. */}
+              <Box w="100%" maxW="container.lg">
+                <StageTabs stage={realCurrStage} currWave={currWave} setCurrWave={setCurrWave} />
+              </Box>
             </VStack>
           </>
         ) : null}
