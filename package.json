@@ -12,9 +12,9 @@
     "dev:bucket": "cross-env NEXT_PUBLIC_DATA_SOURCE=bucket next dev",
     "lint": "next lint",
     "gen:images": "node scripts/gen-public-images.js",
-    "pages:build": "node scripts/sync-local-data.js --clean && npm run gen:images && cross-env DATA_SOURCE=blob vercel build --prod",
-    "pages:preview": "npm run pages:build && wrangler pages dev .vercel/output/static",
-    "pages:deploy": "npm run pages:build && wrangler pages deploy .vercel/output/static"
+    "pages:build": "node scripts/sync-local-data.js --clean && npm run gen:images && next build",
+    "pages:preview": "npm run pages:build && wrangler pages dev out",
+    "pages:deploy": "npm run pages:build && wrangler pages deploy out"
   },
   "dependencies": {
     "@chakra-ui/icons": "^2.0.18",
@@ -39,9 +39,7 @@
     "typescript": "5.0.3"
   },
   "devDependencies": {
-    "@cloudflare/next-on-pages": "^1.13.7",
     "cross-env": "^10.1.0",
-    "vercel": "^37.0.0",
     "wrangler": "^3.78.0"
   }
 }

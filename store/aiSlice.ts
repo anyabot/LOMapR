@@ -24,7 +24,9 @@ export const fetchEnemyAIAsync = createAsyncThunk<
     }
     try {
       const region = state.region.region;
-      const graph = await fetchSplitAI(enemyId, region);
+      const rec = state.enemy.byRegion[region].enemy[enemyId];
+      const ref = rec?.aiRef ?? enemyId;
+      const graph = await fetchSplitAI(ref, region);
       return { enemyId, graph };
     } catch {
       return { enemyId, graph: null };

@@ -26,8 +26,8 @@ const ROW_X_OFFSET = [CELL_W / 2, 0, CELL_W / 2];
 // Stage-map icon art per subtype (the art from the old version).
 const ICON_SRC: Record<StageSubType, string> = {
   Side: "/images/SideStage.png",
-  Main: "/images/MainStage.png",
-  Ex: "/images/EXStage.png",
+  Main: "/images/Main_Stage.png",
+  Ex: "/images/EX_Stage.png",
   Story: "/images/StoryStage.png",
 };
 

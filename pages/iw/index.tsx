@@ -61,7 +61,7 @@ export default function Home() {
         <Divider />
         <SimpleGrid columns={[1, 2, 2, 3]} spacing={4}>
           {items.map((s) => (
-            <Link key={s.key} href={`/iw/${encodeURIComponent(s.key)}`}>
+            <Link key={s.key} href={`/iw/detail?id=${encodeURIComponent(s.key)}`}>
               <Box
                 position="relative"
                 h="100%"

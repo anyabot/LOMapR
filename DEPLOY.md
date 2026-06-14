@@ -1,12 +1,14 @@
 # Deploying lomapr to Cloudflare Pages
 
-The app is a **fully static SPA**. There is no backend: every data read happens
-in the browser, fetched directly from Cloudflare R2's public URL. The build
-produces only static HTML/JS/assets — **zero Pages Functions**, so it never
-touches the Workers request quota and runs entirely on the free tier.
+The app is a **pure static SPA** built with Next's `output: 'export'`. There is
+no backend and **no `_worker.js`**: every data read happens in the browser from
+R2's public URL, and route params are read from `?id=`/`&zone=`/`&stage=` query
+strings (no dynamic routes). Because there is no worker, requests are served
+straight from the CDN and **never count against the Workers/Functions request
+quota** — the whole site runs free.
 
 ```
-browser ──▶ *.pages.dev  (static HTML/JS, Pages CDN, unlimited bandwidth)
+browser ──▶ *.pages.dev  (static HTML/JS, Pages CDN, unlimited bandwidth, no quota)
 browser ──▶ pub-….r2.dev (JSON data + images, browser-cached 1h, free egress)
 ```
 
@@ -14,6 +16,7 @@ browser ──▶ pub-….r2.dev (JSON data + images, browser-cached 1h, free eg
 
 1. **R2 public access** — R2 → `lomapr-data` bucket → Settings → Public access →
    enable the **r2.dev** subdomain. Copy the `https://pub-….r2.dev` URL.
+   Also add a CORS policy allowing GET from your Pages origin (or `*`).
 2. **Push data to R2** — from your machine (Python tooling, not the app):
    ```
    python tools/admin/push_r2.py --region all
@@ -22,11 +25,8 @@ browser ──▶ pub-….r2.dev (JSON data + images, browser-cached 1h, free eg
 
 ## Deploy option A — direct from your machine (Wrangler)
 
-`@cloudflare/next-on-pages` does not run on Windows (it can't spawn `vercel`),
-so locally we build with `vercel build` and deploy the static output:
-
 ```
-npm run pages:deploy        # = vercel build --prod  →  wrangler pages deploy
+npm run pages:deploy   # next build (output: export) → wrangler pages deploy out
 ```
 
 (First run will prompt `wrangler login`.)
@@ -38,16 +38,15 @@ Pages → Connect to Git) with these **build settings**:
 
 | Setting | Value |
 |---|---|
-| Framework preset | Next.js (or None — the command overrides it) |
-| Build command | `npx @cloudflare/next-on-pages@1` |
-| Build output directory | `.vercel/output/static` |
+| Framework preset | Next.js (or None) |
+| Build command | `npm run pages:build` |
+| Build output directory | `out` |
 | Root directory | *(blank)* |
 | Production branch | `main` (push other branches → preview deploys) |
 
-Cloudflare builds on Linux, where `next-on-pages` works fine (the local
-`vercel build` path in package.json exists only because the adapter can't run on
-Windows). The build runs `next build`, whose `prebuild` hook regenerates
-`lib/publicImages.json` — no manual step needed.
+`pages:build` runs `next build`, whose `prebuild` hook regenerates
+`lib/publicImages.json` — no manual step needed. Plain `next build` runs on any
+OS (no Windows adapter quirk).
 
 ## Environment variables
 

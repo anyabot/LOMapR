@@ -65,7 +65,7 @@ export default function Home() {
           <Center>
             <Box
               as={Link}
-              href={`/world/${encodeURIComponent(current.id)}`}
+              href={`/world/detail?id=${encodeURIComponent(current.id)}`}
               w="100%"
               maxW="2xl"
               bg="surface.elevated"
