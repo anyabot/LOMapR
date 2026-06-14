@@ -133,8 +133,8 @@ export default function Home() {
                   const isBattle = !!realCurrStage.waves.length;
                   const SUBTYPE_ICON: Record<string, string> = {
                     Side: '/images/SideStage.png',
-                    Main: '/images/MainStage.png',
-                    Ex: '/images/EXStage.png',
+                    Main: '/images/Main_Stage.png',
+                    Ex: '/images/EX_Stage.png',
                     Story: '/images/StoryStage.png',
                   };
                   const icon = isBattle

@@ -146,7 +146,6 @@ function RegionSync() {
   // loaded, and switching regions no longer wipes any data — so a repeat visit
   // to a region is instant with no loader flash.
   useEffect(() => {
-    setStringsRegion(region);
     if (first.current) { first.current = false; return; }  // pages handle initial load
     dispatch(fetchEnemyAsync());
     dispatch(fetchWorldAsync());
@@ -167,7 +166,12 @@ function useTranslationSync(): string {
     const saved = loadTranslation();
     if (saved && saved !== 'community') dispatch(setTranslation(saved));
   }, [dispatch]);
-  useEffect(() => { setStringsTranslation(translation); }, [translation]);
+  // Push the mode into the resolver SYNCHRONOUSLY during render, not in an
+  // effect: the subtree is keyed on `translation`, so it re-resolves t() in the
+  // SAME render that the toggle triggers. An effect runs only AFTER that render,
+  // so t() would resolve with the previous mode and every toggle would lag one
+  // step behind (showing the old language until the next toggle).
+  setStringsTranslation(translation);
   return translation;
 }
 
@@ -189,6 +193,10 @@ export default function App({ Component, pageProps }: AppProps) {
 function useStringsLoader(): string {
   const region = useSelector((s: RootState) => s.region.region);
   const [ver, setVer] = useState('');
+  // Keep the resolver's active region current SYNCHRONOUSLY at render time (same
+  // reasoning as setStringsTranslation in useTranslationSync — an effect would
+  // lag a render behind). t() reads activeRegion the moment the subtree renders.
+  setStringsRegion(region);
   // shared community overlay — fetch once
   useEffect(() => {
     fetchCommunity()

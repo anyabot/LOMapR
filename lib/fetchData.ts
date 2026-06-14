@@ -163,16 +163,21 @@ export async function fetchEnemy(id: string, region: Region) {
   return null;
 }
 
-export async function fetchSplitSkills(id: string, region: Region) {
-  const data = await get(`${region}/split/skills/${id}.json`);
-  if (data) return data;
-  if (region !== 'global') return get(`global/split/skills/${id}.json`);
-  return null;
+// Split skill/AI bundles are content-deduplicated at build time: identical
+// payloads (most same-variant enemies share one) are stored once, named after
+// the owning enemy id (split/<sub>/<ownerId>.json — greppable, not hashed). The
+// caller passes the bundle ref, which is the enemy's own id unless its record
+// carries a skillsRef/aiRef pointing at the shared owner. ref absent -> no bundle.
+export async function fetchSplitSkills(ref: string | undefined, region: Region) {
+  if (!ref) return null;
+  const data = await get(`${region}/split/skills/${ref}.json`);
+  if (data || region === 'global') return data;
+  return get(`global/split/skills/${ref}.json`);
 }
 
-export async function fetchSplitAI(id: string, region: Region) {
-  const data = await get(`${region}/split/ai/${id}.json`);
-  if (data) return data;
-  if (region !== 'global') return get(`global/split/ai/${id}.json`);
-  return null;
+export async function fetchSplitAI(ref: string | undefined, region: Region) {
+  if (!ref) return null;
+  const data = await get(`${region}/split/ai/${ref}.json`);
+  if (data || region === 'global') return data;
+  return get(`global/split/ai/${ref}.json`);
 }

@@ -1157,12 +1157,24 @@ export default function SkillTab({
     }).filter(Boolean);
   }
 
+  // attr (Buff / Debuff / Skill Buff / …) is per-buff, not per-group. Resolve the
+  // label + colors for a single attr value; rendered per effect row, and used
+  // for the group's left-border accent only when every buff shares one attr.
+  function attrStyle(attr: number) {
+    return {
+      label: ["Buff", "Debuff", "Skill Buff", "Normal Effect", "Rogue Buff", "Rogue Debuff"][attr] ?? "Normal Effect",
+      bg:     attr === 0 ? "#276749" : attr === 1 ? "#9b2c2c" : attr === 2 ? "#2c5282" : attr === 4 ? "#9c4221" : attr === 5 ? "#702459" : "#2d3748",
+      fg:     attr === 0 ? "#9ae6b4" : attr === 1 ? "#feb2b2" : attr === 2 ? "#90cdf4" : attr === 4 ? "#fbd38d" : attr === 5 ? "#fbb6ce" : "#e2e8f0",
+      border: attr === 0 ? "#38a169" : attr === 1 ? "#e53e3e" : attr === 2 ? "#3182ce" : attr === 4 ? "#dd6b20" : attr === 5 ? "#d53f8c" : "#4a5568",
+    };
+  }
+
   function renderBuffGroup(group: SkillBuff[], groupIdx: number) {
     const rep = group[0];
-    const attrLabel = ["Buff", "Debuff", "Skill Buff", "Normal Effect", "Rogue Buff", "Rogue Debuff"][rep.attr] ?? "Normal Effect";
-    const attrBg   = rep.attr === 0 ? "#276749" : rep.attr === 1 ? "#9b2c2c" : rep.attr === 2 ? "#2c5282" : rep.attr === 4 ? "#9c4221" : rep.attr === 5 ? "#702459" : "#2d3748";
-    const attrFg   = rep.attr === 0 ? "#9ae6b4" : rep.attr === 1 ? "#feb2b2" : rep.attr === 2 ? "#90cdf4" : rep.attr === 4 ? "#fbd38d" : rep.attr === 5 ? "#fbb6ce" : "#e2e8f0";
-    const attrBorder = rep.attr === 0 ? "#38a169" : rep.attr === 1 ? "#e53e3e" : rep.attr === 2 ? "#3182ce" : rep.attr === 4 ? "#dd6b20" : rep.attr === 5 ? "#d53f8c" : "#4a5568";
+    // group left-border accent: use the shared attr colour only when uniform,
+    // else a neutral grey (mixed-attr groups exist, e.g. a buff + its debuff).
+    const uniformAttr = group.every((b) => b.attr === rep.attr);
+    const attrBorder = uniformAttr ? attrStyle(rep.attr).border : "#4a5568";
     const trg = (id: string) => { const r = t(id); return r ? r.split(":")[0].trim() : ""; };
     const groupName = trg(rep.name);
 
@@ -1209,15 +1221,11 @@ export default function SkillTab({
       >
         {/* ── header ── */}
         <Box px={2} pt={1.5} pb={1} bg="blackAlpha.300" borderBottomWidth="1px" borderBottomColor="whiteAlpha.100">
-          {/* name row — full width, attr badge right-aligned */}
-          <Flex align="center" justify="space-between" w="100%" mb={1}>
+          {/* name row — attr badge moved to each effect row (it's per-buff) */}
+          <Flex align="center" w="100%" mb={1}>
             <Text fontSize="sm" color="gray.100" fontWeight="bold" textDecoration="underline" flexShrink={1} minW={0}>
-              {groupName || attrLabel}
+              {groupName || attrStyle(rep.attr).label}
             </Text>
-            <Box ml={2} px="7px" py="1px" borderRadius="3px" bg={attrBg} color={attrFg}
-              fontSize="11px" fontWeight="bold" lineHeight="18px" flexShrink={0}>
-              {attrLabel}
-            </Box>
           </Flex>
 
           {/* pills row */}
@@ -1241,7 +1249,6 @@ export default function SkillTab({
               </Pill>
             ) : null}
 
-            {rep.rate < 1 ? <Pill bg="yellow.900" color="yellow.300">{Math.round(rep.rate * 100)}% chance</Pill> : null}
             {rep.eraseType === 2 ? <Pill bg="orange.900" color="orange.300">on trigger</Pill>   : null}
             {rep.eraseType === 4 ? <Pill bg="orange.900" color="orange.300">preserved</Pill>    : null}
 
@@ -1301,6 +1308,8 @@ export default function SkillTab({
             const valColor = buff.fmt === "tid" || buff.type === 21 || buff.type === 33 || buff.type === 34 || buff.type === 35
               ? "gray.200" : valPositive ? "green.300" : "red.300";
 
+            const as = attrStyle(buff.attr);
+
             return (
               <Flex key={`${groupIdx}-${i}`} px={2} py={1.5} gap={2} align="flex-start"
                 borderTopWidth={i > 0 ? "1px" : "0"} borderTopColor="whiteAlpha.100">
@@ -1309,6 +1318,7 @@ export default function SkillTab({
                 </Box>
                 <Box flex={1} minW={0}>
                   <HStack spacing={1.5} flexWrap="wrap">
+                    {buff.rate < 1 ? <Box px="5px" py="1px" borderRadius="3px" bg="yellow.900" color="yellow.300" fontSize="11px" lineHeight="16px">{Math.round(buff.rate * 100)}%</Box> : null}
                     <Text fontSize="sm" fontWeight="bold" textDecoration="underline" color="gray.200">{BUFF_TYPE_NAMES[buff.type]}</Text>
                     {valStr ? <Text fontSize="sm" fontWeight="bold" color={valColor}>{valStr}</Text> : null}
                   </HStack>
@@ -1317,6 +1327,7 @@ export default function SkillTab({
                     : null}
                 </Box>
                 <HStack spacing={1} flexShrink={0} mt="2px">
+                  <Box px="6px" py="1px" borderRadius="3px" bg={as.bg} color={as.fg} fontSize="11px" fontWeight="bold" lineHeight="16px">{as.label}</Box>
                   {durStr   ? <Box px="5px" py="1px" borderRadius="3px" bg="gray.700" color="gray.300" fontSize="11px" lineHeight="16px">{durStr}</Box>   : null}
                   {stackStr ? <Box px="5px" py="1px" borderRadius="3px" bg="gray.700" color="cyan.300"  fontSize="11px" lineHeight="16px">{stackStr}</Box> : null}
                   {noteStr ? (

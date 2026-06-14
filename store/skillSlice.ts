@@ -24,7 +24,11 @@ export const fetchEnemySkillsAsync = createAsyncThunk<
     }
     try {
       const region = state.region.region;
-      const skills = await fetchSplitSkills(enemyId, region);
+      const rec = state.enemy.byRegion[region].enemy[enemyId];
+      // bundle file is named after its owner; ref points at a shared owner, else
+      // the enemy owns its own file (use its id).
+      const ref = rec?.skillsRef ?? enemyId;
+      const skills = await fetchSplitSkills(ref, region);
       return { enemyId, skills: skills || {} };
     } catch {
       return thunkApi.rejectWithValue({ enemyId, skills: {} }) as any;
