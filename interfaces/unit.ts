@@ -23,6 +23,14 @@ export interface UnitLvLimit {
   items: UnitReq[];
 }
 
+// One core-link bonus. `desc` is a loc-id template with a {0} placeholder; fill it
+// with value*100 (a percent) when pct, else the flat value.
+export interface LinkBonus {
+  desc: string;
+  value: number;
+  pct: boolean;
+}
+
 // One grade's stat block. HP/ATK/DEF are [base@lv1, max@lv100]; the rest are
 // scalars at lv1 (level growth only affects HP/ATK/DEF). resist is whole-percent.
 export interface UnitStat {
@@ -41,7 +49,7 @@ export interface UnitData {
   name: string;        // loc id (resolve with t())
   rarity: number;      // StartGrade (2=B, 3=A, 4=S, 5=SS, 6=SSS)
   maxGrade: number;    // highest attainable grade via promotion
-  type: string;        // Light / Heavy / Flying (ActorClassType)
+  type: string;        // Light / Heavy / Air (ActorClassType; MOBILITY shows as Air)
   role: string;        // Defender / Attacker / Supporter (RoleType)
   body: string;        // AGS / Bioroid (ActorBodyType)
   icon: string;        // FormationIcon_* portrait key — PNG at /images/icons/<icon>.png
@@ -54,11 +62,24 @@ export interface UnitData {
     present: number;
   };
   craft: number;       // making time (seconds)
+  // squad/faction this unit belongs to (Table_TroopCategory); null if squad-less.
+  // name/desc are loc ids (resolve with t()); icon is a UI_TroopIcon_* key
+  // (PNG at /images/common/<icon>.png).
+  faction: { name: string; desc: string; icon: string } | null;
+  // the 4 equipment slots (lv 20/40/60/80 unlocks), each Chip / OS / Item.
+  equip: { type: 'Chip' | 'OS' | 'Item'; level: number }[];
+  // core-link bonuses. linkBonus = normal bonuses applied per link (stack up to
+  // 5×); fullLinkBonus = the 5 options selectable at 500% link. Each entry's
+  // `desc` is a loc-id template ("HP+{0}%"); fill {0} with value*100 when pct,
+  // else the flat value.
+  linkBonus: LinkBonus[];
+  fullLinkBonus: LinkBonus[];
   stat: UnitStat[];    // one block per attainable grade (rarity..maxGrade)
   promotions: UnitPromotion[];
   lvLimits: UnitLvLimit[];
-  // worldId -> [[zoneNum, stageTitle], ...] stages that can drop/award this unit.
-  source: { [worldId: string]: [number, string][] };
+  // worldId -> [[zoneNum, stageTitle, farm], ...] stages that grant this unit.
+  // farm=true: drops from a wave (repeatable); farm=false: one-time clear reward.
+  source: { [worldId: string]: [number, string, boolean][] };
   // pointer to the unit id that OWNS this unit's deduped skill bundle
   // (split/units/<ownerId>.json); absent means it owns its own file (use id).
   skillsRef?: string;

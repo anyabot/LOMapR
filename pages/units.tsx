@@ -9,11 +9,11 @@ import {
 import { CloseIcon, SearchIcon } from '@chakra-ui/icons';
 import { useRouter } from 'next/router';
 import { t } from '@/lib/strings';
-import { rankTag, rankColor } from '@/lib/rank';
+import { rankTag, rankColor, roleRankIcon, typeIcon, roleIcon } from '@/lib/rank';
 import Head from 'next/head';
 
 // One table per class type (rows of the page); columns = role; rows = grade.
-const TYPES = ['Light', 'Flying', 'Heavy'] as const;
+const TYPES = ['Light', 'Air', 'Heavy'] as const;
 const ROLES = ['Attacker', 'Defender', 'Supporter'] as const;
 const BODIES = ['Bioroid', 'AGS'] as const;
 // No SSS (grade 6) units exist, so the grid stops at SS. Tags/colors come from
@@ -35,7 +35,7 @@ export default function Units() {
   }, [dispatch]);
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [types, setTypes] = useState<Record<TypeKey, boolean>>({ Light: true, Flying: true, Heavy: true });
+  const [types, setTypes] = useState<Record<TypeKey, boolean>>({ Light: true, Air: true, Heavy: true });
   const [roles, setRoles] = useState<Record<RoleKey, boolean>>({ Attacker: true, Defender: true, Supporter: true });
   const [bodies, setBodies] = useState<Record<BodyKey, boolean>>({ Bioroid: true, AGS: true });
   const [grades, setGrades] = useState<Record<number, boolean>>(
@@ -89,12 +89,14 @@ export default function Units() {
           <ButtonGroup isAttached size="sm">
             {TYPES.map((ty) => (
               <Button key={ty} colorScheme="green" variant={types[ty] ? 'solid' : 'outline'}
+                leftIcon={typeIcon(ty) ? <Image src={typeIcon(ty)!} alt={ty} boxSize="16px" /> : undefined}
                 onClick={() => setTypes({ ...types, [ty]: !types[ty] })}>{ty}</Button>
             ))}
           </ButtonGroup>
           <ButtonGroup isAttached size="sm">
             {ROLES.map((r) => (
               <Button key={r} colorScheme="red" variant={roles[r] ? 'solid' : 'outline'}
+                leftIcon={roleIcon(r) ? <Image src={roleIcon(r)!} alt={r} boxSize="16px" /> : undefined}
                 onClick={() => setRoles({ ...roles, [r]: !roles[r] })}>{r}</Button>
             ))}
           </ButtonGroup>
@@ -137,7 +139,10 @@ export default function Units() {
             <Box key={type} borderWidth="1px" borderColor="surface.border" borderRadius="xl"
               overflow="hidden" bg="surface.elevated">
               <Box px={4} py={2} bg="blackAlpha.300" borderBottomWidth="1px" borderBottomColor="surface.border">
-                <Heading size="sm" color="green.200">{type}</Heading>
+                <HStack spacing={2}>
+                  {typeIcon(type) ? <Image src={typeIcon(type)!} alt={type} boxSize="20px" /> : null}
+                  <Heading size="sm" color="green.200">{type}</Heading>
+                </HStack>
               </Box>
               <Box overflowX="auto">
                 <Box as="table" w="100%" style={{ borderCollapse: 'collapse', tableLayout: 'fixed' }}>
@@ -145,10 +150,13 @@ export default function Units() {
                     <Box as="tr">
                       <Box as="th" w="44px" />
                       {activeRoles.map((role) => (
-                        <Box as="th" key={role} px={2} py={1.5} textAlign="center"
+                        <Box as="th" key={role} px={2} py={1.5}
                           borderBottomWidth="1px" borderColor="surface.border"
                           fontSize="xs" color="red.200" textTransform="uppercase" letterSpacing="wide">
-                          {role}
+                          <HStack spacing={1.5} justify="center">
+                            {roleIcon(role) ? <Image src={roleIcon(role)!} alt={role} boxSize="16px" /> : null}
+                            <span>{role}</span>
+                          </HStack>
                         </Box>
                       ))}
                     </Box>
@@ -189,13 +197,20 @@ export default function Units() {
 function UnitTile({ unit, onClick }: { unit: UnitData; onClick: () => void }) {
   return (
     <Box onClick={onClick} cursor="pointer" w="72px" role="group" textAlign="center">
-      <Box boxSize="72px" borderRadius="lg" overflow="hidden" bg="blackAlpha.500"
+      <Box position="relative" boxSize="72px" borderRadius="lg" overflow="hidden" bg="blackAlpha.500"
         borderWidth="1px" borderColor="surface.border"
         transition="border-color .12s ease, transform .12s ease"
         _groupHover={{ borderColor: 'yellow.400', transform: 'translateY(-2px)' }}>
         {unit.icon ? (
           <Image src={`/images/icons/${unit.icon}.png`} alt={unit.icon} objectFit="cover" w="100%" h="100%"
             _groupHover={{ transform: 'scale(1.05)' }} transition="transform .2s ease" />
+        ) : null}
+        {/* official role+rank badge, bottom-left corner */}
+        {roleRankIcon(unit.role, unit.rarity) ? (
+          <Image position="absolute" bottom="1px" left="1px" h="22px" objectFit="contain"
+            src={`/images/icons/${roleRankIcon(unit.role, unit.rarity)}.png`}
+            alt={`${rankTag(unit.rarity)} ${unit.role}`}
+            filter="drop-shadow(0 1px 1px rgba(0,0,0,.8))" />
         ) : null}
       </Box>
       <Text fontSize="2xs" color="gray.300" noOfLines={2} mt={1} lineHeight="1.1">
