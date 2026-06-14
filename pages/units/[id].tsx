@@ -65,6 +65,49 @@ function lerp(pair: [number, number], level: number): number {
   return Math.floor(pair[0] + (pair[1] - pair[0]) * f);
 }
 
+// Find a unit's full-link Skill-Power bonus value (the multiplier to skill power),
+// detected by the loc template; 0 if the unit has no such option. `value` is the
+// raw fraction (e.g. 0.15 = +15% skill power).
+function fullLinkSkillPower(unit: UnitData): number {
+  const b = unit.fullLinkBonus.find((x) => t(x.desc).toLowerCase().includes('skill power'));
+  return b ? b.value : 0;
+}
+
+// Whether the unit's full-link options include the Buff/Debuff-Effect-Lv bonus
+// (which grants +2 buff/debuff levels when selected).
+function hasFullLinkBuffLv(unit: UnitData): boolean {
+  return unit.fullLinkBonus.some((x) => /buff\/debuff effect lv/i.test(t(x.desc)));
+}
+
+// Return a level-/bonus-scaled copy of a skill for display:
+//   skillLv    1..10 — scales rate (skill power) and buff values, and applies the
+//              latest levelChange at-or-below the level (AP / AoE / buff turns).
+//   spAdd      extra skill power added FLAT to the rate (full-link Skill Power,
+//              e.g. 0.20 → +20% multiplier: 300% base becomes 320%, not 360%).
+//   buffLv     extra buff/debuff levels added on top of skillLv for buff VALUES
+//              only (affection +1, full-link buff +2) — not power, not AoE.
+function scaleSkill(skill: Skill, skillLv: number, spAdd: number, buffLv: number): Skill {
+  const lv = Math.min(Math.max(skillLv, 1), 10);
+  const rate = skill.rate + (skill.rateGain ?? 0) * (lv - 1) + spAdd;
+
+  // apply the last levelChange whose level <= lv (AP / AoE shift).
+  let AP = skill.AP, area = skill.area, center = skill.center;
+  for (const c of skill.levelChanges ?? []) {
+    if (c.level > lv) break;
+    if (c.ap != null) AP = c.ap;
+    if (c.area) { area = c.area; center = c.center ?? center; }
+  }
+
+  // buff value at effective level = skillLv + buffLv (buff/debuff level adds gain
+  // steps just like skill level). Only the VALUE scales — turns/AoE unaffected.
+  const effLv = lv + buffLv;
+  const buffs = skill.buffs.map((b) => ({
+    ...b, val: Math.round((b.val + b.gain * (effLv - 1)) * 10000) / 10000,
+  }));
+
+  return { ...skill, rate: Math.round(rate * 10000) / 10000, AP, area, center, buffs };
+}
+
 export default function UnitDetail() {
   const router = useRouter();
   const id = router.query.id as string;
@@ -100,7 +143,6 @@ export default function UnitDetail() {
   }
 
   const name = t(unit.name);
-  const skillRecords: Skill[] = (unit.skills || []).map((k) => skills[k]).filter(Boolean) as Skill[];
   // top grade stats at lv-cap → ATK passed to SkillTab (rate → damage preview).
   const topStat = unit.stat[unit.stat.length - 1];
   const headerAtk = topStat ? topStat.ATK[1] : 0;
@@ -179,33 +221,9 @@ export default function UnitDetail() {
                 level={level} setLevel={setLevel} />
             </TabPanel>
 
-            {/* ── Tab 2: skills ────────────────────────────────────────────── */}
+            {/* ── Tab 2: skills (with a form toggle for transform units) ────── */}
             <TabPanel px={0}>
-              {unit.skills.length === 0 ? (
-                <Text color="gray.500" fontSize="sm">This unit has no skills.</Text>
-              ) : skillStatus === 'loading' && skillRecords.length === 0 ? (
-                <Center py={8}><Spinner color="yellow.400" /></Center>
-              ) : skillRecords.length === 0 ? (
-                <Text color="gray.500" fontSize="sm">No skill data.</Text>
-              ) : (
-                // SkillTab renders a <TabPanel>, so it must live inside <Tabs>/<TabPanels>.
-                <Tabs variant="unstyled" size="sm">
-                  <TabList flexWrap="wrap" gap={1}>
-                    {skillRecords.map((s) => (
-                      <Tab key={s.title} p={1.5} borderRadius="md" borderBottomWidth="3px"
-                        borderBottomColor="transparent" opacity={0.55}
-                        _hover={{ opacity: 0.85, bg: 'whiteAlpha.100' }}
-                        _selected={{ opacity: 1, borderBottomColor: 'yellow.400', bg: 'whiteAlpha.100' }}>
-                        <Image src={`/images/SkillIcon/${s.img}_${s.type}.png`}
-                          boxSize={['32px', '38px', '42px']} alt={s.title} />
-                      </Tab>
-                    ))}
-                  </TabList>
-                  <TabPanels>
-                    {skillRecords.map((s) => <SkillTab key={s.title} skill={s} atk={headerAtk} showBuffs={true} />)}
-                  </TabPanels>
-                </Tabs>
-              )}
+              <SkillsTab unit={unit} skills={skills} headerAtk={headerAtk} skillStatus={skillStatus} />
             </TabPanel>
 
             {/* ── Tab 3: drop / acquisition locations ──────────────────────── */}
@@ -226,6 +244,127 @@ export default function UnitDetail() {
         </Tabs>
       </VStack>
     </>
+  );
+}
+
+// ── Skills tab: control group (level / full-link power / affection) + skill subtabs
+function SkillsTab({
+  unit, skills, headerAtk, skillStatus,
+}: {
+  unit: UnitData;
+  skills: { [key: string]: Skill };
+  headerAtk: number;
+  skillStatus: string;
+}) {
+  const hasAltForm = (unit.skillsCh || []).length > 0;
+  const spBonus = fullLinkSkillPower(unit);     // full-link Skill Power value (0 if none)
+  const canBuffLink = hasFullLinkBuffLv(unit);  // full-link Buff/Debuff Lv option (+2)
+  const canAffection = unit.affection;          // gender 1 → can reach 200 affection (+1)
+
+  const [form, setForm] = useState(0);          // 0 = base, 1 = change form
+  const [level, setLevel] = useState(10);       // skill level 1..10
+  const [usePower, setUsePower] = useState(false);   // apply full-link Skill Power
+  const [useBuffLink, setUseBuffLink] = useState(false);  // full-link Buff/Debuff Lv (+2)
+  const [maxAffection, setMaxAffection] = useState(false); // 200 affection / married (+1)
+
+  const buffLv = (useBuffLink ? 2 : 0) + (maxAffection ? 1 : 0);
+  const spAdd = usePower ? spBonus : 0;   // full-link Skill Power adds flat to rate
+
+  const keys = form === 1 ? unit.skillsCh : unit.skills;
+  const baseRecords: Skill[] = (keys || []).map((k) => skills[k]).filter(Boolean) as Skill[];
+  const records = baseRecords.map((s) => scaleSkill(s, level, spAdd, buffLv));
+
+  if ((unit.skills || []).length === 0) {
+    return <Text color="gray.500" fontSize="sm">This unit has no skills.</Text>;
+  }
+  if (skillStatus === 'loading' && baseRecords.length === 0) {
+    return <Center py={8}><Spinner color="yellow.400" /></Center>;
+  }
+
+  return (
+    <VStack align="stretch" spacing={3}>
+      {/* control group */}
+      <Box borderWidth="1px" borderColor="surface.border" borderRadius="xl" bg="surface.elevated" p={4}>
+        <Flex gap={4} wrap="wrap" align="center">
+          {hasAltForm ? (
+            <ButtonGroup isAttached size="sm">
+              <Button colorScheme="yellow" variant={form === 0 ? 'solid' : 'outline'} onClick={() => setForm(0)}>Form 1</Button>
+              <Button colorScheme="yellow" variant={form === 1 ? 'solid' : 'outline'} onClick={() => setForm(1)}>Form 2</Button>
+            </ButtonGroup>
+          ) : null}
+
+          {/* skill level */}
+          <HStack spacing={2} minW="200px" flex="1">
+            <Text fontSize="xs" color="gray.500" whiteSpace="nowrap">Skill Lv</Text>
+            <Slider aria-label="skill level" value={level} min={1} max={10} flex="1"
+              onChange={setLevel} focusThumbOnChange={false}>
+              <SliderTrack bg="whiteAlpha.200"><SliderFilledTrack bg="yellow.400" /></SliderTrack>
+              <SliderThumb boxSize={4} />
+            </Slider>
+            <Badge colorScheme="yellow" minW="2.2em" textAlign="center">{level}</Badge>
+          </HStack>
+        </Flex>
+
+        {/* bonus toggles */}
+        {(spBonus > 0 || canBuffLink || canAffection) ? (
+          <Wrap spacing={2} mt={3}>
+            {spBonus > 0 ? (
+              <WrapItem>
+                <Button size="xs" colorScheme="purple" variant={usePower ? 'solid' : 'outline'}
+                  onClick={() => setUsePower((v) => !v)}>
+                  Full-Link Skill Power (+{Math.round(spBonus * 100)}%)
+                </Button>
+              </WrapItem>
+            ) : null}
+            {canBuffLink ? (
+              <WrapItem>
+                <Button size="xs" colorScheme="teal" variant={useBuffLink ? 'solid' : 'outline'}
+                  onClick={() => setUseBuffLink((v) => !v)}>
+                  Full-Link Buff/Debuff Lv (+2)
+                </Button>
+              </WrapItem>
+            ) : null}
+            {canAffection ? (
+              <WrapItem>
+                <Button size="xs" colorScheme="pink" variant={maxAffection ? 'solid' : 'outline'}
+                  onClick={() => setMaxAffection((v) => !v)}>
+                  200 Affection{unit.marriage ? ' / Married' : ''} (+1 lv)
+                </Button>
+              </WrapItem>
+            ) : null}
+          </Wrap>
+        ) : null}
+
+        {buffLv > 0 ? (
+          <Text fontSize="2xs" color="gray.500" mt={2}>
+            Buff/Debuff effect level +{buffLv} (effect values scale as if {buffLv} extra skill level{buffLv > 1 ? 's' : ''}).
+          </Text>
+        ) : null}
+      </Box>
+
+      {records.length === 0 ? (
+        <Text color="gray.500" fontSize="sm">No skill data.</Text>
+      ) : (
+        // SkillTab renders a <TabPanel>, so it must live inside <Tabs>/<TabPanels>.
+        // key on form so the inner Tabs resets its selected index when swapping forms.
+        <Tabs key={form} variant="unstyled" size="sm">
+          <TabList flexWrap="wrap" gap={1}>
+            {records.map((s) => (
+              <Tab key={s.title} p={1.5} borderRadius="md" borderBottomWidth="3px"
+                borderBottomColor="transparent" opacity={0.55}
+                _hover={{ opacity: 0.85, bg: 'whiteAlpha.100' }}
+                _selected={{ opacity: 1, borderBottomColor: 'yellow.400', bg: 'whiteAlpha.100' }}>
+                <Image src={`/images/SkillIcon/${s.img}_${s.type}.png`}
+                  boxSize={['32px', '38px', '42px']} alt={s.title} />
+              </Tab>
+            ))}
+          </TabList>
+          <TabPanels>
+            {records.map((s) => <SkillTab key={s.title} skill={s} atk={headerAtk} showBuffs={true} />)}
+          </TabPanels>
+        </Tabs>
+      )}
+    </VStack>
   );
 }
 

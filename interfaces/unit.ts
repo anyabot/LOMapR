@@ -55,6 +55,9 @@ export interface UnitData {
   icon: string;        // FormationIcon_* portrait key — PNG at /images/icons/<icon>.png
   invenIcon: string;   // InvenIcon_* fallback (used when the portrait is missing)
   skills: string[];    // skill keys (resolve via the unit skill bundle)
+  // second ("change") form's skill set — a transform with its own active skills,
+  // sharing the base unit's stats/grade. Empty for single-form units.
+  skillsCh: string[];
   favor: {             // favor-gain ratios for the various sources
     clear: number;
     death: number;
@@ -62,6 +65,9 @@ export interface UnitData {
     present: number;
   };
   craft: number;       // making time (seconds)
+  marriage: boolean;   // marriage content available (MarriageKey in Table_Marriage)
+  affection: boolean;  // can gain affection (Gender 1) → can reach 200 (+1 buff/debuff lv)
+  secretRoom: string;  // secret-room CG type: 'Adult' | 'Child' | 'AGS' | ''
   // squad/faction this unit belongs to (Table_TroopCategory); null if squad-less.
   // name/desc are loc ids (resolve with t()); icon is a UI_TroopIcon_* key
   // (PNG at /images/common/<icon>.png).
