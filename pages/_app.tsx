@@ -1,7 +1,7 @@
 import '@/styles/globals.css'
 import type { AppProps } from 'next/app'
 import { Provider, useSelector, useDispatch } from 'react-redux'
-import { ChakraProvider } from '@chakra-ui/react'
+import { ChakraProvider, type ColorModeProviderProps } from '@chakra-ui/react'
 import { useEffect, useRef, useState } from 'react'
 import { store, RootState } from '@/store'
 import { setStringsRegion, setStringsTranslation, setStringsData, setCommunityData } from '@/lib/strings'
@@ -179,10 +179,21 @@ function useTranslationSync(): string {
   return translation;
 }
 
+// Fixed color-mode manager: the app is dark-only. This pins Chakra to dark and
+// IGNORES localStorage / system preference, so a stale `chakra-ui-color-mode:
+// light` value (which made local render light while deploy was dark) can never
+// flip it. get() always returns 'dark'; set() is a no-op (never persist).
+const darkOnlyManager: ColorModeProviderProps['colorModeManager'] = {
+  type: 'localStorage',
+  ssr: true,
+  get: () => 'dark',
+  set: () => {},
+};
+
 export default function App({ Component, pageProps }: AppProps) {
   return (
     <Provider store={store}>
-      <ChakraProvider theme={theme}>
+      <ChakraProvider theme={theme} colorModeManager={darkOnlyManager}>
         <RegionSync />
         <AppBody Component={Component} pageProps={pageProps} />
       </ChakraProvider>

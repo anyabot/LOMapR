@@ -31,6 +31,19 @@ export interface LinkBonus {
   pct: boolean;
 }
 
+// Collection/profile info (Table_CharCollection). engName/height/weight are
+// literals; weapons & desc are loc ids (resolve with t()). chart = the in-game
+// radar-hexagon values [ATK, ATK rate, SPD, HP, DEF, Assist].
+export interface UnitProfile {
+  engName: string;
+  number: number;
+  height: string;
+  weight: string;
+  weapons: string[];
+  desc: string;
+  chart: number[];
+}
+
 // One grade's stat block. HP/ATK/DEF are [base@lv1, max@lv100]; the rest are
 // scalars at lv1 (level growth only affects HP/ATK/DEF). resist is whole-percent.
 export interface UnitStat {
@@ -67,7 +80,8 @@ export interface UnitData {
   craft: number;       // making time (seconds)
   marriage: boolean;   // marriage content available (MarriageKey in Table_Marriage)
   affection: boolean;  // can gain affection (Gender 1) → can reach 200 (+1 buff/debuff lv)
-  secretRoom: string;  // secret-room CG type: 'Adult' | 'Child' | 'AGS' | ''
+  secretRoom: string;  // secret-room CG type: 'Adult' | 'Child' | 'AGS' | 'Sengoku' | ''
+  profile: UnitProfile | null;  // collection profile (Table_CharCollection); null if none
   // squad/faction this unit belongs to (Table_TroopCategory); null if squad-less.
   // name/desc are loc ids (resolve with t()); icon is a UI_TroopIcon_* key
   // (PNG at /images/common/<icon>.png).

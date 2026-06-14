@@ -110,8 +110,25 @@ function preferPublicImages(map: { [key: string]: string }): { [key: string]: st
 
 // ── public API (mirrors the old /api/* routes) ───────────────────────────────
 
+// World CONTAINER: per-world metadata + zone titles/imgs only (no stages). Light
+// — used by the World index/detail and unit name-lookup. The heavy stage data is
+// fetched per-world via fetchWorldStage().
 export async function fetchWorld(region: Region) {
   return stampId(shapeWorld(await getWithFallback(region, 'world.json')));
+}
+
+// One world's FULL record (zones→stages→waves/rewards/drops) from
+// split/world/<id>.json. Fetched lazily when a stage page opens that world.
+export async function fetchWorldStage(id: string, region: Region) {
+  const regions: Region[] = region === 'global' ? ['global'] : [region, 'global'];
+  for (const r of regions) {
+    const data = await get(`${r}/split/world/${id}.json`);
+    if (data) {
+      const shaped = shapeWorld({ [id]: data });   // reuse the stage-array shaper
+      return { ...shaped[id], id };
+    }
+  }
+  return null;
 }
 
 export async function fetchSkills(region: Region) {

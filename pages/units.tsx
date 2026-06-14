@@ -24,6 +24,9 @@ type TypeKey = (typeof TYPES)[number];
 type RoleKey = (typeof ROLES)[number];
 type BodyKey = (typeof BODIES)[number];
 
+// Display name: prefer the collection English name, else the resolved loc id.
+const unitName = (u: UnitData): string => u.profile?.engName || t(u.name);
+
 export default function Units() {
   const units = useAppSelector(selectUnits);
   const status = useAppSelector(selectUnitStatus);
@@ -49,7 +52,7 @@ export default function Units() {
     if (!grades[u.rarity]) return false;
     if (searchTerm) {
       const q = searchTerm.toLowerCase();
-      if (!t(u.name).toLowerCase().includes(q) && !(u.id || '').toLowerCase().includes(q)) return false;
+      if (!unitName(u).toLowerCase().includes(q) && !(u.id || '').toLowerCase().includes(q)) return false;
     }
     return true;
   }
@@ -71,7 +74,7 @@ export default function Units() {
   function cell(type: TypeKey, role: RoleKey, grade: number) {
     return shown
       .filter((u) => u.type === type && u.role === role && u.rarity === grade)
-      .sort((a, b) => t(a.name).localeCompare(t(b.name)));
+      .sort((a, b) => unitName(a).localeCompare(unitName(b)));
   }
 
   return (
@@ -174,7 +177,7 @@ export default function Units() {
                             <Wrap spacing={2} justify="center">
                               {cell(type, role, grade).map((u) => (
                                 <WrapItem key={u.id}>
-                                  <UnitTile unit={u} onClick={() => router.push(`/units/${u.id}`)} />
+                                  <UnitTile unit={u} onClick={() => router.push(`/units/detail?id=${encodeURIComponent(u.id)}`)} />
                                 </WrapItem>
                               ))}
                             </Wrap>
@@ -214,7 +217,7 @@ function UnitTile({ unit, onClick }: { unit: UnitData; onClick: () => void }) {
         ) : null}
       </Box>
       <Text fontSize="2xs" color="gray.300" noOfLines={2} mt={1} lineHeight="1.1">
-        {t(unit.name)}
+        {unitName(unit)}
       </Text>
     </Box>
   );

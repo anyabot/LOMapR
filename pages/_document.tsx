@@ -6,9 +6,11 @@ import { ColorModeScript } from '@chakra-ui/react';
 // light-mode defaults that render as white/black-on-dark.
 export default function Document() {
   return (
-    <Html lang="en">
+    // data-theme/color-scheme are baked into the static HTML so the FIRST paint is
+    // dark on every host — no storage/system flip, no light flash on F5/deploy.
+    <Html lang="en" data-theme="dark" style={{ colorScheme: 'dark' }}>
       <Head />
-      <body>
+      <body className="chakra-ui-dark">
         <ColorModeScript initialColorMode="dark" />
         <Main />
         <NextScript />

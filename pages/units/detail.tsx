@@ -17,8 +17,8 @@ import {
   selectUnit, selectUnitStatus, fetchUnitsAsync,
   selectUnitSkills, selectUnitSkillStatus, fetchUnitSkillsAsync,
 } from '@/store/unitSlice';
-import { selectWorld } from '@/store/worldSlice';
-import { selectItems, ItemInfo } from '@/store/itemSlice';
+import { selectWorld, fetchWorldAsync } from '@/store/worldSlice';
+import { selectItems, fetchItemsAsync, ItemInfo } from '@/store/itemSlice';
 import { UnitData, UnitReq, UnitStat, LinkBonus } from '@/interfaces/unit';
 import { RewardEntry } from '@/interfaces/world';
 import { Skill } from '@/interfaces/skill';
@@ -63,6 +63,55 @@ function linkText(b: LinkBonus, mult = 1): string {
 function lerp(pair: [number, number], level: number): number {
   const f = (Math.min(Math.max(level, 1), LV_CAP) - 1) / (LV_CAP - 1);
   return Math.floor(pair[0] + (pair[1] - pair[0]) * f);
+}
+
+// The collection chart values (1..11) are flavor grades shown as a letter ladder
+// (verified vs in-game: Gnome 4=C+/5=B/7=A). Odd = base letter, even = '+'.
+const CHART_GRADES = ['D', 'D+', 'C', 'C+', 'B', 'B+', 'A', 'A+', 'S', 'S+', 'SS'];
+const chartGrade = (n: number): string => CHART_GRADES[Math.min(Math.max(n, 1), 11) - 1] ?? '—';
+
+// Profile radar-hexagon. `values` are the 6 chart stats in the data order
+// [ATK, ATK rate, SPD, HP(Endurance), DEF, Assist]; we render them clockwise from
+// the top as Atk / Speed / Assist / Def / Endurance / Atk Rate (the in-game layout).
+function RadarChart({ values, max = 11 }: { values: number[]; max?: number }) {
+  // axis order (clockwise from top) -> index into the data array + label.
+  const AXES: [number, string][] = [
+    [0, 'Atk'], [2, 'Speed'], [5, 'Assist'], [4, 'Def'], [3, 'Endurance'], [1, 'Atk Rate'],
+  ];
+  const size = 240, cx = size / 2, cy = size / 2, R = 78;
+  const pt = (i: number, r: number) => {
+    const a = -Math.PI / 2 + (i * 2 * Math.PI) / 6;   // start at top, clockwise
+    return [cx + r * Math.cos(a), cy + r * Math.sin(a)] as const;
+  };
+  const ring = (r: number) => AXES.map((_, i) => pt(i, r).join(',')).join(' ');
+  const poly = AXES.map(([idx], i) => pt(i, R * (Math.min(values[idx] ?? 0, max) / max)).join(',')).join(' ');
+
+  return (
+    <svg viewBox={`0 0 ${size} ${size}`} width="100%" style={{ maxWidth: 280 }}>
+      {/* grid rings + spokes */}
+      {[0.33, 0.66, 1].map((f) => (
+        <polygon key={f} points={ring(R * f)} fill="none" stroke="#2c313c" strokeWidth={1} />
+      ))}
+      {AXES.map((_, i) => {
+        const [x, y] = pt(i, R);
+        return <line key={i} x1={cx} y1={cy} x2={x} y2={y} stroke="#2c313c" strokeWidth={1} />;
+      })}
+      {/* value polygon */}
+      <polygon points={poly} fill="rgba(242,200,60,0.45)" stroke="#f2c83c" strokeWidth={2} />
+      {/* axis labels + grade */}
+      {AXES.map(([idx, label], i) => {
+        const [x, y] = pt(i, R + 26);
+        return (
+          <g key={label}>
+            <text x={x} y={y - 5} fill="#9aa0aa" fontSize={10} textAnchor="middle">{label}</text>
+            <text x={x} y={y + 8} fill="#fff" fontSize={13} fontWeight="bold" textAnchor="middle">
+              {chartGrade(values[idx] ?? 0)}
+            </text>
+          </g>
+        );
+      })}
+    </svg>
+  );
 }
 
 // Find a unit's full-link Skill-Power bonus value (the multiplier to skill power),
@@ -124,6 +173,13 @@ export default function UnitDetail() {
   const [level, setLevel] = useState(LV_CAP);
 
   useEffect(() => { dispatch(fetchUnitsAsync()); }, [dispatch]);
+  // material/unit icons (item map) + Drop-Location event names (world CONTAINER)
+  // resolve from those stores; fetch them here so a direct load to a unit URL
+  // populates them. Both self-skip if already loaded. (_app only auto-fetches on
+  // region CHANGE, not first load.) world.json is now the light container, so this
+  // is cheap — the Drop tab only needs world titles, not stage data.
+  useEffect(() => { dispatch(fetchItemsAsync()); }, [dispatch]);
+  useEffect(() => { dispatch(fetchWorldAsync()); }, [dispatch]);
   useEffect(() => { if (id && unit) dispatch(fetchUnitSkillsAsync(id)); }, [id, unit, dispatch]);
   // when the unit changes, default to its top grade.
   useEffect(() => {
@@ -142,7 +198,9 @@ export default function UnitDetail() {
     );
   }
 
-  const name = t(unit.name);
+  // prefer the English display name from the collection profile; fall back to the
+  // resolved unit name loc id.
+  const name = unit.profile?.engName || t(unit.name);
   // top grade stats at lv-cap → ATK passed to SkillTab (rate → damage preview).
   const topStat = unit.stat[unit.stat.length - 1];
   const headerAtk = topStat ? topStat.ATK[1] : 0;
@@ -166,7 +224,7 @@ export default function UnitDetail() {
           <VStack align="start" spacing={2} minW={0}>
             <HStack>
               <Heading size="lg">{name}</Heading>
-              <CopyLink path={`/units/${encodeURIComponent(unit.id)}`} />
+              <CopyLink path={`/units/detail?id=${encodeURIComponent(unit.id)}`} />
             </HStack>
             <HStack spacing={3} align="center">
               {roleRankIcon(unit.role, unit.rarity) ? (
@@ -207,15 +265,16 @@ export default function UnitDetail() {
 
         <Tabs colorScheme="yellow" variant="enclosed" isLazy>
           <TabList flexWrap="wrap">
-            <Tab>Info</Tab>
+            <Tab>Stats</Tab>
             <Tab>Skills</Tab>
+            <Tab>Profile</Tab>
             <Tab>Drop Location</Tab>
             <Tab>Promotion</Tab>
             <Tab>Limit Break</Tab>
           </TabList>
 
           <TabPanels>
-            {/* ── Tab 1: basic info + stat calculator ──────────────────────── */}
+            {/* ── Tab 1: stats calculator + manufacturing / favor / link bonus ── */}
             <TabPanel px={0}>
               <InfoTab unit={unit} gradeIdx={gradeIdx} setGradeIdx={setGradeIdx}
                 level={level} setLevel={setLevel} />
@@ -226,7 +285,12 @@ export default function UnitDetail() {
               <SkillsTab unit={unit} skills={skills} headerAtk={headerAtk} skillStatus={skillStatus} />
             </TabPanel>
 
-            {/* ── Tab 3: drop / acquisition locations ──────────────────────── */}
+            {/* ── Tab 3: profile (collection flavor) ───────────────────────── */}
+            <TabPanel px={0}>
+              <ProfileTab unit={unit} />
+            </TabPanel>
+
+            {/* ── Tab 4: drop / acquisition locations ──────────────────────── */}
             <TabPanel px={0}>
               <DropTab unit={unit} world={world} />
             </TabPanel>
@@ -365,6 +429,38 @@ function SkillsTab({
         </Tabs>
       )}
     </VStack>
+  );
+}
+
+// ── Profile tab: collection flavor (radar chart, vitals, weapons, bio) ────────
+function ProfileTab({ unit }: { unit: UnitData }) {
+  const p = unit.profile;
+  if (!p) return <Text color="gray.500" fontSize="sm">No profile data for this unit.</Text>;
+  // bio uses '&n' as line breaks; also scrub the stray replacement char the source
+  // text carries (a mojibake em-dash).
+  const bio = p.desc ? t(p.desc).replace(/&n/g, '\n').replace(/�/g, '—') : '';
+
+  return (
+    <SimpleGrid columns={[1, 1, 2]} spacing={4}>
+      <Box borderWidth="1px" borderColor="surface.border" borderRadius="xl" bg="surface.elevated" p={4}>
+        <Heading size="sm" mb={3}>Profile</Heading>
+        <Center mb={2}><RadarChart values={p.chart} /></Center>
+        <StatSection title="Vitals">
+          {p.number ? <StatRow label="No." value={`#${p.number}`} /> : null}
+          {p.height ? <StatRow label="Height" value={p.height} /> : null}
+          {p.weight ? <StatRow label="Weight" value={p.weight} /> : null}
+          {p.weapons.map((w, i) => <StatRow key={i} label={`Weapon ${i + 1}`} value={t(w)} />)}
+          <StatRow label="Secret room" value={unit.secretRoom || '—'} />
+          <StatRow label="Marriage" value={unit.marriage ? 'Available' : '—'} />
+        </StatSection>
+      </Box>
+      {bio ? (
+        <Box borderWidth="1px" borderColor="surface.border" borderRadius="xl" bg="surface.elevated" p={4}>
+          <Heading size="sm" mb={3}>Background</Heading>
+          <Text fontSize="sm" color="gray.300" whiteSpace="pre-wrap" lineHeight="1.6">{bio}</Text>
+        </Box>
+      ) : null}
+    </SimpleGrid>
   );
 }
 
@@ -538,7 +634,7 @@ function InfoTab({
 function DropTab({ unit, world }: { unit: UnitData; world: any }) {
   const entries = Object.entries(unit.source || {});
   if (entries.length === 0) {
-    return <Text color="gray.500" fontSize="sm">No known drop/acquisition stages — likely gacha or event-shop only.</Text>;
+    return <Text color="gray.500" fontSize="sm">No known drop/acquisition stages.</Text>;
   }
   return (
     <VStack align="stretch" spacing={3}>

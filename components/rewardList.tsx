@@ -4,6 +4,8 @@ import { RewardEntry } from '@/interfaces/world';
 import { useAppSelector } from '@/hooks';
 import { selectItems, ItemInfo } from '@/store/itemSlice';
 import { t } from '@/lib/strings';
+import { rankColor } from '@/lib/rank';
+import UnitHoverCard from './unitHoverCard';
 
 // Human labels for the currency keys carried on a RewardEntry. The three
 // resources display as Power / Nutrient / Gear (the `metal` key is "Gear"); cash
@@ -100,15 +102,11 @@ function sortRewards(rewards: RewardEntry[], items: { [id: string]: ItemInfo }):
     .map((x) => x.e);
 }
 
-// Grade -> border colour (rough rarity tint). Falls back to the tone border.
+// Grade -> the OFFICIAL rank colour (B green / A light-blue / S orange / SS gold /
+// SSS red), shared with the unit pages via lib/rank. Used for the rank tag text +
+// chip border. Null for non-graded entries (consumables/currencies).
 function gradeColor(grade?: number): string | null {
-  switch (grade) {
-    case 5: return '#d4af37'; // gold
-    case 4: return '#a335ee'; // purple
-    case 3: return '#0070dd'; // blue
-    case 2: return '#1eff00'; // green
-    default: return null;
-  }
+  return grade != null && grade >= 2 && grade <= 6 ? rankColor(grade) : null;
 }
 
 // Reward/drop icon box. Renders the real sliced PNG (/images/icons/<key>.png,
@@ -199,6 +197,10 @@ function RewardChip({
   // show nothing on hover.
   const descText = r.desc ? t(r.desc) : '';
 
+  // unit entries link to the unit detail page. A unit is either a `char` entry or
+  // an `item`/`char` whose resolved kind is 'unit' (e.g. a unit dropped as a reward).
+  const unitId = r.kind === 'unit' ? (entry.char || entry.item) : undefined;
+
   const chip = (
     <HStack
       spacing={2}
@@ -210,6 +212,7 @@ function RewardChip({
       borderColor={border}
       borderRadius="lg"
       bg="blackAlpha.300"
+      {...(unitId ? { _hover: { borderColor: 'yellow.400', bg: 'whiteAlpha.100' }, cursor: 'pointer' } : {})}
     >
       <IconPlaceholder icon={r.icon} />
       <Box minW={0}>
@@ -226,7 +229,11 @@ function RewardChip({
     </HStack>
   );
 
-  if (!descText) return chip;
+  // unit chips get the reusable hover-card (portrait + rank/type/role/faction) which
+  // also links to the unit page. Non-unit chips render the bare chip.
+  const wrapped = unitId ? <UnitHoverCard unitId={unitId}>{chip}</UnitHoverCard> : chip;
+
+  if (!descText) return wrapped;
   return (
     <Tooltip
       label={
@@ -239,7 +246,7 @@ function RewardChip({
       hasArrow
       openDelay={300}
     >
-      {chip}
+      {wrapped}
     </Tooltip>
   );
 }
