@@ -186,3 +186,25 @@ export async function fetchSplitAI(ref: string | undefined, region: Region) {
   if (data || region === 'global') return data;
   return get(`global/split/ai/${ref}.json`);
 }
+
+// ── units (playable characters) ───────────────────────────────────────────────
+
+// Full unit list (records carry all combat fields). split/units/unit_list.json.
+export async function fetchUnitList(region: Region) {
+  const regions: Region[] = region === 'global' ? ['global'] : [region, 'global'];
+  for (const r of regions) {
+    const data = await get(`${r}/split/units/unit_list.json`);
+    if (data) return stampId(data);
+  }
+  return {};
+}
+
+// A single unit's skill bundle. Like enemy skill bundles, these are content-
+// deduped at build time and named after the owning unit id (skillsRef points at a
+// shared owner; absent -> the unit owns its own file).
+export async function fetchSplitUnitSkills(ref: string | undefined, region: Region) {
+  if (!ref) return null;
+  const data = await get(`${region}/split/units/${ref}.json`);
+  if (data || region === 'global') return data;
+  return get(`global/split/units/${ref}.json`);
+}
