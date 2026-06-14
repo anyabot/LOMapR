@@ -9,6 +9,7 @@ export interface ItemInfo {
   icon: string;   // sprite key (UI_Icon_* / InvenIcon_*) — actual PNG sliced later
   grade?: number;
   kind: 'consumable' | 'equip' | 'unit';
+  desc?: string;  // loc id; consumables only — what the item grants (pack contents)
 }
 
 export type ItemMap = { [id: string]: ItemInfo };

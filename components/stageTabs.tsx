@@ -104,8 +104,8 @@ export default function StageTabs({
       label: 'Drops',
       panel: (
         <SimpleGrid columns={[1, 1, 2]} spacing={4} alignItems="start">
-          <RewardPanel title="Item Drops" rewards={dropPool.items} tone="gray" columns={2} />
-          <RewardPanel title="Unit Drops" rewards={dropPool.units.map((c) => ({ char: c }))} tone="gray" columns={2} />
+          <RewardPanel title="Item Drops" rewards={dropPool.items} tone="gray" columns={2} sort />
+          <RewardPanel title="Unit Drops" rewards={dropPool.units.map((c) => ({ char: c }))} tone="gray" columns={2} sort />
         </SimpleGrid>
       ),
     });
