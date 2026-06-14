@@ -1,5 +1,6 @@
 import { useAppSelector, useAppDispatch } from '@/hooks';
 import { selectWorld, fetchWorldAsync } from '@/store/worldSlice';
+import { fetchItemsAsync } from '@/store/itemSlice';
 import { Stage, Zone } from '@/interfaces/world';
 import { t } from '@/lib/strings';
 import { useEffect, useState } from 'react';
@@ -21,6 +22,7 @@ export default function Home() {
   const dispatch = useAppDispatch();
   useEffect(() => {
     dispatch(fetchWorldAsync());
+    dispatch(fetchItemsAsync());
   }, [dispatch]);
   const router = useRouter()
   const id = router.query.id as string

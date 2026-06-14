@@ -6,15 +6,18 @@ import { ArrowLeftIcon, ArrowRightIcon, StarIcon } from '@chakra-ui/icons';
 import { Stage, WaveDrop, RewardEntry } from '@/interfaces/world';
 import { t } from '@/lib/strings';
 import EnemyGrid from '@/components/enemyGrid';
-import RewardList from '@/components/rewardList';
+import { RewardPanel } from '@/components/rewardList';
 import styles from '@/styles/custom.module.css';
 
 // A titled panel card matching the reference layout (header strip + body).
 function Panel({ title, children }: { title: React.ReactNode; children: React.ReactNode }) {
   return (
     <Box borderWidth="1px" borderColor="surface.border" borderRadius="xl" overflow="hidden" bg="surface.elevated">
-      <Box px={4} py={2} bg="blackAlpha.300" borderBottomWidth="1px" borderBottomColor="surface.border">
-        <Text fontSize="sm" fontWeight="bold" color="gray.200">{title}</Text>
+      {/* title wrapper is a div (not Text/<p>) so JSX titles with block content
+          like an icon HStack nest validly. */}
+      <Box px={4} py={2} bg="blackAlpha.300" borderBottomWidth="1px" borderBottomColor="surface.border"
+        fontSize="sm" fontWeight="bold" color="gray.200">
+        {title}
       </Box>
       <Box p={3}>{children}</Box>
     </Box>
@@ -41,7 +44,8 @@ export default function StageTabs({
   const tabs: { label: string; icon?: React.ReactNode; panel: React.ReactNode }[] = [];
 
   // ── Clear Rewards: rewards (left) + unlock / missions (right) ───────────────
-  const hasClearTab = !!(r?.clear?.length || r?.reward_f?.length || r?.reward_am?.length
+  // `clear` (EXP) isn't shown in this tab, so it doesn't gate it.
+  const hasClearTab = !!(r?.reward_f?.length || r?.reward_am?.length
     || stage.unlock || stage.missions?.length);
   if (hasClearTab) {
     tabs.push({
@@ -50,16 +54,15 @@ export default function StageTabs({
         <SimpleGrid columns={[1, 1, 2]} spacing={4} alignItems="start">
           {/* left column: reward cards */}
           <VStack align="stretch" spacing={4}>
-            {r?.clear?.length || r?.reward_f?.length ? (
-              <Panel title="Clear Rewards">
-                <RewardList rewards={[...(r?.clear ?? []), ...(r?.reward_f ?? [])]} tone="gray" />
-              </Panel>
-            ) : null}
-            {r?.reward_am?.length ? (
-              <Panel title={<HStack spacing={1}><StarIcon boxSize={3} color="yellow.400" /><Text as="span">All Missions Rewards</Text></HStack>}>
-                <RewardList rewards={r.reward_am} tone="yellow" />
-              </Panel>
-            ) : null}
+            {/* `clear` is just EXP (shown under the stage name already), so the
+                panel lists only the first-clear item/unit rewards. */}
+            <RewardPanel title="Clear Rewards" rewards={r?.reward_f ?? []} tone="gray" columns={2} />
+            <RewardPanel
+              title={<HStack spacing={1}><StarIcon boxSize={3} color="yellow.400" /><Text as="span">All Missions Rewards</Text></HStack>}
+              rewards={r?.reward_am ?? []}
+              tone="yellow"
+              columns={2}
+            />
           </VStack>
 
           {/* right column: unlock + missions */}
@@ -100,18 +103,10 @@ export default function StageTabs({
     tabs.push({
       label: 'Drops',
       panel: (
-        <VStack align="stretch" spacing={4}>
-          {dropPool.items.length ? (
-            <Panel title="Item Drops">
-              <RewardList rewards={dropPool.items} tone="gray" />
-            </Panel>
-          ) : null}
-          {dropPool.units.length ? (
-            <Panel title="Unit Drops">
-              <RewardList rewards={dropPool.units.map((c) => ({ char: c }))} tone="gray" />
-            </Panel>
-          ) : null}
-        </VStack>
+        <SimpleGrid columns={[1, 1, 2]} spacing={4} alignItems="start">
+          <RewardPanel title="Item Drops" rewards={dropPool.items} tone="gray" columns={2} />
+          <RewardPanel title="Unit Drops" rewards={dropPool.units.map((c) => ({ char: c }))} tone="gray" columns={2} />
+        </SimpleGrid>
       ),
     });
   }

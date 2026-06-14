@@ -4,6 +4,7 @@ import enemyReducer from './store/enemySlice';
 import skillReducer from './store/skillSlice';
 import sanctumReducer from './store/sanctumSlice';
 import imageReducer from './store/imageSlice';
+import itemReducer from './store/itemSlice';
 import IWReducer from './store/IWSlice';
 import regionReducer from './store/regionSlice';
 import translationReducer from './store/translationSlice';
@@ -14,6 +15,7 @@ export const store = configureStore({
     ai: aiReducer,
     enemy: enemyReducer,
     image: imageReducer,
+    item: itemReducer,
     iw: IWReducer,
     region: regionReducer,
     translation: translationReducer,

@@ -14,6 +14,7 @@ import { fetchWorldAsync } from '@/store/worldSlice'
 import { fetchSanctumAsync } from '@/store/sanctumSlice'
 import { fetchIWAsync } from '@/store/IWSlice'
 import { fetchImageAsync } from '@/store/imageSlice'
+import { fetchItemsAsync } from '@/store/itemSlice'
 // fetchEnemyAIAsync is dispatched lazily in skillTabList when an enemy is selected
 import Layout from '@/components/layout'
 
@@ -152,6 +153,7 @@ function RegionSync() {
     dispatch(fetchSanctumAsync());
     dispatch(fetchIWAsync());
     dispatch(fetchImageAsync());
+    dispatch(fetchItemsAsync());
   }, [region, dispatch]);
   return null;
 }

@@ -130,6 +130,11 @@ export async function fetchStrings(region: Region) {
   return getWithFallback(region, 'strings.json');
 }
 
+// Item / unit lookup (id -> {name, icon, grade, kind}) for reward & drop display.
+export async function fetchItems(region: Region) {
+  return getWithFallback(region, 'item.json');
+}
+
 export async function fetchCommunity() {
   return get('community_translation.json');
 }
