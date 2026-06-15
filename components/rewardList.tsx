@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { Box, HStack, Text, Wrap, WrapItem, Tooltip, SimpleGrid } from '@chakra-ui/react';
 import { RewardEntry } from '@/interfaces/world';
-import { useAppSelector } from '@/hooks';
+import { useAppSelector, useAppDispatch } from '@/hooks';
 import { selectItems, ItemInfo } from '@/store/itemSlice';
+import { setActiveEquip } from '@/store/equipSlice';
 import { t } from '@/lib/strings';
 import { rankColor } from '@/lib/rank';
 import UnitHoverCard from './unitHoverCard';
@@ -119,7 +120,7 @@ function IconPlaceholder({ icon }: { icon: string }) {
   return (
     <Box
       flexShrink={0}
-      boxSize="34px"
+      boxSize="48px"
       borderRadius="md"
       bg="blackAlpha.500"
       borderWidth="1px"
@@ -186,6 +187,7 @@ function RewardChip({
   tone: 'gray' | 'yellow' | 'teal';
   amountColor: string;
 }) {
+  const dispatch = useAppDispatch();
   const toneBorder = tone === 'yellow' ? 'yellow.500' : tone === 'teal' ? 'teal.500' : 'surface.border';
   const r = resolve(entry, items);
   const rarity = gradeColor(r.grade);
@@ -200,6 +202,12 @@ function RewardChip({
   // unit entries link to the unit detail page. A unit is either a `char` entry or
   // an `item`/`char` whose resolved kind is 'unit' (e.g. a unit dropped as a reward).
   const unitId = r.kind === 'unit' ? (entry.char || entry.item) : undefined;
+  // equip entries link to the equipment page modal. Drop ids carry a _T<n> rank
+  // suffix; the equipment page is keyed by family, so strip it.
+  const equipFam = r.kind === 'equip' && entry.item
+    ? entry.item.replace(/_T\d+$/, '')
+    : undefined;
+  const linked = !!unitId || !!equipFam;
 
   const chip = (
     <HStack
@@ -212,26 +220,31 @@ function RewardChip({
       borderColor={border}
       borderRadius="lg"
       bg="blackAlpha.300"
-      {...(unitId ? { _hover: { borderColor: 'yellow.400', bg: 'whiteAlpha.100' }, cursor: 'pointer' } : {})}
+      {...(linked ? { _hover: { borderColor: 'yellow.400', bg: 'whiteAlpha.100' }, cursor: 'pointer' } : {})}
     >
       <IconPlaceholder icon={r.icon} />
       <Box minW={0}>
-        <Text fontSize="xs" color="gray.100" noOfLines={1}>
+        <Text fontSize="sm" color="gray.100" noOfLines={1}>
           {tag ? (
             <Box as="span" fontWeight="bold" color={rarity ?? 'gray.300'} mr={1}>{tag}</Box>
           ) : null}
           {r.name}
         </Text>
         {r.amount ? (
-          <Text fontSize="xs" fontWeight="bold" color={amountColor}>{r.amount}</Text>
+          <Text fontSize="sm" fontWeight="bold" color={amountColor}>{r.amount}</Text>
         ) : null}
       </Box>
     </HStack>
   );
 
   // unit chips get the reusable hover-card (portrait + rank/type/role/faction) which
-  // also links to the unit page. Non-unit chips render the bare chip.
-  const wrapped = unitId ? <UnitHoverCard unitId={unitId}>{chip}</UnitHoverCard> : chip;
+  // also links to the unit page. Equip chips link to the equipment modal. Other
+  // chips render bare.
+  const wrapped = unitId
+    ? <UnitHoverCard unitId={unitId}>{chip}</UnitHoverCard>
+    : equipFam
+      ? <Box onClick={() => dispatch(setActiveEquip(equipFam))} display="block">{chip}</Box>
+      : chip;
 
   if (!descText) return wrapped;
   return (

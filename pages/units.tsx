@@ -199,8 +199,8 @@ export default function Units() {
 // Compact unit cell: formation portrait + name, links to the detail page.
 function UnitTile({ unit, onClick }: { unit: UnitData; onClick: () => void }) {
   return (
-    <Box onClick={onClick} cursor="pointer" w="72px" role="group" textAlign="center">
-      <Box position="relative" boxSize="72px" borderRadius="lg" overflow="hidden" bg="blackAlpha.500"
+    <Box onClick={onClick} cursor="pointer" w="88px" role="group" textAlign="center">
+      <Box position="relative" boxSize="88px" borderRadius="lg" overflow="hidden" bg="blackAlpha.500"
         borderWidth="1px" borderColor="surface.border"
         transition="border-color .12s ease, transform .12s ease"
         _groupHover={{ borderColor: 'yellow.400', transform: 'translateY(-2px)' }}>
@@ -210,13 +210,13 @@ function UnitTile({ unit, onClick }: { unit: UnitData; onClick: () => void }) {
         ) : null}
         {/* official role+rank badge, bottom-left corner */}
         {roleRankIcon(unit.role, unit.rarity) ? (
-          <Image position="absolute" bottom="1px" left="1px" h="22px" objectFit="contain"
+          <Image position="absolute" bottom="1px" left="1px" h="26px" objectFit="contain"
             src={`/images/icons/${roleRankIcon(unit.role, unit.rarity)}.png`}
             alt={`${rankTag(unit.rarity)} ${unit.role}`}
             filter="drop-shadow(0 1px 1px rgba(0,0,0,.8))" />
         ) : null}
       </Box>
-      <Text fontSize="2xs" color="gray.300" noOfLines={2} mt={1} lineHeight="1.1">
+      <Text fontSize="xs" color="gray.300" noOfLines={2} mt={1} lineHeight="1.15">
         {unitName(unit)}
       </Text>
     </Box>

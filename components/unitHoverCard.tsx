@@ -19,10 +19,14 @@ import { rankTag, rankColor, roleRankIcon, typeIcon, roleIcon, factionIcon } fro
  *   <UnitHoverCard unitId={entry.char}><MyChip/></UnitHoverCard>
  */
 export default function UnitHoverCard({
-  unitId, children,
+  unitId, children, inModal = false,
 }: {
   unitId: string | undefined;
   children: React.ReactNode;
+  // when used INSIDE a Chakra Modal, skip the body Portal so the popover inherits
+  // the modal's stacking context (a body-portaled popover renders BEHIND the modal
+  // overlay and is invisible).
+  inModal?: boolean;
 }) {
   const dispatch = useAppDispatch();
   const unit = useAppSelector((s) => (unitId ? selectUnit(s, unitId) : null));
@@ -35,38 +39,38 @@ export default function UnitHoverCard({
   const name = unit.profile?.engName || t(unit.name);
   const rankRole = roleRankIcon(unit.role, unit.rarity);
 
-  return (
-    <Popover trigger="hover" openDelay={150} closeDelay={80} isLazy placement="top">
-      <PopoverTrigger>
-        {/* span wrapper so any child (even text) is a valid single trigger element */}
-        <Box as="span" display="inline-block" w="100%">{children}</Box>
-      </PopoverTrigger>
-      <Portal>
-        <PopoverContent bg="surface.elevated" borderColor="surface.border" w="260px" boxShadow="dark-lg">
+  const content = (
+    <PopoverContent bg="surface.elevated" borderColor="surface.border" w="260px" boxShadow="dark-lg" zIndex="popover">
           <PopoverBody>
             <HStack as={NextLink} href={`/units/detail?id=${encodeURIComponent(unit.id)}`}
               spacing={3} align="start" role="group">
-              <Box boxSize="64px" borderRadius="md" overflow="hidden" bg="blackAlpha.500" flexShrink={0}
+              <Box position="relative" boxSize="64px" borderRadius="md" overflow="hidden" bg="blackAlpha.500" flexShrink={0}
                 borderWidth="1px" borderColor={rankColor(unit.rarity)}>
                 {unit.icon ? (
                   <Image src={`/images/icons/${unit.icon}.png`} alt={name} objectFit="cover" w="100%" h="100%"
                     _groupHover={{ transform: 'scale(1.05)' }} transition="transform .15s ease" />
                 ) : null}
+                {/* official role+rank badge nested in the icon corner (matches unit list) */}
+                {rankRole ? (
+                  <Image position="absolute" bottom="1px" left="1px" h="20px" objectFit="contain"
+                    src={`/images/icons/${rankRole}.png`} alt={`${rankTag(unit.rarity)} ${unit.role}`}
+                    filter="drop-shadow(0 1px 1px rgba(0,0,0,.8))" />
+                ) : (
+                  <Tag position="absolute" bottom="1px" left="1px" size="sm" bg={rankColor(unit.rarity)}
+                    color="blackAlpha.800" fontWeight="bold">
+                    {rankTag(unit.rarity)}
+                  </Tag>
+                )}
               </Box>
               <VStack align="start" spacing={1.5} minW={0}>
+                {unit.profile?.number != null ? (
+                  <Text fontSize="2xs" color="gray.500" fontWeight="bold" letterSpacing="wide">
+                    No. {String(unit.profile.number).padStart(3, '0')}
+                  </Text>
+                ) : null}
                 <Text fontSize="sm" fontWeight="bold" color="gray.100" noOfLines={2} _groupHover={{ color: 'yellow.300' }}>
                   {name}
                 </Text>
-                <HStack spacing={2}>
-                  {rankRole ? (
-                    <Image src={`/images/icons/${rankRole}.png`} alt={`${rankTag(unit.rarity)} ${unit.role}`}
-                      h="22px" objectFit="contain" />
-                  ) : (
-                    <Tag size="sm" bg={rankColor(unit.rarity)} color="blackAlpha.800" fontWeight="bold">
-                      {rankTag(unit.rarity)}
-                    </Tag>
-                  )}
-                </HStack>
                 <Wrap spacing={1}>
                   <WrapItem>
                     <Tag size="sm" colorScheme="red" gap={1}>
@@ -93,8 +97,16 @@ export default function UnitHoverCard({
               </VStack>
             </HStack>
           </PopoverBody>
-        </PopoverContent>
-      </Portal>
+    </PopoverContent>
+  );
+
+  return (
+    <Popover trigger="hover" openDelay={150} closeDelay={80} isLazy placement="top">
+      <PopoverTrigger>
+        {/* span wrapper so any child (even text) is a valid single trigger element */}
+        <Box as="span" display="inline-block" w="100%">{children}</Box>
+      </PopoverTrigger>
+      {inModal ? content : <Portal>{content}</Portal>}
     </Popover>
   );
 }

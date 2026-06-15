@@ -19,7 +19,7 @@ import {
 } from '@/store/unitSlice';
 import { selectWorld, fetchWorldAsync } from '@/store/worldSlice';
 import { selectItems, fetchItemsAsync, ItemInfo } from '@/store/itemSlice';
-import { selectEquip, fetchEquipAsync } from '@/store/equipSlice';
+import { selectEquip, fetchEquipAsync, setActiveEquip } from '@/store/equipSlice';
 import { UnitData, UnitReq, UnitStat, LinkBonus } from '@/interfaces/unit';
 import { EquipData } from '@/interfaces/equip';
 import { RewardEntry } from '@/interfaces/world';
@@ -453,7 +453,7 @@ function ProfileTab({ unit }: { unit: UnitData }) {
         <Heading size="sm" mb={3}>Profile</Heading>
         <Center mb={2}><RadarChart values={p.chart} /></Center>
         <StatSection title="Vitals">
-          {p.number ? <StatRow label="No." value={`#${p.number}`} /> : null}
+          {p.number ? <StatRow label="No." value={String(p.number).padStart(3, '0')} /> : null}
           {p.height ? <StatRow label="Height" value={p.height} /> : null}
           {p.weight ? <StatRow label="Weight" value={p.weight} /> : null}
           {p.weapons.map((w, i) => <StatRow key={i} label={`Weapon ${i + 1}`} value={t(w)} />)}
@@ -637,30 +637,31 @@ function InfoTab({
   );
 }
 
-// ── Exclusive gear: equipment locked to this unit (via pcLimit). Tiles deep-link
-// to the equipment page modal. Renders nothing when the unit has no exclusive gear.
+// ── Exclusive gear: equipment locked to this unit (via pcLimit). Tiles open the
+// equipment modal in place. Renders nothing when the unit has no exclusive gear.
 function ExclusiveEquip({ unit, equip }: { unit: UnitData; equip: Record<string, EquipData> }) {
+  const dispatch = useAppDispatch();
   const ids = unit.exclusiveEquip || [];
   if (!ids.length) return null;
   return (
     <Box borderWidth="1px" borderColor="surface.border" borderRadius="xl" bg="surface.elevated" p={4}>
-      <Heading size="sm" mb={3}>Exclusive Equipment</Heading>
-      <Wrap spacing={3}>
+      <Heading size="sm" mb={3} textAlign="center">Exclusive Equipment</Heading>
+      <Wrap spacing={3} justify="center">
         {ids.map((eid) => {
           const e = equip[eid];
           return (
             <WrapItem key={eid}>
-              <HStack as={Link} href={`/equipment?equip=${encodeURIComponent(eid)}`}
-                spacing={2} borderWidth="1px" borderColor="surface.border" borderRadius="lg"
-                bg="blackAlpha.300" p={2} _hover={{ bg: 'whiteAlpha.100' }}>
-                <Box boxSize="40px" borderRadius="md" overflow="hidden" bg="blackAlpha.500"
+              <HStack onClick={() => dispatch(setActiveEquip(eid))} cursor="pointer"
+                spacing={3} minW="220px" borderWidth="1px" borderColor="surface.border" borderRadius="lg"
+                bg="blackAlpha.300" p={2.5} _hover={{ bg: 'whiteAlpha.100' }}>
+                <Box boxSize="56px" borderRadius="md" overflow="hidden" bg="blackAlpha.500"
                   borderWidth="2px" borderColor={e ? rankColor(e.grade) : 'surface.border'} flexShrink={0} p="3px">
                   {e?.icon ? (
                     <Image src={`/images/icons/${e.icon}.png`} alt={eid} objectFit="contain" w="100%" h="100%" />
                   ) : null}
                 </Box>
                 <Box minW={0}>
-                  <Text fontSize="sm" noOfLines={1}>{e ? t(e.name) : eid}</Text>
+                  <Text fontSize="sm" noOfLines={2}>{e ? t(e.name) : eid}</Text>
                   {e ? <Text fontSize="2xs" color="gray.500">{e.slot}</Text> : null}
                 </Box>
               </HStack>

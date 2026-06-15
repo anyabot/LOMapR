@@ -11,6 +11,7 @@ import {
   selectActiveEquip, selectEquipFull, selectEquipFullStatus, setActiveEquip, fetchEquipFullAsync,
 } from '@/store/equipSlice';
 import { selectWorld, fetchWorldAsync } from '@/store/worldSlice';
+import { selectUnits, fetchUnitsAsync } from '@/store/unitSlice';
 import { EquipRank } from '@/interfaces/equip';
 import { t } from '@/lib/strings';
 import { rankTag, rankColor, typeIcon, roleIcon, equipIcon, EXCHANGE_META } from '@/lib/rank';
@@ -30,12 +31,14 @@ export default function EquipModal() {
   const full   = useAppSelector((s) => (id ? selectEquipFull(s, id) : null));
   const status = useAppSelector((s) => (id ? selectEquipFullStatus(s, id) : null));
   const world  = useAppSelector(selectWorld);
+  const units  = useAppSelector(selectUnits);
 
   const [rankIdx, setRankIdx] = useState(0);
   const [level,   setLevel]   = useState(10);
 
   useEffect(() => { if (id) dispatch(fetchEquipFullAsync(id)); }, [id, dispatch]);
   useEffect(() => { if (id) dispatch(fetchWorldAsync()); }, [id, dispatch]);
+  useEffect(() => { if (id) dispatch(fetchUnitsAsync()); }, [id, dispatch]);
   // default to the highest rank whenever a new equip opens
   useEffect(() => { if (full) setRankIdx(full.ranks.length - 1); }, [full?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -183,8 +186,14 @@ export default function EquipModal() {
                       ) : null}
                       {rank.pcLimit ? (
                         <WrapItem>
-                          <UnitHoverCard unitId={rank.pcLimit}>
-                            <Tag size="sm" colorScheme="purple">Unit-locked</Tag>
+                          <UnitHoverCard unitId={rank.pcLimit} inModal>
+                            <Tag as={Link} href={`/units/detail?id=${encodeURIComponent(rank.pcLimit)}`}
+                              size="sm" colorScheme="purple" gap={1} _hover={{ bg: 'purple.600' }}>
+                              {(() => {
+                                const u = units[rank.pcLimit];
+                                return u ? (u.profile?.engName || t(u.name)) : 'Unit-locked';
+                              })()}
+                            </Tag>
                           </UnitHoverCard>
                         </WrapItem>
                       ) : null}

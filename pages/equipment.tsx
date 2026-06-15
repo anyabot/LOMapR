@@ -141,7 +141,7 @@ export default function Equipment() {
                   </HStack>
                 </Box>
                 <Box p={3}>
-                  <SimpleGrid columns={[3, 4, 6, 8]} spacing={3}>
+                  <SimpleGrid columns={[3, 4, 5, 7]} spacing={3}>
                     {items.map((e) => (
                       <EquipTile key={e.id} equip={e} onClick={() => dispatch(setActiveEquip(e.id))} />
                     ))}
@@ -160,21 +160,21 @@ export default function Equipment() {
 function EquipTile({ equip, onClick }: { equip: EquipData; onClick: () => void }) {
   return (
     <Box onClick={onClick} cursor="pointer" role="group" textAlign="center">
-      <Box position="relative" boxSize="56px" mx="auto" borderRadius="lg" overflow="hidden"
+      <Box position="relative" boxSize="72px" mx="auto" borderRadius="lg" overflow="hidden"
         bg="blackAlpha.500" borderWidth="2px" borderColor={rankColor(equip.grade)}
         transition="transform .12s ease" _groupHover={{ transform: 'translateY(-2px)' }} p="4px">
         {equip.icon ? (
           <Image src={`/images/icons/${equip.icon}.png`} alt={equip.icon} objectFit="contain" w="100%" h="100%" />
         ) : null}
         {equip.exchange ? (
-          <Badge position="absolute" top="2px" right="2px" fontSize="9px" px={1} borderRadius="sm"
+          <Badge position="absolute" top="2px" right="2px" fontSize="2xs" px={1} borderRadius="sm"
             colorScheme={EXCHANGE_META[equip.exchange].color}
             title={`${EXCHANGE_META[equip.exchange].label} exchange`}>
             {equip.exchange === 'IW' ? 'IW' : 'SC'}
           </Badge>
         ) : null}
       </Box>
-      <Text fontSize="2xs" color="gray.300" noOfLines={2} mt={1} lineHeight="1.1">{t(equip.name)}</Text>
+      <Text fontSize="xs" color="gray.300" noOfLines={2} mt={1} lineHeight="1.15">{t(equip.name)}</Text>
     </Box>
   );
 }
