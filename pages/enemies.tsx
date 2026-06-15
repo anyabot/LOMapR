@@ -11,10 +11,12 @@ import { CloseIcon, SearchIcon } from '@chakra-ui/icons';
 import { useRouter } from 'next/router';
 import SimpleCard from '@/components/simpleCard';
 import { t } from '@/lib/strings';
+import { typeIcon, roleIcon } from '@/lib/rank';
+import { Image } from '@chakra-ui/react';
 import Head from 'next/head';
 
 const ROLES = ['Attacker', 'Defender', 'Supporter'] as const;
-const TYPES = ['Light', 'Flying', 'Heavy'] as const;
+const TYPES = ['Light', 'Air', 'Heavy'] as const;
 
 export default function Home() {
   const enemy = useAppSelector(selectEnemy);
@@ -43,7 +45,7 @@ export default function Home() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showUnused, setShowUnused] = useState(false);
   const [filterGroup, setFilterGroup] = useState({
-    Light: true, Flying: true, Heavy: true,
+    Light: true, Air: true, Heavy: true,
     Attacker: true, Defender: true, Supporter: true,
   });
 
@@ -116,12 +118,14 @@ export default function Home() {
           <ButtonGroup isAttached size="sm">
             {ROLES.map((r) => (
               <Button key={r} colorScheme="red" variant={filterGroup[r] ? 'solid' : 'outline'}
+                leftIcon={roleIcon(r) ? <Image src={roleIcon(r)!} alt={r} boxSize="16px" /> : undefined}
                 onClick={() => handleSwitch(r)}>{r}</Button>
             ))}
           </ButtonGroup>
           <ButtonGroup isAttached size="sm">
             {TYPES.map((ty) => (
               <Button key={ty} colorScheme="green" variant={filterGroup[ty] ? 'solid' : 'outline'}
+                leftIcon={typeIcon(ty) ? <Image src={typeIcon(ty)!} alt={ty} boxSize="16px" /> : undefined}
                 onClick={() => handleSwitch(ty)}>{ty}</Button>
             ))}
           </ButtonGroup>

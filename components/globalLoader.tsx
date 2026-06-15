@@ -5,14 +5,18 @@ import { selectEnemyStatus } from '@/store/enemySlice';
 import { selectWorldStatus } from '@/store/worldSlice';
 import { selectSanctumStatus } from '@/store/sanctumSlice';
 import { selectIWStatus } from '@/store/IWSlice';
+import { selectUnitStatus } from '@/store/unitSlice';
+import { selectEquipStatus } from '@/store/equipSlice';
 
 // Which data slices each route depends on. The overlay shows while any of a
 // route's slices is still loading. Routes not listed never block.
-type Dep = 'enemy' | 'world' | 'sanctum' | 'iw';
+type Dep = 'enemy' | 'world' | 'sanctum' | 'iw' | 'unit' | 'equip';
 const ROUTE_DEPS: { test: (path: string) => boolean; deps: Dep[] }[] = [
   { test: (p) => p === '/enemies', deps: ['enemy'] },
   { test: (p) => p.startsWith('/sanctum'), deps: ['sanctum'] },
   { test: (p) => p.startsWith('/iw'), deps: ['iw'] },
+  { test: (p) => p.startsWith('/units'), deps: ['unit'] },
+  { test: (p) => p.startsWith('/equipment'), deps: ['equip'] },
   { test: (p) => p === '/' || p.startsWith('/world'), deps: ['world'] },
 ];
 
@@ -29,6 +33,8 @@ export default function GlobalLoader() {
     world: useAppSelector(selectWorldStatus),
     sanctum: useAppSelector(selectSanctumStatus),
     iw: useAppSelector(selectIWStatus),
+    unit: useAppSelector(selectUnitStatus),
+    equip: useAppSelector(selectEquipStatus),
   };
 
   const match = ROUTE_DEPS.find((r) => r.test(router.pathname));

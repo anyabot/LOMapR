@@ -29,9 +29,11 @@ import {
 import SkillTabList from './skillTabList';
 import ApperanceList from './appearanceList';
 import CopyLink from '@/components/copyLink';
+import { StatRow, StatPair, StatSection } from '@/components/statBlock';
 
 import { EnemyFull } from '@/interfaces/enemy';
 import { t } from '@/lib/strings';
+import { typeIcon, roleIcon, RANK_COLOR } from '@/lib/rank';
 
 import { useAppSelector, useAppDispatch } from '@/hooks';
 import { selectEnemy, selectEnemyFull, selectEnemyFullStatus, selectActiveEnemy, selectActiveLevel, setActive, fetchEnemyAsync, fetchEnemyFullAsync } from '@/store/enemySlice';
@@ -39,61 +41,11 @@ import { selectImage, fetchImageAsync } from '@/store/imageSlice';
 import { fetchEnemySkillsAsync } from '@/store/skillSlice';
 import { fetchEnemyAIAsync } from '@/store/aiSlice';
 
-// One icon + label + value row inside a stat section.
-function StatRow({ icon, label, value }: { icon?: string; label: string; value: React.ReactNode }) {
-  return (
-    <Flex align="center" justify="space-between" py={1} px={2} borderRadius="md"
-      _odd={{ bg: 'whiteAlpha.50' }}>
-      <HStack spacing={1.5} color="gray.400" minW={0}>
-        {icon ? <Image alt={label} src={icon} boxSize="0.95rem" /> : null}
-        <Text fontSize="sm" fontWeight="600">{label}</Text>
-      </HStack>
-      <Text fontSize="sm" fontWeight="600" sx={{ fontVariantNumeric: 'tabular-nums' }} color="gray.100">
-        {value}
-      </Text>
-    </Flex>
-  );
-}
-
-// Two icon+label+value cells on a single row (the game's paired stat layout).
-function StatPair({ left, right }: {
-  left: { icon?: string; label: string; value: React.ReactNode };
-  right?: { icon?: string; label: string; value: React.ReactNode };
-}) {
-  const Cell = ({ icon, label, value }: { icon?: string; label: string; value: React.ReactNode }) => (
-    <Flex align="center" justify="space-between" flex={1} minW={0}>
-      <HStack spacing={1.5} color="gray.400" minW={0}>
-        {icon ? <Image alt={label} src={icon} boxSize="0.95rem" /> : null}
-        <Text fontSize="sm" fontWeight="600">{label}</Text>
-      </HStack>
-      <Text fontSize="sm" fontWeight="600" sx={{ fontVariantNumeric: 'tabular-nums' }} color="gray.100">
-        {value}
-      </Text>
-    </Flex>
-  );
-  return (
-    <HStack spacing={4} py={1} px={2} borderRadius="md" _odd={{ bg: 'whiteAlpha.50' }}
-      divider={<Box w="1px" alignSelf="stretch" bg="whiteAlpha.200" />}>
-      <Cell {...left} />
-      {right ? <Cell {...right} /> : <Box flex={1} />}
-    </HStack>
-  );
-}
-
-// A titled group of stat rows.
-function StatSection({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <Box>
-      <Text fontSize="2xs" letterSpacing="wider" textTransform="uppercase"
-        color="yellow.400" fontWeight="700" mb={1} px={2}>
-        {title}
-      </Text>
-      <Box bg="blackAlpha.300" borderRadius="lg" borderWidth="1px" borderColor="surface.border" py={0.5}>
-        {children}
-      </Box>
-    </Box>
-  );
-}
+// Enemy rank is a letter (C/B/A/S/SS/SSS); map to the official rank color (C has
+// none — falls back to the default badge). Reuses RANK_COLOR keyed by grade number.
+const ENEMY_RANK_COLOR: Record<string, string> = {
+  B: RANK_COLOR[2], A: RANK_COLOR[3], S: RANK_COLOR[4], SS: RANK_COLOR[5], SSS: RANK_COLOR[6],
+};
 
 export default function EnemyModal() {
 
@@ -201,10 +153,25 @@ export default function EnemyModal() {
                     </Box>
                   )}
                   <StatSection title="Profile">
-                    <StatRow label="Type" value={realEnemy.type} />
-                    <StatRow label="Role" value={realEnemy.role} />
+                    <StatRow label="Type" value={
+                      <HStack spacing={1.5} justify="flex-end">
+                        {typeIcon(realEnemy.type) ? <Image src={typeIcon(realEnemy.type)!} alt={realEnemy.type} boxSize="16px" /> : null}
+                        <span>{realEnemy.type}</span>
+                      </HStack>
+                    } />
+                    <StatRow label="Role" value={
+                      <HStack spacing={1.5} justify="flex-end">
+                        {roleIcon(realEnemy.role) ? <Image src={roleIcon(realEnemy.role)!} alt={realEnemy.role} boxSize="16px" /> : null}
+                        <span>{realEnemy.role}</span>
+                      </HStack>
+                    } />
                     <StatRow label="Rank" value={
-                      <Badge colorScheme="yellow" borderRadius="md" px={1.5}>{realEnemy.rank}</Badge>
+                      <Badge borderRadius="md" px={1.5}
+                        bg={ENEMY_RANK_COLOR[realEnemy.rank] ?? undefined}
+                        color={ENEMY_RANK_COLOR[realEnemy.rank] ? 'blackAlpha.800' : undefined}
+                        colorScheme={ENEMY_RANK_COLOR[realEnemy.rank] ? undefined : 'yellow'}>
+                        {realEnemy.rank}
+                      </Badge>
                     } />
                   </StatSection>
                 </Box>

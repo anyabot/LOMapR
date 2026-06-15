@@ -154,8 +154,8 @@ const APPLY_COND_LABELS: Record<number, string> = {
   67: "If ≥ {0} of ally [buff]",
   68: "If ≥ {0} of enemy [buff]",
 };
-const BODY_NAMES:  Record<number, string> = { 0: "AGS", 1: "Bioroid" };
-const CLASS_NAMES: Record<number, string> = { 0: "Light", 1: "Heavy", 2: "Flying" };
+const BODY_NAMES:  Record<number, string> = { 0: "Bioroid", 1: "AGS" };
+const CLASS_NAMES: Record<number, string> = { 0: "Light", 1: "Heavy", 2: "Air" };
 const ROLE_NAMES:  Record<number, string> = { 0: "Defender", 1: "Attacker", 2: "Supporter" };
 
 const BUFF_TYPE_NAMES: Record<number, string> = {

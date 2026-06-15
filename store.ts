@@ -9,6 +9,8 @@ import IWReducer from './store/IWSlice';
 import regionReducer from './store/regionSlice';
 import translationReducer from './store/translationSlice';
 import aiReducer from './store/aiSlice';
+import unitReducer from './store/unitSlice';
+import equipReducer from './store/equipSlice';
 
 export const store = configureStore({
   reducer: {
@@ -21,6 +23,8 @@ export const store = configureStore({
     translation: translationReducer,
     sanctum: sanctumReducer,
     skill: skillReducer,
+    unit: unitReducer,
+    equip: equipReducer,
     world: worldReducer
   },
 });

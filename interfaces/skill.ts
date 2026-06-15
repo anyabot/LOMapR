@@ -15,7 +15,8 @@ export interface SkillBuff {
   condAttr: number;    // BETBAT: attr type constraint (BUFF_ATTR_TYPE: 0=Buff,1=Debuff,3=Etc,6=Any)
   turns: number;   // 0 = instant/no duration
   rate: number;    // 0..1 application chance
-  val: number;     // effect value — interpret per fmt
+  val: number;     // effect value at skill level 1 — interpret per fmt
+  gain: number;    // per-(skill/buff-debuff)-level increment of val; value@L = val + gain*(L-1)
   fmt: string;     // "pct" (val*100%), "flat" (raw num), "tid" (val=target type ID), "none"
   desc: string;    // loc ID for per-effect description (resolve with t())
   type: number;    // BUFFEFFECT_TYPE ordinal
@@ -23,7 +24,7 @@ export interface SkillBuff {
   eraseVal: number;    // erase threshold (e.g. trigger count for COUNT type)
   overlapType: number; // BUFF_OVERLAP_TYPE (0=NONE,1=RENEW,2=ADDTURN,3=OVERLAP,4=UPDATE)
   overlapMax: number;  // max stacks when overlapType=OVERLAP (0=unlimited)
-  filterBody: number[];  // AABT: body types this applies to (0=AGS,1=Bioroid); empty=all
+  filterBody: number[];  // AABT: body types this applies to (0=Bioroid,1=AGS); empty=all
   filterClass: number[]; // AACT: class types (0=Light,1=Heavy,2=Flying); empty=all
   filterRole: number[];  // AART: roles (0=Defender,1=Attacker,2=Supporter); empty=all
 }
@@ -48,7 +49,22 @@ export interface Skill {
   accuracy: number;
   guardPierce: boolean;
   // damage multiplier (SkillAttackRate) that fills the {0} placeholder in the
-  // official description; the old hand text embedded it inline as $(rate).
+  // official description; the old hand text embedded it inline as $(rate). `rate`
+  // is the skill-level-1 base; `rateGain` is the per-level increment (player skills
+  // scale 1..10 — skill power at level L = rate + rateGain*(L-1)). Monsters: 0.
   rate: number;
+  rateGain?: number;
   buffs: SkillBuff[];
+  // significant per-level changes (player skills only): AP drops, AoE (grid)
+  // shifts, buff-duration changes — keyed by the level they take effect.
+  levelChanges?: SkillLevelChange[];
+}
+
+// A per-level change to a skill (only levels where something significant changes).
+export interface SkillLevelChange {
+  level: number;
+  ap?: number;          // new NeedActionPoint at this level
+  area?: number[];      // new 9-cell AoE grid
+  center?: number;      // new AoE center cell
+  turns?: number[];     // new per-slot buff durations
 }

@@ -1,5 +1,5 @@
 import { useAppSelector, useAppDispatch } from '@/hooks';
-import { selectWorld, fetchWorldAsync } from '@/store/worldSlice';
+import { selectWorld, selectWorldStageStatus, fetchWorldAsync, fetchWorldStageAsync } from '@/store/worldSlice';
 import { fetchItemsAsync } from '@/store/itemSlice';
 import { Stage, Zone } from '@/interfaces/world';
 import { t } from '@/lib/strings';
@@ -12,7 +12,7 @@ import { ClearExp } from '@/components/rewardList'
 import Error from 'next/error';
 import Link from 'next/link';
 import styles from "@/styles/custom.module.css"
-import { Box, Image, VStack, HStack, Center, Text, Badge, Heading, Divider, Button, ButtonGroup } from '@chakra-ui/react';
+import { Box, Image, VStack, HStack, Center, Text, Badge, Heading, Divider, Button, ButtonGroup, Spinner } from '@chakra-ui/react';
 import { ArrowBackIcon } from '@chakra-ui/icons';
 import Head from 'next/head';
 
@@ -26,6 +26,9 @@ export default function Home() {
   }, [dispatch]);
   const router = useRouter()
   const id = router.query.id as string
+  // the container has no stages — lazily load this world's full record.
+  const stageStatus = useAppSelector((s) => (id ? selectWorldStageStatus(s, id) : 'idle'));
+  useEffect(() => { if (id) dispatch(fetchWorldStageAsync(id)); }, [id, dispatch]);
   const zone = router.query.zone as string
   const real_zone_index = parseInt(zone) - 1
   const [realZone, setRealZone] = useState<Zone | undefined | null>(null)
@@ -40,7 +43,11 @@ export default function Home() {
     world[id]? world[id].zones ? world[id].zones[real_zone_index]? setRealZone(world[id].zones[real_zone_index]) : null : null : null
   }, [world, id, real_zone_index]);
   useEffect(() => {
-    realZone ? setRealCurrStage(findStage()) : null
+    // inline the stage lookup so the effect's deps fully cover it (no unstable
+    // findStage reference) — exhaustive-deps clean.
+    if (!realZone) return;
+    const stages = realZone.subzones ? realZone.subzones.flat() : realZone.stages;
+    setRealCurrStage(stages.find(e => e.title.toLowerCase() === currStage.toLowerCase()));
   }, [realZone, currStage]);
   // when a specific stage is requested (e.g. from an appearance link), switch to
   // the subzone that contains it.
@@ -59,21 +66,19 @@ export default function Home() {
     }
   }, [realCurrStage, currWave])
 
-  // all stages in the zone (flat list or flattened subzones), for lookup
-  function allStages(z: Zone): Stage[] {
-    return z.subzones ? z.subzones.flat() : z.stages
-  }
-  function findStage() {
-    if (realZone) {
-      return allStages(realZone).find(e => e.title.toLowerCase() == currStage.toLowerCase())
-    }
-    return null
-  }
-  if (Object.keys(world).length === 0 || !id || !zone) {
+  // this world's full stage data loaded yet? (a zone carrying stages/subzones)
+  const stagesLoaded = !!world[id]?.zones?.some(
+    (z) => (z.stages && z.stages.length) || z.subzones
+  );
+  if (Object.keys(world).length === 0 || !id || !zone || (id in world && !stagesLoaded && stageStatus !== 'failed')) {
+    // container not loaded yet, or this world's per-world stage split is still loading.
     return (<>
       <Head>
         <title>Stage List</title>
       </Head>
+      {id in world && !stagesLoaded ? (
+        <Center py={20}><Spinner size="xl" color="yellow.400" thickness="3px" /></Center>
+      ) : null}
     </>)
   }
   else if (!(id in world) || !(real_zone_index in world[id].zones)) {

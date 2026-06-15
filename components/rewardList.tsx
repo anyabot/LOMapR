@@ -1,9 +1,12 @@
 import { useState } from 'react';
 import { Box, HStack, Text, Wrap, WrapItem, Tooltip, SimpleGrid } from '@chakra-ui/react';
 import { RewardEntry } from '@/interfaces/world';
-import { useAppSelector } from '@/hooks';
+import { useAppSelector, useAppDispatch } from '@/hooks';
 import { selectItems, ItemInfo } from '@/store/itemSlice';
+import { setActiveEquip } from '@/store/equipSlice';
 import { t } from '@/lib/strings';
+import { rankColor } from '@/lib/rank';
+import UnitHoverCard from './unitHoverCard';
 
 // Human labels for the currency keys carried on a RewardEntry. The three
 // resources display as Power / Nutrient / Gear (the `metal` key is "Gear"); cash
@@ -100,15 +103,11 @@ function sortRewards(rewards: RewardEntry[], items: { [id: string]: ItemInfo }):
     .map((x) => x.e);
 }
 
-// Grade -> border colour (rough rarity tint). Falls back to the tone border.
+// Grade -> the OFFICIAL rank colour (B green / A light-blue / S orange / SS gold /
+// SSS red), shared with the unit pages via lib/rank. Used for the rank tag text +
+// chip border. Null for non-graded entries (consumables/currencies).
 function gradeColor(grade?: number): string | null {
-  switch (grade) {
-    case 5: return '#d4af37'; // gold
-    case 4: return '#a335ee'; // purple
-    case 3: return '#0070dd'; // blue
-    case 2: return '#1eff00'; // green
-    default: return null;
-  }
+  return grade != null && grade >= 2 && grade <= 6 ? rankColor(grade) : null;
 }
 
 // Reward/drop icon box. Renders the real sliced PNG (/images/icons/<key>.png,
@@ -121,7 +120,7 @@ function IconPlaceholder({ icon }: { icon: string }) {
   return (
     <Box
       flexShrink={0}
-      boxSize="34px"
+      boxSize="48px"
       borderRadius="md"
       bg="blackAlpha.500"
       borderWidth="1px"
@@ -188,6 +187,7 @@ function RewardChip({
   tone: 'gray' | 'yellow' | 'teal';
   amountColor: string;
 }) {
+  const dispatch = useAppDispatch();
   const toneBorder = tone === 'yellow' ? 'yellow.500' : tone === 'teal' ? 'teal.500' : 'surface.border';
   const r = resolve(entry, items);
   const rarity = gradeColor(r.grade);
@@ -198,6 +198,16 @@ function RewardChip({
   // consumables only, so no other kind gets a tooltip — units/equip/currencies
   // show nothing on hover.
   const descText = r.desc ? t(r.desc) : '';
+
+  // unit entries link to the unit detail page. A unit is either a `char` entry or
+  // an `item`/`char` whose resolved kind is 'unit' (e.g. a unit dropped as a reward).
+  const unitId = r.kind === 'unit' ? (entry.char || entry.item) : undefined;
+  // equip entries link to the equipment page modal. Drop ids carry a _T<n> rank
+  // suffix; the equipment page is keyed by family, so strip it.
+  const equipFam = r.kind === 'equip' && entry.item
+    ? entry.item.replace(/_T\d+$/, '')
+    : undefined;
+  const linked = !!unitId || !!equipFam;
 
   const chip = (
     <HStack
@@ -210,23 +220,33 @@ function RewardChip({
       borderColor={border}
       borderRadius="lg"
       bg="blackAlpha.300"
+      {...(linked ? { _hover: { borderColor: 'yellow.400', bg: 'whiteAlpha.100' }, cursor: 'pointer' } : {})}
     >
       <IconPlaceholder icon={r.icon} />
       <Box minW={0}>
-        <Text fontSize="xs" color="gray.100" noOfLines={1}>
+        <Text fontSize="sm" color="gray.100" noOfLines={1}>
           {tag ? (
             <Box as="span" fontWeight="bold" color={rarity ?? 'gray.300'} mr={1}>{tag}</Box>
           ) : null}
           {r.name}
         </Text>
         {r.amount ? (
-          <Text fontSize="xs" fontWeight="bold" color={amountColor}>{r.amount}</Text>
+          <Text fontSize="sm" fontWeight="bold" color={amountColor}>{r.amount}</Text>
         ) : null}
       </Box>
     </HStack>
   );
 
-  if (!descText) return chip;
+  // unit chips get the reusable hover-card (portrait + rank/type/role/faction) which
+  // also links to the unit page. Equip chips link to the equipment modal. Other
+  // chips render bare.
+  const wrapped = unitId
+    ? <UnitHoverCard unitId={unitId}>{chip}</UnitHoverCard>
+    : equipFam
+      ? <Box onClick={() => dispatch(setActiveEquip(equipFam))} display="block">{chip}</Box>
+      : chip;
+
+  if (!descText) return wrapped;
   return (
     <Tooltip
       label={
@@ -239,7 +259,7 @@ function RewardChip({
       hasArrow
       openDelay={300}
     >
-      {chip}
+      {wrapped}
     </Tooltip>
   );
 }

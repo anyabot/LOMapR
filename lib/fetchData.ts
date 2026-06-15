@@ -110,8 +110,25 @@ function preferPublicImages(map: { [key: string]: string }): { [key: string]: st
 
 // ── public API (mirrors the old /api/* routes) ───────────────────────────────
 
+// World CONTAINER: per-world metadata + zone titles/imgs only (no stages). Light
+// — used by the World index/detail and unit name-lookup. The heavy stage data is
+// fetched per-world via fetchWorldStage().
 export async function fetchWorld(region: Region) {
   return stampId(shapeWorld(await getWithFallback(region, 'world.json')));
+}
+
+// One world's FULL record (zones→stages→waves/rewards/drops) from
+// split/world/<id>.json. Fetched lazily when a stage page opens that world.
+export async function fetchWorldStage(id: string, region: Region) {
+  const regions: Region[] = region === 'global' ? ['global'] : [region, 'global'];
+  for (const r of regions) {
+    const data = await get(`${r}/split/world/${id}.json`);
+    if (data) {
+      const shaped = shapeWorld({ [id]: data });   // reuse the stage-array shaper
+      return { ...shaped[id], id };
+    }
+  }
+  return null;
 }
 
 export async function fetchSkills(region: Region) {
@@ -185,4 +202,43 @@ export async function fetchSplitAI(ref: string | undefined, region: Region) {
   const data = await get(`${region}/split/ai/${ref}.json`);
   if (data || region === 'global') return data;
   return get(`global/split/ai/${ref}.json`);
+}
+
+// ── units (playable characters) ───────────────────────────────────────────────
+
+// Full unit list (records carry all combat fields). split/units/unit_list.json.
+export async function fetchUnitList(region: Region) {
+  const regions: Region[] = region === 'global' ? ['global'] : [region, 'global'];
+  for (const r of regions) {
+    const data = await get(`${r}/split/units/unit_list.json`);
+    if (data) return stampId(data);
+  }
+  return {};
+}
+
+// A single unit's skill bundle. Like enemy skill bundles, these are content-
+// deduped at build time and named after the owning unit id (skillsRef points at a
+// shared owner; absent -> the unit owns its own file).
+export async function fetchSplitUnitSkills(ref: string | undefined, region: Region) {
+  if (!ref) return null;
+  const data = await get(`${region}/split/units/${ref}.json`);
+  if (data || region === 'global') return data;
+  return get(`global/split/units/${ref}.json`);
+}
+
+// ── equipment ─────────────────────────────────────────────────────────────────
+
+// Light equip LIST (per-family meta). split/equip/<id>.json holds the full data.
+export async function fetchEquipList(region: Region) {
+  return stampId(await getWithFallback(region, 'equip.json'));
+}
+
+// One equip family's FULL record (all ranks × levels), loaded when its modal opens.
+export async function fetchEquip(id: string, region: Region) {
+  const regions: Region[] = region === 'global' ? ['global'] : [region, 'global'];
+  for (const r of regions) {
+    const data = await get(`${r}/split/equip/${id}.json`);
+    if (data) return { ...data, id };
+  }
+  return null;
 }
