@@ -6,12 +6,12 @@ import { Box, Flex, HStack, Image, Text } from '@chakra-ui/react';
 //   StatPair    — two icon+label+value cells side by side (the game's paired layout)
 
 // One icon + label + value row inside a stat section.
-export function StatRow({ icon, label, value }: { icon?: string; label: string; value: React.ReactNode }) {
+export function StatRow({ icon, label, value }: { icon?: string; label: React.ReactNode; value: React.ReactNode }) {
   return (
     <Flex align="center" justify="space-between" py={1} px={2} borderRadius="md"
       _odd={{ bg: 'whiteAlpha.50' }}>
       <HStack spacing={1.5} color="gray.400" minW={0}>
-        {icon ? <Image alt={label} src={icon} boxSize="0.95rem" /> : null}
+        {icon ? <Image alt={typeof label === 'string' ? label : ''} src={icon} boxSize="0.95rem" /> : null}
         <Text fontSize="sm" fontWeight="600">{label}</Text>
       </HStack>
       <Text fontSize="sm" fontWeight="600" sx={{ fontVariantNumeric: 'tabular-nums' }} color="gray.100">

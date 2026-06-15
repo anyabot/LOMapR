@@ -57,7 +57,15 @@ export interface UnitStat {
   resist: { fire: number; ice: number; lightning: number };
 }
 
+// A unit record. The build splits each unit into a LIGHT list record (the always-
+// present fields below, in split/units/unit_list.json — grid + hover card) and a
+// per-unit bundle split/units/<id>.json = { skills, detail } that carries the HEAVY
+// detail fields (marked optional here). selectUnitFull merges the two; on the list /
+// hover card only the light fields exist, so detail fields read as undefined until
+// the bundle loads. In the light list, `profile` is trimmed to {engName, number};
+// the full UnitProfile arrives with the detail bundle.
 export interface UnitData {
+  // ── light list fields (always present) ──────────────────────────────────────
   id: string;
   name: string;        // loc id (resolve with t())
   rarity: number;      // StartGrade (2=B, 3=A, 4=S, 5=SS, 6=SSS)
@@ -67,42 +75,51 @@ export interface UnitData {
   body: string;        // AGS / Bioroid (ActorBodyType)
   icon: string;        // FormationIcon_* portrait key — PNG at /images/icons/<icon>.png
   invenIcon: string;   // InvenIcon_* fallback (used when the portrait is missing)
-  skills: string[];    // skill keys (resolve via the unit skill bundle)
+  // collection profile (Table_CharCollection); null if none. In the LIGHT list only
+  // {engName, number} are populated — the full profile rides in the detail bundle.
+  profile: UnitProfile | null;
+  // squad/faction this unit belongs to (Table_TroopCategory); null if squad-less.
+  // name/desc are loc ids (resolve with t()); icon is a UI_TroopIcon_* key
+  // (PNG at /images/common/<icon>.png).
+  faction: { name: string; desc: string; icon: string } | null;
+  // exclusive gear locked to this unit (equip family ids, via the equip's pcLimit).
+  exclusiveEquip?: string[];
+
+  // ── heavy detail fields (present only after the per-unit bundle merges) ──────
+  skills?: string[];    // skill keys (resolve via the unit skill bundle)
   // second ("change") form's skill set — a transform with its own active skills,
   // sharing the base unit's stats/grade. Empty for single-form units.
-  skillsCh: string[];
-  favor: {             // favor-gain ratios for the various sources
+  skillsCh?: string[];
+  favor?: {             // favor-gain ratios for the various sources
     clear: number;
     death: number;
     assistant: number;
     present: number;
   };
-  craft: number;       // making time (seconds)
-  marriage: boolean;   // marriage content available (MarriageKey in Table_Marriage)
-  affection: boolean;  // can gain affection (Gender 1) → can reach 200 (+1 buff/debuff lv)
-  secretRoom: string;  // secret-room CG type: 'Adult' | 'Child' | 'AGS' | 'Sengoku' | ''
-  profile: UnitProfile | null;  // collection profile (Table_CharCollection); null if none
-  // squad/faction this unit belongs to (Table_TroopCategory); null if squad-less.
-  // name/desc are loc ids (resolve with t()); icon is a UI_TroopIcon_* key
-  // (PNG at /images/common/<icon>.png).
-  faction: { name: string; desc: string; icon: string } | null;
+  craft?: number;       // making time (seconds)
+  marriage?: boolean;   // marriage content available (MarriageKey in Table_Marriage)
+  affection?: boolean;  // can gain affection (Gender 1) → can reach 200 (+1 buff/debuff lv)
+  secretRoom?: string;  // secret-room CG type: 'Adult' | 'Child' | 'AGS' | 'Sengoku' | ''
   // the 4 equipment slots (lv 20/40/60/80 unlocks), each Chip / OS / Item.
-  equip: { type: 'Chip' | 'OS' | 'Item'; level: number }[];
+  equip?: { type: 'Chip' | 'OS' | 'Item'; level: number }[];
   // core-link bonuses. linkBonus = normal bonuses applied per link (stack up to
   // 5×); fullLinkBonus = the 5 options selectable at 500% link. Each entry's
   // `desc` is a loc-id template ("HP+{0}%"); fill {0} with value*100 when pct,
   // else the flat value.
-  linkBonus: LinkBonus[];
-  fullLinkBonus: LinkBonus[];
-  stat: UnitStat[];    // one block per attainable grade (rarity..maxGrade)
-  promotions: UnitPromotion[];
-  lvLimits: UnitLvLimit[];
+  linkBonus?: LinkBonus[];
+  fullLinkBonus?: LinkBonus[];
+  stat?: UnitStat[];    // one block per attainable grade (rarity..maxGrade)
+  promotions?: UnitPromotion[];
+  lvLimits?: UnitLvLimit[];
   // worldId -> [[zoneNum, stageTitle, farm], ...] stages that grant this unit.
   // farm=true: drops from a wave (repeatable); farm=false: one-time clear reward.
-  source: { [worldId: string]: [number, string, boolean][] };
-  // pointer to the unit id that OWNS this unit's deduped skill bundle
-  // (split/units/<ownerId>.json); absent means it owns its own file (use id).
-  skillsRef?: string;
-  // exclusive gear locked to this unit (equip family ids, via the equip's pcLimit).
-  exclusiveEquip?: string[];
+  source?: { [worldId: string]: [number, string, boolean][] };
 }
+
+// A unit with its detail bundle merged in — every heavy field guaranteed present.
+// Use as the prop type for detail-page sub-components rendered only after the bundle
+// loads (selectUnitFull + the detailLoaded gate guarantee this at runtime).
+export type FullUnitData = UnitData & Required<Pick<UnitData,
+  'skills' | 'skillsCh' | 'favor' | 'craft' | 'marriage' | 'affection' |
+  'secretRoom' | 'equip' | 'linkBonus' | 'fullLinkBonus' | 'stat' |
+  'promotions' | 'lvLimits' | 'source'>>;

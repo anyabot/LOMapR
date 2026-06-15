@@ -206,7 +206,9 @@ export async function fetchSplitAI(ref: string | undefined, region: Region) {
 
 // ── units (playable characters) ───────────────────────────────────────────────
 
-// Full unit list (records carry all combat fields). split/units/unit_list.json.
+// LIGHT unit list (grid + hover card only): name/rarity/grade/type/role/body/icon/
+// faction + trimmed profile{engName,number}. Heavy fields live in the per-unit
+// bundle. split/units/unit_list.json.
 export async function fetchUnitList(region: Region) {
   const regions: Region[] = region === 'global' ? ['global'] : [region, 'global'];
   for (const r of regions) {
@@ -216,14 +218,15 @@ export async function fetchUnitList(region: Region) {
   return {};
 }
 
-// A single unit's skill bundle. Like enemy skill bundles, these are content-
-// deduped at build time and named after the owning unit id (skillsRef points at a
-// shared owner; absent -> the unit owns its own file).
-export async function fetchSplitUnitSkills(ref: string | undefined, region: Region) {
-  if (!ref) return null;
-  const data = await get(`${region}/split/units/${ref}.json`);
+// A single unit's full bundle: { skills, detail }. Not content-deduped (units don't
+// share skills) — the file is named after its own unit id. `skills` holds BOTH forms'
+// skills (base + skillsCh); `detail` carries the heavy fields kept out of the light
+// list (stats, promotions, lvLimits, linkBonus, full profile, source, …).
+export async function fetchUnitBundle(id: string | undefined, region: Region) {
+  if (!id) return null;
+  const data = await get(`${region}/split/units/${id}.json`);
   if (data || region === 'global') return data;
-  return get(`global/split/units/${ref}.json`);
+  return get(`global/split/units/${id}.json`);
 }
 
 // ── equipment ─────────────────────────────────────────────────────────────────
