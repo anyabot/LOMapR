@@ -121,7 +121,7 @@ export default function Units() {
           </ButtonGroup>
 
           <InputGroup size="sm" maxW="260px" ml="auto">
-            <Input placeholder="Search name" value={searchTerm} borderColor="surface.border"
+            <Input placeholder="Search name or code" value={searchTerm} borderColor="surface.border"
               onChange={(e) => setSearchTerm(e.target.value)} />
             <InputRightElement>
               {searchTerm ? (

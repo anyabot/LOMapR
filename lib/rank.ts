@@ -54,3 +54,9 @@ export const equipIcon = (kind: string): string | null =>
 // public/images/common/. Pass the raw key; returns its public path.
 export const factionIcon = (key: string): string | null =>
   key ? `/images/common/${key}.png` : null;
+
+// Equip exchange-shop source -> display label + badge color (Sanctum / Infinite War).
+export const EXCHANGE_META: Record<'Sanctum' | 'IW', { label: string; color: string }> = {
+  Sanctum: { label: 'Sanctum', color: 'blue' },
+  IW:      { label: 'Infinite War', color: 'orange' },
+};

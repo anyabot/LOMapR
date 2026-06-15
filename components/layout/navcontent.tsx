@@ -59,6 +59,7 @@ function NavContent({ isOpen }: { isOpen: boolean }) {
           <NavLink to="/world">World</NavLink>
           <NavLink to="/sanctum">Sanctum</NavLink>
           <NavLink to="/units">Units</NavLink>
+          <NavLink to="/equipment">Equipment</NavLink>
           <NavLink to="/enemies">Enemies</NavLink>
           <NavLink to="/iw">Infinite War</NavLink>
         </HStack>

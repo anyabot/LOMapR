@@ -225,3 +225,20 @@ export async function fetchSplitUnitSkills(ref: string | undefined, region: Regi
   if (data || region === 'global') return data;
   return get(`global/split/units/${ref}.json`);
 }
+
+// ── equipment ─────────────────────────────────────────────────────────────────
+
+// Light equip LIST (per-family meta). split/equip/<id>.json holds the full data.
+export async function fetchEquipList(region: Region) {
+  return stampId(await getWithFallback(region, 'equip.json'));
+}
+
+// One equip family's FULL record (all ranks × levels), loaded when its modal opens.
+export async function fetchEquip(id: string, region: Region) {
+  const regions: Region[] = region === 'global' ? ['global'] : [region, 'global'];
+  for (const r of regions) {
+    const data = await get(`${r}/split/equip/${id}.json`);
+    if (data) return { ...data, id };
+  }
+  return null;
+}

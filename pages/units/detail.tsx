@@ -19,7 +19,9 @@ import {
 } from '@/store/unitSlice';
 import { selectWorld, fetchWorldAsync } from '@/store/worldSlice';
 import { selectItems, fetchItemsAsync, ItemInfo } from '@/store/itemSlice';
+import { selectEquip, fetchEquipAsync } from '@/store/equipSlice';
 import { UnitData, UnitReq, UnitStat, LinkBonus } from '@/interfaces/unit';
+import { EquipData } from '@/interfaces/equip';
 import { RewardEntry } from '@/interfaces/world';
 import { Skill } from '@/interfaces/skill';
 import { t } from '@/lib/strings';
@@ -165,6 +167,7 @@ export default function UnitDetail() {
   const unit = useAppSelector((s) => (id ? selectUnit(s, id) : null));
   const status = useAppSelector(selectUnitStatus);
   const world = useAppSelector(selectWorld);
+  const equip = useAppSelector(selectEquip);
   const skills = useAppSelector((s) => (id ? selectUnitSkills(s, id) : {}));
   const skillStatus = useAppSelector((s) => (id ? selectUnitSkillStatus(s, id) : 'idle'));
 
@@ -180,6 +183,7 @@ export default function UnitDetail() {
   // is cheap — the Drop tab only needs world titles, not stage data.
   useEffect(() => { dispatch(fetchItemsAsync()); }, [dispatch]);
   useEffect(() => { dispatch(fetchWorldAsync()); }, [dispatch]);
+  useEffect(() => { if (unit?.exclusiveEquip?.length) dispatch(fetchEquipAsync()); }, [unit, dispatch]);
   useEffect(() => { if (id && unit) dispatch(fetchUnitSkillsAsync(id)); }, [id, unit, dispatch]);
   // when the unit changes, default to its top grade.
   useEffect(() => {
@@ -276,8 +280,11 @@ export default function UnitDetail() {
           <TabPanels>
             {/* ── Tab 1: stats calculator + manufacturing / favor / link bonus ── */}
             <TabPanel px={0}>
-              <InfoTab unit={unit} gradeIdx={gradeIdx} setGradeIdx={setGradeIdx}
-                level={level} setLevel={setLevel} />
+              <VStack align="stretch" spacing={4}>
+                <ExclusiveEquip unit={unit} equip={equip} />
+                <InfoTab unit={unit} gradeIdx={gradeIdx} setGradeIdx={setGradeIdx}
+                  level={level} setLevel={setLevel} />
+              </VStack>
             </TabPanel>
 
             {/* ── Tab 2: skills (with a form toggle for transform units) ────── */}
@@ -627,6 +634,41 @@ function InfoTab({
         ) : null}
       </VStack>
     </SimpleGrid>
+  );
+}
+
+// ── Exclusive gear: equipment locked to this unit (via pcLimit). Tiles deep-link
+// to the equipment page modal. Renders nothing when the unit has no exclusive gear.
+function ExclusiveEquip({ unit, equip }: { unit: UnitData; equip: Record<string, EquipData> }) {
+  const ids = unit.exclusiveEquip || [];
+  if (!ids.length) return null;
+  return (
+    <Box borderWidth="1px" borderColor="surface.border" borderRadius="xl" bg="surface.elevated" p={4}>
+      <Heading size="sm" mb={3}>Exclusive Equipment</Heading>
+      <Wrap spacing={3}>
+        {ids.map((eid) => {
+          const e = equip[eid];
+          return (
+            <WrapItem key={eid}>
+              <HStack as={Link} href={`/equipment?equip=${encodeURIComponent(eid)}`}
+                spacing={2} borderWidth="1px" borderColor="surface.border" borderRadius="lg"
+                bg="blackAlpha.300" p={2} _hover={{ bg: 'whiteAlpha.100' }}>
+                <Box boxSize="40px" borderRadius="md" overflow="hidden" bg="blackAlpha.500"
+                  borderWidth="2px" borderColor={e ? rankColor(e.grade) : 'surface.border'} flexShrink={0} p="3px">
+                  {e?.icon ? (
+                    <Image src={`/images/icons/${e.icon}.png`} alt={eid} objectFit="contain" w="100%" h="100%" />
+                  ) : null}
+                </Box>
+                <Box minW={0}>
+                  <Text fontSize="sm" noOfLines={1}>{e ? t(e.name) : eid}</Text>
+                  {e ? <Text fontSize="2xs" color="gray.500">{e.slot}</Text> : null}
+                </Box>
+              </HStack>
+            </WrapItem>
+          );
+        })}
+      </Wrap>
+    </Box>
   );
 }
 

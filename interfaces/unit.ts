@@ -103,4 +103,6 @@ export interface UnitData {
   // pointer to the unit id that OWNS this unit's deduped skill bundle
   // (split/units/<ownerId>.json); absent means it owns its own file (use id).
   skillsRef?: string;
+  // exclusive gear locked to this unit (equip family ids, via the equip's pcLimit).
+  exclusiveEquip?: string[];
 }
