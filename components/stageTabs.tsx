@@ -1,11 +1,16 @@
 import {
   Box, HStack, VStack, Text, Image, Center, IconButton, SimpleGrid,
-  Tabs, TabList, Tab, TabPanels, TabPanel, Tag, Divider,
+  Tabs, TabList, Tab, TabPanels, TabPanel, Tag, Divider, Link,
 } from '@chakra-ui/react';
 import { ArrowLeftIcon, ArrowRightIcon, StarIcon } from '@chakra-ui/icons';
-import { Stage, WaveDrop, RewardEntry } from '@/interfaces/world';
+import { Stage, WaveDrop, RewardEntry, StageMission } from '@/interfaces/world';
 import { t } from '@/lib/strings';
+import { useEffect } from 'react';
+import { useAppSelector, useAppDispatch } from '@/hooks';
+import { selectUnits } from '@/store/unitSlice';
+import { selectEnemy, setActive, fetchEnemyAsync } from '@/store/enemySlice';
 import EnemyGrid from '@/components/enemyGrid';
+import UnitHoverCard from '@/components/unitHoverCard';
 import { RewardPanel } from '@/components/rewardList';
 import styles from '@/styles/custom.module.css';
 
@@ -81,10 +86,7 @@ export default function StageTabs({
               <Panel title="Missions">
                 <VStack align="stretch" spacing={0} divider={<Divider borderColor="surface.border" />}>
                   {stage.missions.map((m, i) => (
-                    <HStack key={i} spacing={2} py={2} align="center">
-                      <StarIcon boxSize={3} color="gray.400" flexShrink={0} />
-                      <Text fontSize="sm" color="gray.200">{t(m.desc)}</Text>
-                    </HStack>
+                    <MissionRow key={i} mission={m} />
                   ))}
                 </VStack>
               </Panel>
@@ -213,6 +215,145 @@ export default function StageTabs({
         ))}
       </TabPanels>
     </Tabs>
+  );
+}
+
+// Strip the table prefix off a Char_/MOB_-style key for a fallback display name
+// (e.g. Char_BR_Khan_N -> Khan, EmperorChick_EW -> EmperorChick).
+const shortKey = (k: string) =>
+  k.replace(/^Char_[A-Za-z0-9]+_/, '').replace(/_(N|EW\d*|TU\d+|CH)$/, '').replace(/_/g, ' ');
+
+// Skill display name: the community SkillName_ override if present, else a readable
+// fallback from the key. (t() passes the raw key through when it isn't a known id,
+// so check that the resolved text actually differs from the lookup key.)
+function skillName(skillKey: string): string {
+  const key = `SkillName_${skillKey}`;
+  const resolved = t(key);
+  return resolved !== key ? resolved : shortKey(skillKey).replace(/^MP /, '');
+}
+
+// Readable phrasing for each MISSION_TRIGGER_TYPE. {v} is the trigger's value;
+// {u}/{s} mark where the linked unit/skill name goes (filled in by MissionRow).
+// A trigger absent here just shows its raw name (forward-compatible).
+const TRIGGER_TEXT: Record<string, string> = {
+  ROUND_LIMIT_LESS: 'within {v} rounds',
+  DEATH_COUNT_LESS: 'with {v} or fewer deaths',
+  BEATEN_LESS: 'taking {v} or fewer hits',
+  BY_ONESKILL: 'using a single skill',
+  BY_SPCCHARACTER: 'using {u}',
+  WITH_SPCCHARACTER: 'with {u} in the squad',
+  SPCCHARACTER_ALIVE: 'keeping {u} alive',
+  BY_SPC_SKILL: 'using {s}',
+  NO_SPC_SKILL: 'without using {s}',
+  WITH_TROOPER_LESS: 'with {v} or fewer Light units',
+  WITH_TROOPER_MORE: 'with {v} or more Light units',
+  WITH_ARMORED_LESS: 'with {v} or fewer Heavy units',
+  WITH_ARMORED_MORE: 'with {v} or more Heavy units',
+  WITH_MOBILITY_LESS: 'with {v} or fewer Air units',
+  WITH_MOBILITY_MORE: 'with {v} or more Air units',
+  WITH_ROBOT_LESS: 'with {v} or fewer AGS units',
+  WITH_ROBOT_MORE: 'with {v} or more AGS units',
+  WITH_ANDROID_LESS: 'with {v} or fewer Bioroid units',
+  WITH_ANDROID_MORE: 'with {v} or more Bioroid units',
+  SQUAD_LESS: 'using {v} or fewer squads',
+  SQUAD_MORE: 'using {v} or more squads',
+  SQUAD_CHANGE_LESS: 'with {v} or fewer squad changes',
+  SQUAD_CHANGE_MORE: 'with {v} or more squad changes',
+  DAMAGE_RECORD: 'dealing {v}+ recorded damage',
+};
+
+// Natural phrasing for the value-0 case of the "or fewer" triggers ("0 or fewer
+// hits" -> "without taking damage"). Falls back to the generic template otherwise.
+const TRIGGER_TEXT_ZERO: Record<string, string> = {
+  DEATH_COUNT_LESS: 'without any deaths',
+  BEATEN_LESS: 'without taking damage',
+  WITH_TROOPER_LESS: 'with no Light units',
+  WITH_ARMORED_LESS: 'with no Heavy units',
+  WITH_MOBILITY_LESS: 'with no Air units',
+  WITH_ROBOT_LESS: 'with no AGS units',
+  WITH_ANDROID_LESS: 'with no Bioroid units',
+  SQUAD_CHANGE_LESS: 'without changing squads',
+};
+
+// One star mission, rendered from its parsed condition. The base goal (clear / kill
+// N enemies / kill a specific enemy) plus the trigger constraint, with the required
+// unit and the target enemy shown as clickable links (unit -> hover card + detail
+// page; enemy -> opens the global enemy modal). Falls back to t(desc) if there's no
+// structured object (older data).
+function MissionRow({ mission: m }: { mission: StageMission }) {
+  const dispatch = useAppDispatch();
+  const units = useAppSelector(selectUnits);
+  const enemies = useAppSelector(selectEnemy);
+
+  // resolve the target enemy's name (self-skips if the list is already loaded).
+  // UnitHoverCard loads the unit list itself, so units need no fetch here.
+  useEffect(() => { if (m.enemy) dispatch(fetchEnemyAsync()); }, [m.enemy, dispatch]);
+
+  if (!m.object) {
+    return (
+      <HStack spacing={2} py={2} align="center">
+        <StarIcon boxSize={3} color="gray.400" flexShrink={0} />
+        <Text fontSize="sm" color="gray.200">{t(m.desc)}</Text>
+      </HStack>
+    );
+  }
+
+  // a clickable unit reference (hover card + link to the detail page), inline so it
+  // sits inside the requirement sentence without breaking onto its own line.
+  const unitLink = (id: string) => {
+    const u = units[id];
+    const label = u ? (u.profile?.engName || t(u.name)) : shortKey(id);
+    return (
+      <UnitHoverCard unitId={id} inline>
+        <Box as="span" color="yellow.300" fontWeight="semibold" cursor="pointer"
+          _hover={{ textDecoration: 'underline' }}>{label}</Box>
+      </UnitHoverCard>
+    );
+  };
+
+  // a clickable enemy reference (opens the global enemy modal at lv 1).
+  const enemyLink = (id: string) => {
+    const e = enemies[id];
+    const label = e ? t(e.name) : shortKey(id);
+    return (
+      <Link color="red.300" fontWeight="semibold" onClick={() => dispatch(setActive([id, 1]))}
+        _hover={{ textDecoration: 'underline' }}>{label}</Link>
+    );
+  };
+
+  // base goal phrase.
+  const goal: React.ReactNode =
+    m.object === 'KILL_SPCENEMY' && m.enemy
+      ? <>Defeat {enemyLink(m.enemy)}</>
+      : m.object === 'KILL_ENEMY'
+        ? `Defeat ${m.count ?? 0} ${(m.count ?? 0) === 1 ? 'enemy' : 'enemies'}`
+        : 'Clear the stage';
+
+  // trigger constraint phrase, with {v}/{u}/{s} substituted (unit/skill -> links).
+  let constraint: React.ReactNode = null;
+  if (m.trigger) {
+    const tpl = (m.value === 0 && TRIGGER_TEXT_ZERO[m.trigger]) || TRIGGER_TEXT[m.trigger];
+    if (tpl) {
+      // split on the placeholders so we can inject link nodes, not just strings.
+      const parts = tpl.split(/(\{v\}|\{u\}|\{s\})/);
+      constraint = (
+        <>{' '}{parts.map((p, i) => {
+          if (p === '{v}') return <Text as="span" key={i} fontWeight="semibold" color="gray.100">{m.value ?? 0}</Text>;
+          if (p === '{u}') return <Box as="span" key={i}>{m.unit ? unitLink(m.unit) : 'a unit'}</Box>;
+          if (p === '{s}') return <Text as="span" key={i} fontWeight="semibold" color="gray.100">{m.skill ? skillName(m.skill) : 'a skill'}</Text>;
+          return <Box as="span" key={i}>{p}</Box>;
+        })}</>
+      );
+    } else {
+      constraint = <> ({m.trigger})</>;   // unknown trigger: show raw, don't hide it
+    }
+  }
+
+  return (
+    <HStack spacing={2} py={2} align="center">
+      <StarIcon boxSize={3} color="gray.400" flexShrink={0} />
+      <Text fontSize="sm" color="gray.200">{goal}{constraint}</Text>
+    </HStack>
   );
 }
 

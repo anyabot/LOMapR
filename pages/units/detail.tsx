@@ -14,13 +14,14 @@ import {
 import { ArrowBackIcon } from '@chakra-ui/icons';
 import { useAppSelector, useAppDispatch } from '@/hooks';
 import {
-  selectUnit, selectUnitStatus, fetchUnitsAsync,
-  selectUnitSkills, selectUnitSkillStatus, fetchUnitSkillsAsync,
+  selectUnitFull, selectUnitStatus, fetchUnitsAsync,
+  selectUnitSkills, selectUnitSkillStatus, fetchUnitBundleAsync,
 } from '@/store/unitSlice';
 import { selectWorld, fetchWorldAsync } from '@/store/worldSlice';
 import { selectItems, fetchItemsAsync, ItemInfo } from '@/store/itemSlice';
 import { selectEquip, fetchEquipAsync, setActiveEquip } from '@/store/equipSlice';
-import { UnitData, UnitReq, UnitStat, LinkBonus } from '@/interfaces/unit';
+import { selectRegion } from '@/store/regionSlice';
+import { UnitData, FullUnitData, UnitReq, UnitStat, LinkBonus } from '@/interfaces/unit';
 import { EquipData } from '@/interfaces/equip';
 import { RewardEntry } from '@/interfaces/world';
 import { Skill } from '@/interfaces/skill';
@@ -119,14 +120,14 @@ function RadarChart({ values, max = 11 }: { values: number[]; max?: number }) {
 // Find a unit's full-link Skill-Power bonus value (the multiplier to skill power),
 // detected by the loc template; 0 if the unit has no such option. `value` is the
 // raw fraction (e.g. 0.15 = +15% skill power).
-function fullLinkSkillPower(unit: UnitData): number {
+function fullLinkSkillPower(unit: FullUnitData): number {
   const b = unit.fullLinkBonus.find((x) => t(x.desc).toLowerCase().includes('skill power'));
   return b ? b.value : 0;
 }
 
 // Whether the unit's full-link options include the Buff/Debuff-Effect-Lv bonus
 // (which grants +2 buff/debuff levels when selected).
-function hasFullLinkBuffLv(unit: UnitData): boolean {
+function hasFullLinkBuffLv(unit: FullUnitData): boolean {
   return unit.fullLinkBonus.some((x) => /buff\/debuff effect lv/i.test(t(x.desc)));
 }
 
@@ -164,12 +165,18 @@ export default function UnitDetail() {
   const id = router.query.id as string;
   const dispatch = useAppDispatch();
 
-  const unit = useAppSelector((s) => (id ? selectUnit(s, id) : null));
+  // selectUnitFull merges the light list record with the heavy detail once its
+  // bundle loads; until then the detail fields (stat/promotions/…) are absent.
+  const unit = useAppSelector((s) => (id ? selectUnitFull(s, id) : null));
   const status = useAppSelector(selectUnitStatus);
   const world = useAppSelector(selectWorld);
   const equip = useAppSelector(selectEquip);
   const skills = useAppSelector((s) => (id ? selectUnitSkills(s, id) : {}));
   const skillStatus = useAppSelector((s) => (id ? selectUnitSkillStatus(s, id) : 'idle'));
+  const region = useAppSelector(selectRegion);
+  // the heavy detail half rides in the same bundle as skills; gate stat-dependent
+  // UI on it having loaded.
+  const detailLoaded = !!unit?.stat;
 
   // calculator state: selected grade (index into unit.stat) + level.
   const [gradeIdx, setGradeIdx] = useState(0);
@@ -183,12 +190,19 @@ export default function UnitDetail() {
   // is cheap — the Drop tab only needs world titles, not stage data.
   useEffect(() => { dispatch(fetchItemsAsync()); }, [dispatch]);
   useEffect(() => { dispatch(fetchWorldAsync()); }, [dispatch]);
-  useEffect(() => { if (unit?.exclusiveEquip?.length) dispatch(fetchEquipAsync()); }, [unit, dispatch]);
-  useEffect(() => { if (id && unit) dispatch(fetchUnitSkillsAsync(id)); }, [id, unit, dispatch]);
-  // when the unit changes, default to its top grade.
+  // selectUnitFull returns a fresh merged object each render, so DON'T depend on
+  // `unit` (identity churns -> effect re-fires every render -> render loop). Depend
+  // on the stable id / the specific primitive instead.
+  const hasExclusive = !!unit?.exclusiveEquip?.length;
+  useEffect(() => { if (hasExclusive) dispatch(fetchEquipAsync()); }, [hasExclusive, dispatch]);
+  // also re-fetch on a region switch: setRegion wipes the per-unit bundles, but `id`
+  // is unchanged, so without `region` here the effect wouldn't re-run and the page
+  // would sit on the loading spinner until a manual refresh.
+  useEffect(() => { if (id) dispatch(fetchUnitBundleAsync(id)); }, [id, region, dispatch]);
+  // when the bundle (stats) loads or the unit changes, default to its top grade.
   useEffect(() => {
-    if (unit) setGradeIdx(unit.stat.length - 1);
-  }, [unit?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (unit?.stat) setGradeIdx(unit.stat.length - 1);
+  }, [unit?.id, detailLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!unit) {
     if (status === 'loading' || !router.isReady) return null;  // GlobalLoader covers loading
@@ -206,7 +220,8 @@ export default function UnitDetail() {
   // resolved unit name loc id.
   const name = unit.profile?.engName || t(unit.name);
   // top grade stats at lv-cap → ATK passed to SkillTab (rate → damage preview).
-  const topStat = unit.stat[unit.stat.length - 1];
+  // stat lives in the heavy detail bundle, absent until it loads.
+  const topStat = unit.stat?.[unit.stat.length - 1];
   const headerAtk = topStat ? topStat.ATK[1] : 0;
 
   return (
@@ -267,6 +282,12 @@ export default function UnitDetail() {
           </VStack>
         </Flex>
 
+        {!detailLoaded ? (
+          <Center py={20}><Spinner color="yellow.400" /></Center>
+        ) : (() => {
+        // gated on detailLoaded → every heavy field is present here.
+        const full = unit as FullUnitData;
+        return (
         <Tabs colorScheme="yellow" variant="enclosed" isLazy>
           <TabList flexWrap="wrap">
             <Tab>Stats</Tab>
@@ -281,38 +302,40 @@ export default function UnitDetail() {
             {/* ── Tab 1: stats calculator + manufacturing / favor / link bonus ── */}
             <TabPanel px={0}>
               <VStack align="stretch" spacing={4}>
-                <ExclusiveEquip unit={unit} equip={equip} />
-                <InfoTab unit={unit} gradeIdx={gradeIdx} setGradeIdx={setGradeIdx}
+                <ExclusiveEquip unit={full} equip={equip} />
+                <InfoTab unit={full} gradeIdx={gradeIdx} setGradeIdx={setGradeIdx}
                   level={level} setLevel={setLevel} />
               </VStack>
             </TabPanel>
 
             {/* ── Tab 2: skills (with a form toggle for transform units) ────── */}
             <TabPanel px={0}>
-              <SkillsTab unit={unit} skills={skills} headerAtk={headerAtk} skillStatus={skillStatus} />
+              <SkillsTab unit={full} skills={skills} headerAtk={headerAtk} skillStatus={skillStatus} />
             </TabPanel>
 
             {/* ── Tab 3: profile (collection flavor) ───────────────────────── */}
             <TabPanel px={0}>
-              <ProfileTab unit={unit} />
+              <ProfileTab unit={full} />
             </TabPanel>
 
             {/* ── Tab 4: drop / acquisition locations ──────────────────────── */}
             <TabPanel px={0}>
-              <DropTab unit={unit} world={world} />
+              <DropTab unit={full} world={world} />
             </TabPanel>
 
             {/* ── Tab 4: promotion ─────────────────────────────────────────── */}
             <TabPanel px={0}>
-              <PromotionTab unit={unit} />
+              <PromotionTab unit={full} />
             </TabPanel>
 
             {/* ── Tab 5: limit break (level-cap unlock costs) ──────────────── */}
             <TabPanel px={0}>
-              <LimitBreakTab unit={unit} />
+              <LimitBreakTab unit={full} />
             </TabPanel>
           </TabPanels>
         </Tabs>
+        );
+        })()}
       </VStack>
     </>
   );
@@ -322,7 +345,7 @@ export default function UnitDetail() {
 function SkillsTab({
   unit, skills, headerAtk, skillStatus,
 }: {
-  unit: UnitData;
+  unit: FullUnitData;
   skills: { [key: string]: Skill };
   headerAtk: number;
   skillStatus: string;
@@ -440,7 +463,7 @@ function SkillsTab({
 }
 
 // ── Profile tab: collection flavor (radar chart, vitals, weapons, bio) ────────
-function ProfileTab({ unit }: { unit: UnitData }) {
+function ProfileTab({ unit }: { unit: FullUnitData }) {
   const p = unit.profile;
   if (!p) return <Text color="gray.500" fontSize="sm">No profile data for this unit.</Text>;
   // bio uses '&n' as line breaks; also scrub the stray replacement char the source
@@ -463,7 +486,7 @@ function ProfileTab({ unit }: { unit: UnitData }) {
       </Box>
       {bio ? (
         <Box borderWidth="1px" borderColor="surface.border" borderRadius="xl" bg="surface.elevated" p={4}>
-          <Heading size="sm" mb={3}>Background</Heading>
+          <Heading size="sm" mb={3}>Introduction</Heading>
           <Text fontSize="sm" color="gray.300" whiteSpace="pre-wrap" lineHeight="1.6">{bio}</Text>
         </Box>
       ) : null}
@@ -475,7 +498,7 @@ function ProfileTab({ unit }: { unit: UnitData }) {
 function InfoTab({
   unit, gradeIdx, setGradeIdx, level, setLevel,
 }: {
-  unit: UnitData;
+  unit: FullUnitData;
   gradeIdx: number;
   setGradeIdx: (i: number) => void;
   level: number;
@@ -674,7 +697,7 @@ function ExclusiveEquip({ unit, equip }: { unit: UnitData; equip: Record<string,
 }
 
 // ── Drop Location tab: stages that grant the unit, flagged farmable vs one-time ─
-function DropTab({ unit, world }: { unit: UnitData; world: any }) {
+function DropTab({ unit, world }: { unit: FullUnitData; world: any }) {
   const entries = Object.entries(unit.source || {});
   if (entries.length === 0) {
     return <Text color="gray.500" fontSize="sm">No known drop/acquisition stages.</Text>;
@@ -710,7 +733,7 @@ function DropTab({ unit, world }: { unit: UnitData; world: any }) {
 }
 
 // ── Promotion tab: grade-up requirements ─────────────────────────────────────
-function PromotionTab({ unit }: { unit: UnitData }) {
+function PromotionTab({ unit }: { unit: FullUnitData }) {
   if (unit.promotions.length === 0) {
     return <Text color="gray.500" fontSize="sm">This unit has no promotions.</Text>;
   }
@@ -736,7 +759,7 @@ function PromotionTab({ unit }: { unit: UnitData }) {
 }
 
 // ── Limit Break tab: level-cap unlock costs as a matrix (rows=level, cols=item) ─
-function LimitBreakTab({ unit }: { unit: UnitData }) {
+function LimitBreakTab({ unit }: { unit: FullUnitData }) {
   const items = useAppSelector(selectItems);
   if (unit.lvLimits.length === 0) {
     return <Text color="gray.500" fontSize="sm">This unit has no level-cap unlocks.</Text>;

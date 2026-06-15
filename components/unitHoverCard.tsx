@@ -19,7 +19,7 @@ import { rankTag, rankColor, roleRankIcon, typeIcon, roleIcon, factionIcon } fro
  *   <UnitHoverCard unitId={entry.char}><MyChip/></UnitHoverCard>
  */
 export default function UnitHoverCard({
-  unitId, children, inModal = false,
+  unitId, children, inModal = false, inline = false,
 }: {
   unitId: string | undefined;
   children: React.ReactNode;
@@ -27,6 +27,9 @@ export default function UnitHoverCard({
   // the modal's stacking context (a body-portaled popover renders BEHIND the modal
   // overlay and is invisible).
   inModal?: boolean;
+  // inline trigger (no full-width block) so the card can wrap a word inside a
+  // sentence without forcing a line break. Default is the full-width chip wrapper.
+  inline?: boolean;
 }) {
   const dispatch = useAppDispatch();
   const unit = useAppSelector((s) => (unitId ? selectUnit(s, unitId) : null));
@@ -103,8 +106,12 @@ export default function UnitHoverCard({
   return (
     <Popover trigger="hover" openDelay={150} closeDelay={80} isLazy placement="top">
       <PopoverTrigger>
-        {/* span wrapper so any child (even text) is a valid single trigger element */}
-        <Box as="span" display="inline-block" w="100%">{children}</Box>
+        {/* span wrapper so any child (even text) is a valid single trigger element.
+            inline: a plain inline span (wraps a word mid-sentence); default: a
+            full-width inline-block (the reward-chip layout). */}
+        <Box as="span" display={inline ? 'inline' : 'inline-block'} w={inline ? undefined : '100%'}>
+          {children}
+        </Box>
       </PopoverTrigger>
       {inModal ? content : <Portal>{content}</Portal>}
     </Popover>

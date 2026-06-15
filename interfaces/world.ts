@@ -37,10 +37,26 @@ export interface StageRewards {
   reward_am?: RewardEntry[]; // all star-missions completed
 }
 
-// A star-clear condition. desc is a loc id (resolve with t()); the threshold is
-// already baked into the text (e.g. "Clear within 10 rounds").
+// A star-clear condition. `desc` is the game's loc id (resolve with t()) — often
+// poor or absent — so the parsed structured fields below say what must actually be
+// done (from Table_MissionObject, see build_world._mission_cond):
+//   object  the goal: 'STAGE_CLEAR' | 'KILL_ENEMY' | 'KILL_SPCENEMY'.
+//   trigger the clear constraint (MISSION_TRIGGER_TYPE name), absent when none.
+//   value   the trigger's numeric parameter (round/death/hit/squad limit, type
+//           count, recorded damage). 0 is meaningful ("0 deaths", "take 0 hits").
+//   unit    the trigger's required unit (Char_ key) — use/keep-alive/clear-with it.
+//   skill   the trigger's required/forbidden skill (Skill_ key).
+//   count   KILL_ENEMY: number of enemies to defeat.
+//   enemy   KILL_SPCENEMY: the specific enemy (site id) to defeat.
 export interface StageMission {
-  desc: string;
+  desc?: string;
+  object: 'STAGE_CLEAR' | 'KILL_ENEMY' | 'KILL_SPCENEMY';
+  trigger?: string;
+  value?: number;
+  unit?: string;
+  skill?: string;
+  count?: number;
+  enemy?: string;
 }
 
 // Unlock requirement: the prior stage label(s) that must be cleared first.

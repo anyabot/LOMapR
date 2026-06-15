@@ -21,9 +21,44 @@ import UnitHoverCard from '@/components/unitHoverCard';
 import CopyLink from '@/components/copyLink';
 
 function statText(value: number, pct: boolean): string {
-  if (pct) return `+${Math.round(value * 1000) / 10}%`;
-  return `+${value}`;
+  // sign goes BEFORE the magnitude so negatives read "-27" / "-5%", not "+-27".
+  const sign = value < 0 ? '-' : '+';
+  if (pct) return `${sign}${Math.abs(Math.round(value * 1000) / 10)}%`;
+  return `${sign}${Math.abs(value)}`;
 }
+
+// Stat icon per equip attr (same icon set the enemy stat box uses). RES attrs reuse
+// the element icons; an attr with no icon here just renders label-only.
+const STAT_ICON: Record<string, string> = {
+  ATK: '/images/icon_ATK.png', DEF: '/images/icon_DEF.png', HP: '/images/icon_HP.png',
+  ACC: '/images/icon_ACC.png', EVA: '/images/icon_EVA.png', CRIT: '/images/icon_CRIT.png',
+  SPD: '/images/icon_SPD.png',
+  'Fire RES': '/images/fire.png', 'Ice RES': '/images/ice.png',
+  'Lightning RES': '/images/electric.png',
+};
+
+// Stat-point conversion: how much of each stat one allocation point grants (in the
+// stat's STORED units — fractions for the pct stats, e.g. ACC 1.5% -> 0.015). Lets
+// players see how much "pure stat" an equip is worth (handy for plain chips with no
+// effects). Stats not listed here (SPD, RES) have no point value and are skipped.
+const STAT_PER_POINT: Record<string, number> = {
+  ATK: 1.5, DEF: 1.25, HP: 8,
+  ACC: 0.015, EVA: 0.004, CRIT: 0.004,
+};
+
+// A stat's worth in allocation points (value / per-point), or null if not
+// convertible. Negative stats yield negative points (they net against the total).
+function statPoints(attr: string, value: number): number | null {
+  const per = STAT_PER_POINT[attr];
+  if (per == null) return null;
+  return value / per;
+}
+
+// Round points for display (1 dp), trimming a trailing .0.
+const fmtPoints = (n: number): string => {
+  const r = Math.round(n * 10) / 10;
+  return Number.isInteger(r) ? String(r) : r.toFixed(1);
+};
 
 export default function EquipModal() {
   const dispatch = useAppDispatch();
@@ -233,13 +268,39 @@ export default function EquipModal() {
                 </Slider>
               </HStack>
 
-              {/* ── stats at this level ── */}
+              {/* ── stats at this level (+ allocation-point worth) ── */}
               {lvl && lvl.stats.length ? (
                 <Box mb={3}>
                   <StatSection title="Stats">
-                    {lvl.stats.map((st, i) => (
-                      <StatRow key={i} label={st.attr} value={statText(st.value, st.pct)} />
-                    ))}
+                    {lvl.stats.map((st, i) => {
+                      const pts = statPoints(st.attr, st.value);
+                      return (
+                        <StatRow key={i} label={
+                          <HStack spacing={1.5}>
+                            {STAT_ICON[st.attr] ? <Image alt={st.attr} src={STAT_ICON[st.attr]} boxSize="0.95rem" /> : null}
+                            <Text as="span">{st.attr}</Text>
+                            <Text as="span" color="gray.100" fontWeight="600" sx={{ fontVariantNumeric: 'tabular-nums' }}>
+                              {statText(st.value, st.pct)}
+                            </Text>
+                          </HStack>
+                        } value={
+                          pts != null ? (
+                            <Text as="span" fontSize="xs" color="gray.500" fontWeight="600">{fmtPoints(pts)} pt</Text>
+                          ) : null
+                        } />
+                      );
+                    })}
+                    {(() => {
+                      const total = lvl.stats.reduce(
+                        (s, st) => s + (statPoints(st.attr, st.value) ?? 0), 0);
+                      const hasPts = lvl.stats.some((st) => statPoints(st.attr, st.value) != null);
+                      if (!hasPts) return null;
+                      return (
+                        <StatRow label="Stat Points" value={
+                          <Text as="span" color="yellow.300" fontWeight="700">{fmtPoints(total)} pt</Text>
+                        } />
+                      );
+                    })()}
                   </StatSection>
                 </Box>
               ) : null}

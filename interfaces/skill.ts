@@ -12,7 +12,17 @@ export interface SkillBuff {
   applyCondVals: string[];  // condition parameters (count/effect/char keys); multiple when BETAC=NONE
   applyCondNames: string[]; // resolved loc IDs for each applyCondVals entry
   applyCondAttrs: number[]; // per-entry attr of the referenced effect (-1=unknown); uses BUFF_ATTR_TYPE
+  applyCondCount: number; // BETV_Sub[0]: threshold for count-of-buff conds (e.g. applyCond 20 = have >= N of applyCondVals); 0 if n/a
   condAttr: number;    // BETBAT: attr type constraint (BUFF_ATTR_TYPE: 0=Buff,1=Debuff,3=Etc,6=Any)
+  // optional SECOND apply-condition (AND-combined with the first), present only when
+  // the buff has one (~4% do). Same shape as the primary fields above.
+  // e.g. "on even round (cond1=42) AND ≥4 of <char set> in battle (cond2=65)".
+  applyCond2?: number;
+  applyCondVals2?: string[];
+  applyCondNames2?: string[];
+  applyCondAttrs2?: number[];
+  applyCondCount2?: number;
+  condAttr2?: number;
   turns: number;   // 0 = instant/no duration
   rate: number;    // 0..1 application chance
   val: number;     // effect value at skill level 1 — interpret per fmt
