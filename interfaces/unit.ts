@@ -57,6 +57,32 @@ export interface UnitStat {
   resist: { fire: number; ice: number; lightning: number };
 }
 
+// One skin entry (Table_CharSkin row, or the unit's own base look when key === '').
+// model/modelDam are 2D-model asset keys (PC2DModelID*) — lowercase them to match
+// the skin-viewer archive name (<key>.tar.br, or <key>__global.tar.br/<key>__kr.tar.br
+// when that specific asset is diverged). viewerKind is which export pipeline (if any)
+// can render it; undefined means mass_pipeline.py hasn't processed this asset yet.
+export interface UnitSkin {
+  key: string;
+  name: string;     // loc id ('' for the base look)
+  desc: string;      // loc id
+  category: string[];
+  unlockItem: string;
+  reqGrade: number;
+  sensitive: boolean;
+  price: number | null;
+  parts: string[];   // SKIN_IN_PARTS_TYPE names (VOICE, SD_EFFECT, ...)
+  model: string;      // 2D-model asset key (base look)
+  modelDam: string;   // 2D-model asset key (damaged look), '' if none
+  faceKey: string;
+  faceDamKey: string;
+  bgUse: boolean;
+  bgDamUse: boolean;
+  modelDiverged?: boolean;     // model asset: global/kr render genuinely different art
+  modelDamDiverged?: boolean;  // modelDam asset: global/kr render genuinely different art
+  viewerKind?: 'fixed' | 'spine' | 'skinned';  // 'skinned' = old animated rig, not supported by the viewer yet
+}
+
 // A unit record. The build splits each unit into a LIGHT list record (the always-
 // present fields below, in split/units/unit_list.json — grid + hover card) and a
 // per-unit bundle split/units/<id>.json = { skills, detail } that carries the HEAVY
@@ -114,6 +140,8 @@ export interface UnitData {
   // worldId -> [[zoneNum, stageTitle, farm], ...] stages that grant this unit.
   // farm=true: drops from a wave (repeatable); farm=false: one-time clear reward.
   source?: { [worldId: string]: [number, string, boolean][] };
+  // [base look, ...purchasable skins]. base.key === ''.
+  skins?: UnitSkin[];
 }
 
 // A unit with its detail bundle merged in — every heavy field guaranteed present.
@@ -122,4 +150,4 @@ export interface UnitData {
 export type FullUnitData = UnitData & Required<Pick<UnitData,
   'skills' | 'skillsCh' | 'favor' | 'craft' | 'marriage' | 'affection' |
   'secretRoom' | 'equip' | 'linkBonus' | 'fullLinkBonus' | 'stat' |
-  'promotions' | 'lvLimits' | 'source'>>;
+  'promotions' | 'lvLimits' | 'source' | 'skins'>>;
