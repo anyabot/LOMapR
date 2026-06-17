@@ -28,6 +28,7 @@ import { Skill } from '@/interfaces/skill';
 import { t } from '@/lib/strings';
 import RewardList from '@/components/rewardList';
 import SkillTab from '@/components/enemyTab/skillTab';
+import SkinViewer from '@/components/skinViewer';
 import CopyLink from '@/components/copyLink';
 import { StatRow, StatPair, StatSection } from '@/components/statBlock';
 import { rankTag, rankColor, roleRankIcon, typeIcon, roleIcon, equipIcon, factionIcon } from '@/lib/rank';
@@ -296,6 +297,7 @@ export default function UnitDetail() {
             <Tab>Drop Location</Tab>
             <Tab>Promotion</Tab>
             <Tab>Limit Break</Tab>
+            <Tab>Skin</Tab>
           </TabList>
 
           <TabPanels>
@@ -331,6 +333,11 @@ export default function UnitDetail() {
             {/* ── Tab 5: limit break (level-cap unlock costs) ──────────────── */}
             <TabPanel px={0}>
               <LimitBreakTab unit={full} />
+            </TabPanel>
+
+            {/* ── Tab 6: skin viewer ───────────────────────────────────────── */}
+            <TabPanel px={0}>
+              <SkinTab unit={full} />
             </TabPanel>
           </TabPanels>
         </Tabs>
@@ -828,6 +835,134 @@ function LimitBreakTab({ unit }: { unit: FullUnitData }) {
         </Table>
       </TableContainer>
     </Box>
+  );
+}
+
+// ── Skin tab: pick a skin, render it via the shared PixiJS viewer ────────────
+// Archive key = the skin's model asset lowercased (matches <key>.tar.br on R2);
+// region-diverged skins ship as two archives (<key>__global / <key>__kr) instead.
+function skinFaceIcon(faceKey: string): string {
+  return `/images/icons/${faceKey.replace(/^CharFace_/, 'FormationIcon_')}.png`;
+}
+
+
+function SkinTab({ unit }: { unit: FullUnitData }) {
+  const region = useAppSelector(selectRegion);
+  const skins = unit.skins || [];
+  const [idx, setIdx] = useState(0);
+  const [showDam, setShowDam] = useState(false);
+  useEffect(() => { setShowDam(false); }, [idx]);
+  const skin = skins[idx];
+
+  if (skins.length === 0) {
+    return <Text color="gray.500" fontSize="sm">No skin data for this unit.</Text>;
+  }
+
+  const hasDam = !!(skin.modelDam);
+  const baseAsset = (skin.model || '').toLowerCase();
+  const damAsset = (skin.modelDam || '').toLowerCase();
+  const asset = (showDam && hasDam ? damAsset : baseAsset);
+  const isDiverged = showDam && hasDam ? !!skin.modelDamDiverged : !!skin.modelDiverged;
+  const archiveKey = asset && isDiverged
+    ? `${asset}__${region === 'kr' ? 'kr' : 'global'}`
+    : asset;
+
+  return (
+    <VStack align="stretch" spacing={4}>
+      {/* Skin picker: horizontal scrollable card row */}
+      <Box overflowX="auto" pb={1}>
+        <HStack spacing={3} align="stretch" minW="max-content">
+          {skins.map((s, i) => {
+            const selected = i === idx;
+            const iconSrc = s.faceKey ? skinFaceIcon(s.faceKey) : null;
+            return (
+              <Box
+                key={s.key || 'base'}
+                as="button"
+                onClick={() => setIdx(i)}
+                borderWidth={2}
+                borderColor={selected ? 'yellow.400' : 'gray.600'}
+                borderRadius="md"
+                bg={selected ? 'whiteAlpha.100' : 'transparent'}
+                p={2}
+                textAlign="center"
+                minW="100px"
+                maxW="120px"
+                cursor="pointer"
+                _hover={{ borderColor: 'yellow.300' }}
+                transition="border-color 0.15s"
+              >
+                {iconSrc && (
+                  <Image
+                    src={iconSrc}
+                    alt={t(s.name) || s.key || 'Base'}
+                    boxSize="80px"
+                    objectFit="contain"
+                    mx="auto"
+                    mb={1}
+                    borderRadius="sm"
+                  />
+                )}
+                <Text fontSize="xs" fontWeight={selected ? 'bold' : 'normal'} noOfLines={2} lineHeight="1.3">
+                  {s.key === '' ? 'Default' : t(s.name) || s.key}
+                </Text>
+
+                <Box mt={1}>
+                  {s.price != null ? (
+                    <HStack spacing={1} justify="center">
+                      <Image src="/images/icons/UI_Icon_Currency_Tuna.png" boxSize="14px" alt="tuna" />
+                      <Text fontSize="xs" color="yellow.300" fontWeight="bold">{s.price}</Text>
+                    </HStack>
+                  ) : s.key === '' ? (
+                    <Badge colorScheme="green" fontSize="2xs">Default</Badge>
+                  ) : (
+                    <Badge colorScheme="red" fontSize="2xs">Not For Sale</Badge>
+                  )}
+                </Box>
+              </Box>
+            );
+          })}
+        </HStack>
+      </Box>
+
+      {/* Skin info table */}
+      {skin.key !== '' && (
+        <Box borderWidth={1} borderColor="whiteAlpha.200" borderRadius="md" overflow="hidden" fontSize="sm">
+          <Table size="sm" variant="simple">
+            <Tbody>
+              <Tr>
+                <Td fontWeight="semibold" color="gray.400" w="90px" whiteSpace="nowrap">Name</Td>
+                <Td>{t(skin.name) || skin.key}</Td>
+              </Tr>
+              {skin.desc && (
+                <Tr>
+                  <Td fontWeight="semibold" color="gray.400" verticalAlign="top">Description</Td>
+                  <Td whiteSpace="pre-wrap">{t(skin.desc)}</Td>
+                </Tr>
+              )}
+            </Tbody>
+          </Table>
+        </Box>
+      )}
+
+      {/* Viewer */}
+      {!asset ? (
+        <Text color="gray.500" fontSize="sm">This skin has no model data.</Text>
+      ) : !skin.viewerKind ? (
+        <Text color="gray.500" fontSize="sm">Not processed yet.</Text>
+      ) : (
+        <SkinViewer
+          key={archiveKey}
+          skin={archiveKey}
+          height="60vh"
+          parts={skin.parts}
+          hasDam={hasDam}
+          showDam={showDam}
+          onToggleDam={() => setShowDam((v) => !v)}
+          unavailable={skin.viewerKind === 'skinned' ? 'Animated rig — viewer not supported yet' : undefined}
+        />
+      )}
+    </VStack>
   );
 }
 

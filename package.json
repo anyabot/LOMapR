@@ -14,7 +14,8 @@
     "gen:images": "node scripts/gen-public-images.js",
     "pages:build": "node scripts/sync-local-data.js --clean && npm run gen:images && next build",
     "pages:preview": "npm run pages:build && wrangler pages dev out",
-    "pages:deploy": "npm run pages:build && wrangler pages deploy out"
+    "pages:deploy": "npm run pages:build && wrangler pages deploy out",
+    "postinstall": "patch-package"
   },
   "dependencies": {
     "@chakra-ui/icons": "^2.0.18",
@@ -22,15 +23,18 @@
     "@dagrejs/dagre": "^3.0.0",
     "@emotion/react": "^11.10.6",
     "@emotion/styled": "^11.10.6",
+    "@esotericsoftware/spine-pixi-v8": "4.2.72",
     "@reduxjs/toolkit": "^1.9.3",
     "@types/node": "18.15.11",
     "@types/react": "18.0.31",
     "@types/react-dom": "18.0.11",
     "bootstrap": "^5.2.3",
+    "brotli-dec-wasm": "^2.3.2",
     "eslint": "8.57.0",
     "eslint-config-next": "15.5.2",
     "framer-motion": "^10.11.2",
     "next": "15.5.2",
+    "pixi.js": "~8.4.0",
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "react-redux": "^8.0.5",
@@ -40,6 +44,7 @@
   },
   "devDependencies": {
     "cross-env": "^10.1.0",
+    "patch-package": "^8.0.1",
     "wrangler": "^3.78.0"
   }
 }
