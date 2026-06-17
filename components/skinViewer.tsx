@@ -49,6 +49,7 @@ type SpriteInfo = Mesh & {
   enabled: boolean;
   flipX: boolean;
   flipY: boolean;
+  color?: [number, number, number, number]; // m_Color [r,g,b,a] when non-white
   rplus?: Mesh; // the R+ twin (swapped in at runtime by RplusSpriteSwitcher)
 };
 type SkinNode = {
@@ -402,6 +403,166 @@ function lerp3(a: number[], b: number[], f: number): number[] {
   return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f];
 }
 
+// Unity WebGL iframe viewer for the old skinned-mesh animation rig (the 144
+// skipped skins). The iframe loads /unity-viewer/?model=<skin> and communicates
+// via postMessage. Model bundles are fetched by the Unity app at /models/<skin>
+// relative to the iframe origin (NEXT_PUBLIC_UNITY_VIEWER_URL controls this).
+const UNITY_VIEWER_BASE = (
+  typeof process !== 'undefined'
+    ? process.env.NEXT_PUBLIC_UNITY_VIEWER_URL ?? '/unity-viewer/'
+    : '/unity-viewer/'
+).replace(/\/$/, '');
+
+function UnityViewer({ skin, height, parts, hasRplus, hasBg, hasDam, showDam, onToggleDam }: {
+  skin: string; height: string | number; parts: string[]; hasRplus?: boolean; hasBg?: boolean;
+  hasDam?: boolean; showDam?: boolean; onToggleDam?: () => void;
+}) {
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [faceList, setFaceList] = useState<string[]>([]);
+  const [hasParts, setHasParts] = useState(false);
+  const [face, setFace] = useState('');
+  const [showParts, setShowParts] = useState(true);
+  const [showBg, setShowBg] = useState(true);
+  const [showZones, setShowZones] = useState(false);
+  const [rplus, setRplus] = useState(false);
+
+  // base skin name without region suffix for R+ swap
+  const baseSkin = skin.replace(/__kr$/, '');
+
+  const send = (msg: object) => {
+    iframeRef.current?.contentWindow?.postMessage(msg, '*');
+  };
+
+  useEffect(() => {
+    const handler = (e: MessageEvent) => {
+      if (!e.data || typeof e.data !== 'object') return;
+      switch (e.data.type) {
+        case 'facelist':
+          setFaceList(e.data.data ?? []);
+          if (e.data.data?.length) setFace(e.data.data[0]);
+          break;
+        case 'part': setHasParts(!!e.data.data); break;
+      }
+    };
+    window.addEventListener('message', handler);
+    return () => window.removeEventListener('message', handler);
+  }, []);
+
+  useEffect(() => {
+    setFaceList([]); setHasParts(false);
+    setFace(''); setShowParts(true); setShowBg(true); setShowZones(false); setRplus(false);
+  }, [skin]);
+
+  useEffect(() => { send({ type: 'bg', active: showBg }); }, [skin, showBg]);
+  useEffect(() => { if (face) send({ type: 'face', face }); }, [face]);
+  useEffect(() => { send({ type: 'part', active: showParts }); }, [showParts]);
+  useEffect(() => { send({ type: 'collider', active: showZones }); }, [showZones]);
+  useEffect(() => {
+    send({ type: 'model', model: rplus ? `${baseSkin}_rplus` : baseSkin });
+  }, [rplus, baseSkin]);
+
+  const iframeSrc = `${UNITY_VIEWER_BASE}/index.html?model=${encodeURIComponent(skin)}`;
+  const faceName = face.replace(/^face\/.*_/, '');
+
+  return (
+    <Box>
+      <Box h={height} bg="gray.800" borderRadius="md" overflow="hidden" position="relative"
+        border="1px solid" borderColor="whiteAlpha.200">
+        <Box
+          as="iframe"
+          ref={iframeRef}
+          src={iframeSrc}
+          position="absolute" inset={0} w="100%" h="100%"
+          border="none"
+          allow="autoplay"
+          sx={{ colorScheme: 'none' }}
+        />
+
+        {/* Bottom-left: PARTS_META info icons */}
+        {parts.length > 0 && (
+          <HStack position="absolute" bottom={2} left={2} spacing={1} pointerEvents="none"
+            bg="blackAlpha.500" borderRadius="md" px={1} py={1}>
+            {parts.map((p) => {
+              const meta = PARTS_META[p];
+              if (!meta) return null;
+              return (
+                <Tooltip key={p} label={meta.label} fontSize="xs" hasArrow placement="top">
+                  <Image src={meta.icon} alt={meta.label} boxSize="32px" pointerEvents="auto" />
+                </Tooltip>
+              );
+            })}
+          </HStack>
+        )}
+
+        {/* Top-left: face selector */}
+        {faceList.length > 0 && (
+          <Box position="absolute" top={2} left={2} bg="blackAlpha.700" borderRadius="md" display="inline-flex">
+            <Box position="relative" display="inline-flex" alignItems="center" px={2} py={1} minW="120px">
+              <Image src="/images/shop/UI_ICON_EditFace.png" alt="Face"
+                boxSize="22px" objectFit="contain" flexShrink={0} pointerEvents="none" mr={1} />
+              <Text fontSize="xs" color="gray.200" whiteSpace="nowrap" pointerEvents="none">{faceName}</Text>
+              <Select position="absolute" inset={0} w="100%" h="100%"
+                opacity={0} cursor="pointer" size="xs"
+                value={face}
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setFace(e.target.value)}
+                sx={{ appearance: 'none', WebkitAppearance: 'none' }}>
+                {faceList.map((f) => (
+                  <option key={f} value={f}>{f.replace(/^face\/.*_/, '')}</option>
+                ))}
+              </Select>
+            </Box>
+          </Box>
+        )}
+
+        {/* Bottom-right: parts + bg + R+ + dam toggles */}
+        {(hasParts || hasBg || hasRplus || hasDam) && (
+          <VStack position="absolute" bottom={2} right={2} spacing={1} align="flex-end"
+            bg="blackAlpha.500" borderRadius="md" px={1} py={1}>
+            {hasParts && (
+              <IconBtn src="/images/shop/UI_SkinProp_Parts_N.png" alt="Parts"
+                label={showParts ? 'Hide parts' : 'Show parts'} active={showParts}
+                onClick={() => setShowParts((v) => !v)} />
+            )}
+            {hasBg && (
+              <IconBtn src="/images/UI_Lobby_Icon_Props_1.png" alt="BG"
+                label={showBg ? 'Hide BG' : 'Show BG'} active={showBg}
+                onClick={() => setShowBg((v) => !v)} />
+            )}
+            {hasRplus && (
+              <IconBtn src="/images/shop/icon-secret-marks.png" alt="R+"
+                label={rplus ? 'R+ on' : 'R+ off'} active={rplus}
+                onClick={() => setRplus((v) => !v)} />
+            )}
+            {hasDam && onToggleDam && (
+              <IconBtn src="/images/shop/UI_Icon_ClothBroken.png" alt="Damaged"
+                label={showDam ? 'Damaged — click for normal' : 'Normal — click for damaged'} active={!!showDam}
+                onClick={onToggleDam} />
+            )}
+          </VStack>
+        )}
+      </Box>
+
+      {/* Control bar below canvas — zones toggle, matching PixiJS spine viewer */}
+      <HStack mt={2} spacing={3} px={1} justify="space-between">
+        <HStack spacing={2}>
+          <Switch id="uv-zones" isChecked={showZones} size="sm"
+            onChange={(e) => setShowZones(e.target.checked)} />
+          <Text as="label" htmlFor="uv-zones" fontSize="xs" color="gray.300" cursor="pointer">
+            Zones
+          </Text>
+        </HStack>
+        <Text fontSize="xs" color="whiteAlpha.400">
+          Viewer by{' '}
+          <Box as="a" href="https://lo.swaytwig.com" target="_blank" rel="noopener noreferrer"
+            color="whiteAlpha.500" textDecoration="underline" _hover={{ color: 'whiteAlpha.700' }}>
+            Wolfgang
+          </Box>
+        </Text>
+      </HStack>
+    </Box>
+  );
+}
+
 // height defaults to a tall fill (standalone page usage); pass a smaller fixed
 // height for compact embeds (e.g. the unit-detail Skin tab).
 const PARTS_META: Record<string, { icon: string; label: string }> = {
@@ -414,11 +575,23 @@ const PARTS_META: Record<string, { icon: string; label: string }> = {
   DAMAGE_LOBBY_ANIMATION: { icon: '/images/shop/UI_ShopDamagedL2DIcon.png', label: 'Damaged Live 2D animation' },
 };
 
-export default function SkinViewer({ skin, height = '70vh', parts = [], hasDam = false, showDam = false, onToggleDam, unavailable }: {
+type SkinViewerProps = {
   skin: string; height?: string | number; parts?: string[];
   hasDam?: boolean; showDam?: boolean; onToggleDam?: () => void;
-  unavailable?: string;
-}) {
+  unavailable?: string; viewerKind?: string; hasRplus?: boolean; hasBg?: boolean;
+  hasKr?: boolean; viewRegion?: 'global' | 'kr'; onToggleRegion?: () => void;
+};
+
+export default function SkinViewer(props: SkinViewerProps) {
+  if (props.viewerKind === 'skinned') {
+    return <UnityViewer skin={props.skin} height={props.height ?? '70vh'} parts={props.parts ?? []}
+      hasRplus={props.hasRplus} hasBg={props.hasBg}
+      hasDam={props.hasDam} showDam={props.showDam} onToggleDam={props.onToggleDam} />;
+  }
+  return <PixiSkinViewer {...props} />;
+}
+
+function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, showDam = false, onToggleDam, unavailable, viewerKind, hasRplus, hasBg, hasKr, viewRegion, onToggleRegion }: SkinViewerProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const appRef = useRef<any>(null);
   const rootRef = useRef<any>(null);
@@ -432,7 +605,7 @@ export default function SkinViewer({ skin, height = '70vh', parts = [], hasDam =
   const [spineFace, setSpineFace] = useState<string>('');
   const [spineParts, setSpineParts] = useState<Record<string, boolean>>({});
   const [spineBreast, setSpineBreast] = useState<string>('');
-  const [showBg, setShowBg] = useState(true); // toggled via canvas overlay
+  const showBg = toggles['bg'] ?? true;
   const [showZones, setShowZones] = useState(false);
   const zoneOverlayRef = useRef<any>(null);
 
@@ -482,7 +655,7 @@ export default function SkinViewer({ skin, height = '70vh', parts = [], hasDam =
       cancelled = true;
       revokeSkinUrls(skin);
     };
-  }, [skin]);
+  }, [skin]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const nodesByIdRef = useRef<Record<string, any>>({});
   const meshByIdRef = useRef<Record<string, any>>({});
@@ -583,6 +756,12 @@ export default function SkinViewer({ skin, height = '70vh', parts = [], hasDam =
           });
           if (n.sprite.flipX) mesh.scale.x = -1;
           if (n.sprite.flipY) mesh.scale.y = -1;
+          if (n.sprite.color) {
+            const [r, g, b, a] = n.sprite.color;
+            console.log('[color]', n.name, n.sprite.color);
+            mesh.tint = (Math.round(r * 255) << 16) | (Math.round(g * 255) << 8) | Math.round(b * 255);
+            mesh.alpha = a;
+          }
           // Wrapper placed under root; its local matrix = the node's world
           // matrix so the mesh (a child of wrapper) renders at the right
           // world-space position/scale/rotation. The mesh keeps its own flip
@@ -1041,11 +1220,6 @@ export default function SkinViewer({ skin, height = '70vh', parts = [], hasDam =
     composeSkinRef.current?.(spineFace, spineBreast, spineParts);
   }, [spineFace, spineBreast, spineParts]);
 
-  useEffect(() => {
-    if (bgSpriteRef.current) {
-      bgSpriteRef.current.visible = showBg;
-    }
-  }, [showBg]);
 
   useEffect(() => {
     if (zoneOverlayRef.current) zoneOverlayRef.current.visible = showZones;
@@ -1056,10 +1230,13 @@ export default function SkinViewer({ skin, height = '70vh', parts = [], hasDam =
     const byId = nodesByIdRef.current;
 
     const hidden = new Set<string>();
+    // swap-toggle "active" side: force visible even if n.active=false in scene
+    const forced = new Set<string>();
     for (const t of layout.toggles ?? []) {
       const on = toggles[t.key] ?? t.default;
       if (t.kind === 'swap') {
         (on ? t.swapOff : t.swapOn).forEach((id) => hidden.add(id));
+        (on ? t.swapOn : t.swapOff).forEach((id) => forced.add(id));
       } else {
         if (!on) t.members.forEach((id) => hidden.add(id));
       }
@@ -1073,7 +1250,7 @@ export default function SkinViewer({ skin, height = '70vh', parts = [], hasDam =
     } else {
       const apply = (n: SkinNode) => {
         const node = byId[n.id];
-        if (node) node.visible = n.active && !hidden.has(n.id);
+        if (node) node.visible = (forced.has(n.id) || n.active) && !hidden.has(n.id);
         n.children.forEach(apply);
       };
       (layout.nodes ?? []).forEach(apply);
@@ -1085,6 +1262,9 @@ export default function SkinViewer({ skin, height = '70vh', parts = [], hasDam =
       for (const { wrapper, chain } of flatMeshesRef.current) {
         wrapper.renderable = chain.every((id) => byId[id]?.visible);
       }
+    }
+    if (bgSpriteRef.current) {
+      bgSpriteRef.current.visible = toggles['bg'] ?? true;
     }
   }, [layout, toggles]);
 
@@ -1262,7 +1442,7 @@ export default function SkinViewer({ skin, height = '70vh', parts = [], hasDam =
           const spinePropParts = layout?.kind === 'spine'
             ? (layout.skinGroups?.parts ?? []).filter((p) => p !== 'default' && !p.startsWith('breast/'))
             : [];
-          const showRightPanel = fixedToggles.length > 0 || spinePropParts.length > 0 || hasDam;
+          const showRightPanel = fixedToggles.length > 0 || spinePropParts.length > 0 || hasDam || hasKr;
           if (!showRightPanel) return null;
           const multiFixed = fixedToggles.length > 1;
           const multiSpine = spinePropParts.length > 1;
@@ -1271,7 +1451,10 @@ export default function SkinViewer({ skin, height = '70vh', parts = [], hasDam =
               bg="blackAlpha.500" borderRadius="md" px={1} py={1}>
               {fixedToggles.map((t, i) => {
                 const on = toggles[t.key] ?? t.default;
-                const icon = multiFixed ? `/images/shop/UI_SkinProp_Parts_${i + 1}.png` : '/images/shop/UI_SkinProp_Parts_N.png';
+                const KEY_ICONS: Record<string, string> = {
+                  bg: '/images/UI_Lobby_Icon_Props_1.png',
+                };
+                const icon = KEY_ICONS[t.key] ?? (multiFixed ? `/images/shop/UI_SkinProp_Parts_${i + 1}.png` : '/images/shop/UI_SkinProp_Parts_N.png');
                 return (
                   <IconBtn key={t.key} src={icon} alt={t.key}
                     label={on ? `Hide ${t.key}` : `Show ${t.key}`} active={on}
@@ -1292,6 +1475,16 @@ export default function SkinViewer({ skin, height = '70vh', parts = [], hasDam =
                 <IconBtn src="/images/shop/UI_Icon_ClothBroken.png" alt="Damaged"
                   label={showDam ? 'Damaged — click for normal' : 'Normal — click for damaged'} active={showDam}
                   onClick={onToggleDam} />
+              )}
+              {hasKr && onToggleRegion && (
+                <Box as="button" onClick={onToggleRegion}
+                  px={2} py={1} borderRadius="md" fontSize="xs" fontWeight="bold"
+                  bg={viewRegion === 'kr' ? 'yellow.500' : 'whiteAlpha.200'}
+                  color={viewRegion === 'kr' ? 'gray.900' : 'gray.300'}
+                  _hover={{ bg: viewRegion === 'kr' ? 'yellow.400' : 'whiteAlpha.300' }}
+                  transition="background 0.15s" lineHeight="1">
+                  {viewRegion === 'kr' ? 'KR' : 'GL'}
+                </Box>
               )}
             </VStack>
           );

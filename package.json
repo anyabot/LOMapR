@@ -12,7 +12,7 @@
     "dev:bucket": "cross-env NEXT_PUBLIC_DATA_SOURCE=bucket next dev",
     "lint": "next lint",
     "gen:images": "node scripts/gen-public-images.js",
-    "pages:build": "node scripts/sync-local-data.js --clean && npm run gen:images && next build",
+    "pages:build": "node scripts/sync-local-data.js --clean && npm run gen:images && next build && cp public/_redirects out/_redirects",
     "pages:preview": "npm run pages:build && wrangler pages dev out",
     "pages:deploy": "npm run pages:build && wrangler pages deploy out",
     "postinstall": "patch-package"

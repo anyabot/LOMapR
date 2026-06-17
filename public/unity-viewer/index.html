@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>멸망 전의 전술 교본 - Skin Viewer γ</title>
+    <link rel="shortcut icon" href="TemplateData/icon.png">
+    <link rel="stylesheet" href="TemplateData/style.css?_=2">
+  </head>
+  <body>
+    <div id="unity-container">
+      <canvas id="unity-canvas" width=1280 height=720 tabindex="-1"></canvas>
+      <div id="unity-loading-bar">
+        <div id="unity-progress-bar-empty">
+          <div id="unity-progress-bar-full"></div>
+        </div>
+      </div>
+      <div id="unity-warning"> </div>
+    </div>
+    <script data-cfasync="false">
+      // Intercept /models/* fetches and redirect to R2 (Cloudflare Pages _redirects proxy not available here)
+      (function() {
+        var R2_BASE = "https://pub-7a0fe80c39434a24b28a3cf9740e0d71.r2.dev";
+        var MODELS_RE = /(?:^\/models\/|(https?:\/\/[^\/]+)?\/models\/)(.+)/;
+        var _origFetch = window.fetch;
+        window.fetch = function(input, init) {
+          var url = (input instanceof Request) ? input.url : String(input);
+          var m = MODELS_RE.exec(url);
+          if (m) {
+            url = R2_BASE + "/models/" + m[2];
+            if (input instanceof Request) input = new Request(url, input);
+            else input = url;
+          }
+          return _origFetch.call(this, input, init);
+        };
+        var _origXHROpen = XMLHttpRequest.prototype.open;
+        XMLHttpRequest.prototype.open = function(method, url) {
+          if (typeof url === 'string') {
+            var m = MODELS_RE.exec(url);
+            if (m) url = R2_BASE + "/models/" + m[2];
+          }
+          return _origXHROpen.apply(this, [method, url].concat(Array.prototype.slice.call(arguments, 2)));
+        };
+      })();
+    </script>
+    <script data-cfasync="false">
+      var container = document.querySelector("#unity-container");
+      var canvas = document.querySelector("#unity-canvas");
+      var loadingBar = document.querySelector("#unity-loading-bar");
+      var progressBarFull = document.querySelector("#unity-progress-bar-full");
+      var warningBanner = document.querySelector("#unity-warning");
+
+      function unityShowBanner(msg, type) {
+        function updateBannerVisibility() {
+          warningBanner.style.display = warningBanner.children.length ? 'block' : 'none';
+        }
+        var div = document.createElement('div');
+        div.innerHTML = msg;
+        warningBanner.appendChild(div);
+        if (type == 'error') div.style = 'background: red; padding: 10px;';
+        else {
+          if (type == 'warning') div.style = 'background: yellow; padding: 10px;';
+          setTimeout(function() {
+            warningBanner.removeChild(div);
+            updateBannerVisibility();
+          }, 5000);
+        }
+        updateBannerVisibility();
+      }
+
+      var buildUrl = "Build";
+      var loaderUrl = buildUrl + "/14b30fb884c3ec43ca464cf1c3b5ec71.loader.js";
+      var config = {
+        arguments: [],
+        dataUrl: buildUrl + "/a068db8ccec453a116c1dcff0de4d72a.data.unityweb",
+        frameworkUrl: buildUrl + "/55a3afe0432a12d74978e0190012f0c3.framework.js.unityweb",
+        codeUrl: buildUrl + "/4958ff1e0c90938502733d1e80239797.wasm.unityweb",
+        streamingAssetsUrl: "StreamingAssets",
+        companyName: "WolfgangKurz",
+        productName: "Skin Viewer γ",
+        productVersion: "1.0.5",
+        showBanner: unityShowBanner,
+      };
+
+      if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+        var meta = document.createElement('meta');
+        meta.name = 'viewport';
+        meta.content = 'width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes';
+        document.getElementsByTagName('head')[0].appendChild(meta);
+      }
+
+      loadingBar.style.display = "block";
+
+      (function () {
+        var unity_instance;
+        var messageQueue = [];
+
+        function procMessage(msg) {
+          switch (msg.type) {
+            case "collider":
+              unity_instance.SendMessage("MainScript", "SetColliderBoxView", msg.active ? 1 : 0);
+              break;
+            case "bg":
+              unity_instance.SendMessage("MainScript", "SetBgView", msg.active ? 1 : 0);
+              break;
+            case "part":
+              unity_instance.SendMessage("MainScript", "SetPartsView", msg.active ? 1 : 0);
+              break;
+            case "face":
+              unity_instance.SendMessage("MainScript", "SetFace", msg.face);
+              break;
+            case "model":
+              unity_instance.SendMessage("MainScript", "SetModel", msg.model);
+              break;
+          }
+        }
+
+        var script = document.createElement("script");
+        script.src = loaderUrl;
+        script.onload = () => {
+          createUnityInstance(canvas, config, (progress) => {
+          progressBarFull.style.width = 100 * progress + "%";
+          }).then((unityInstance) => {
+            loadingBar.style.display = "none";
+            unity_instance = unityInstance;
+
+            console.log("processing queued messages");
+            while (messageQueue.length > 0) {
+                var msg = messageQueue[0];
+                messageQueue.splice(0, 1);
+
+                procMessage(msg);
+            }
+          }).catch((message) => {
+            alert(message);
+          });
+        };
+
+        window.addEventListener("message", function(e) {
+          if (!unity_instance) {
+            console.log("unity instance not ready yet, push to queue");
+            messageQueue.push(e.data);
+            return;
+          }
+          procMessage(e.data);
+        });
+        document.body.appendChild(script);
+      })();
+    </script>
+  </body>
+</html>
