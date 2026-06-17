@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>iFrame Test</title>
+</head>
+
+<body>
+    <script>
+        window.addEventListener("message", (e) => {
+            if (!("type" in e.data)) return;
+
+            switch (e.data.type) {
+                case "facelist":
+                    for (const k of e.data.data) {
+                        console.log(k);
+                    }
+                    break;
+            }
+        });
+    </script>
+    <iframe src="/?model=O/2dmodel_pecs_ignis_ns1"></iframe>
+    <script>
+        document.querySelector("iframe").addEventListener("load", (e) => {
+            const iframe = e.currentTarget;
+            window.command = (type, message) => {
+                iframe.contentWindow.postMessage({ type, ...message });
+            };
+        });
+    </script>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: 0;
+        }
+    </style>
+</body>
+
+</html>

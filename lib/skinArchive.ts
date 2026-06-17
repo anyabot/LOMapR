@@ -5,10 +5,7 @@
 // decoder (DecompressionStream doesn't support it), so we use a small WASM
 // decoder (brotli-dec-wasm) instead.
 
-// NEXT_PUBLIC_SKIN_ARCHIVE_BASE points at wherever .tar.br files are uploaded
-// (mirrors the NEXT_PUBLIC_R2_PUBLIC_URL pattern in lib/fetchData.ts). Falls
-// back to the local /skin_test static folder for dev.
-const ARCHIVE_BASE = (process.env.NEXT_PUBLIC_SKIN_ARCHIVE_BASE ?? '/skin_test').replace(/\/$/, '');
+const ARCHIVE_BASE = (process.env.NEXT_PUBLIC_SKIN_ARCHIVE_BASE ?? '').replace(/\/$/, '');
 
 let brotliModPromise: Promise<{ decompress: (data: Uint8Array) => Uint8Array }> | null = null;
 function loadBrotli(): Promise<{ decompress: (data: Uint8Array) => Uint8Array }> {
@@ -45,6 +42,7 @@ function untar(bytes: Uint8Array): Map<string, Blob> {
 const archiveCache = new Map<string, Promise<Map<string, Blob>>>();
 
 // Fetch + decompress + untar a skin's archive (cached per skin name).
+// If /skin_test/<skin>/layout.json exists (local dev override), use that instead.
 export function loadSkinArchive(skin: string): Promise<Map<string, Blob>> {
   let p = archiveCache.get(skin);
   if (!p) {

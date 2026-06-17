@@ -851,7 +851,8 @@ function SkinTab({ unit }: { unit: FullUnitData }) {
   const skins = unit.skins || [];
   const [idx, setIdx] = useState(0);
   const [showDam, setShowDam] = useState(false);
-  useEffect(() => { setShowDam(false); }, [idx]);
+  const [viewRegion, setViewRegion] = useState<'global' | 'kr'>('global');
+  useEffect(() => { setShowDam(false); setViewRegion('global'); }, [idx]);
   const skin = skins[idx];
 
   if (skins.length === 0) {
@@ -863,9 +864,18 @@ function SkinTab({ unit }: { unit: FullUnitData }) {
   const damAsset = (skin.modelDam || '').toLowerCase();
   const asset = (showDam && hasDam ? damAsset : baseAsset);
   const isDiverged = showDam && hasDam ? !!skin.modelDamDiverged : !!skin.modelDiverged;
+  // Dam skins for skinned viewer fall back to PixiJS archive (no Unity bundle for dam)
+  const isSkinnedBase = skin.viewerKind === 'skinned' && !(showDam && hasDam);
+  const hasKr = isDiverged || (isSkinnedBase && !!(skin as any).hasKr);
   const archiveKey = asset && isDiverged
-    ? `${asset}__${region === 'kr' ? 'kr' : 'global'}`
+    ? `${asset}__${viewRegion}`
     : asset;
+  // For skinned base skin, pass model name to UnityViewer; KR uses raw CDN bundle
+  const skinnedModel = isSkinnedBase && asset
+    ? (viewRegion === 'kr' && hasKr) ? `${asset}__kr` : asset
+    : undefined;
+  // Dam of a skinned skin: use undefined so SkinViewer reads kind from archive layout.json
+  const effectiveViewerKind = isSkinnedBase ? 'skinned' : skin.viewerKind === 'skinned' ? undefined : skin.viewerKind;
 
   return (
     <VStack align="stretch" spacing={4}>
@@ -951,16 +961,23 @@ function SkinTab({ unit }: { unit: FullUnitData }) {
       ) : !skin.viewerKind ? (
         <Text color="gray.500" fontSize="sm">Not processed yet.</Text>
       ) : (
-        <SkinViewer
-          key={archiveKey}
-          skin={archiveKey}
-          height="60vh"
-          parts={skin.parts}
-          hasDam={hasDam}
-          showDam={showDam}
-          onToggleDam={() => setShowDam((v) => !v)}
-          unavailable={skin.viewerKind === 'skinned' ? 'Animated rig — viewer not supported yet' : undefined}
-        />
+        <Box position="relative">
+          <SkinViewer
+            key={archiveKey + viewRegion}
+            skin={skinnedModel ?? archiveKey}
+            height="60vh"
+            parts={skin.parts}
+            hasDam={hasDam}
+            showDam={showDam}
+            onToggleDam={() => { setShowDam((v) => !v); setViewRegion('global'); }}
+            viewerKind={effectiveViewerKind}
+            hasRplus={(skin as any).hasRplus}
+            hasBg={(skin as any).bgUse}
+            hasKr={hasKr}
+            viewRegion={viewRegion}
+            onToggleRegion={() => setViewRegion((r) => r === 'global' ? 'kr' : 'global')}
+          />
+        </Box>
       )}
     </VStack>
   );
