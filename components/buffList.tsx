@@ -135,6 +135,7 @@ export const BUFF_TYPE_NAMES: Record<number, string> = {
 };
 
 const NOTE_EXPLANATIONS: Record<string, string> = {
+  "Carries over": "Persists indefinitely and is not cleared between waves.",
   Instant: "Applied immediately and does not persist.",
   Renew: "Removes all existing stacks of this effect and replaces them with a new one.",
   Single: "Only applied if no instance of this effect already exists.",
@@ -233,7 +234,28 @@ function resolveApplyCondParts(c: CondData): { before: string; name: string; aft
         || val.replace(/^Effect_[^_]+_/, "").replace(/^Char_[^_]+_/, "").replace(/_/g, " ");
       return buffName(resolved);   // cut the ": description" tail, like the group header
     });
-    nameVal = uniq(names).join(" / ");
+    // Collapse runs that share the same base name (name minus a trailing number,
+    // e.g. "Bonfire Kit 1"…"Bonfire Kit 11" → "Bonfire Kit (Lv 1–11)").
+    const collapsed: string[] = [];
+    let i = 0;
+    while (i < names.length) {
+      const cur = names[i];
+      const base = cur.replace(/\s+\d+$/, "");
+      if (base !== cur) {
+        // find the contiguous run sharing this base
+        let j = i + 1;
+        while (j < names.length && names[j].replace(/\s+\d+$/, "") === base) j++;
+        if (j - i > 1) {
+          const nums = names.slice(i, j).map((n) => parseInt(n.match(/\d+$/)![0], 10));
+          collapsed.push(`${base} (Lv ${Math.min(...nums)}–${Math.max(...nums)})`);
+          i = j;
+          continue;
+        }
+      }
+      collapsed.push(cur);
+      i++;
+    }
+    nameVal = uniq(collapsed).join(" / ");
   } else if (nameToken && TYPE_MAP[nameToken]) {
     // [class]/[role]/[body]: the value(s) are type ordinals (e.g. 0=Light).
     if (!v) return null;
@@ -315,24 +337,43 @@ function buffValue(buff: SkillBuff): { str: string; color: string } {
 }
 
 // One full buff effect line: icon + name + value, plus description and the
+// Resolve display name(s) for remove-type buff targets from applyCondVals.
+// Returns a deduplicated "/" list, or "" when no Effect_ targets are present.
+const REMOVE_TYPES = new Set([88, 89, 97, 99, 100]);
+function resolveRemoveTargets(buff: SkillBuff): string {
+  if (!REMOVE_TYPES.has(buff.type)) return "";
+  const effectVals = buff.applyCondVals.filter((v) => v.startsWith("Effect_"));
+  if (effectVals.length === 0) return "";
+  const names = effectVals.map((v, i) => {
+    const nm = buff.applyCondNames[i] ?? "";
+    const resolved = (nm && t(nm) !== nm ? t(nm) : "") ||
+      v.replace(/^Effect_[^_]+_/, "").replace(/_/g, " ");
+    return buffName(resolved);
+  });
+  const uniq = (xs: string[]) => xs.filter((x, i) => x && xs.indexOf(x) === i);
+  return uniq(names).join(" / ");
+}
+
 // duration/stack/note column. Used by both the normal groups and the 65 tier table.
 function BuffEffectRow({ buff, topBorder = false, extraCondNode }: { buff: SkillBuff; topBorder?: boolean; extraCondNode?: React.ReactNode }) {
   if (!buff.icon && !BUFF_TYPE_NAMES[buff.type]) return null;
   const { str: valStr, color: valColor } = buffValue(buff);
   const descFill = valStr.replace(/^[+×<]\s?/, "").replace(/%$/, "");
   const as = attrStyle(buff.attr);
+  const removeTarget = resolveRemoveTargets(buff);
 
   const name = (
     <HStack spacing={1.5} flexWrap="wrap">
       {buff.rate < 1 ? <Box px="5px" py="1px" borderRadius="3px" bg="yellow.900" color="yellow.300" fontSize="11px" lineHeight="16px">{Math.round(buff.rate * 100)}%</Box> : null}
       {buff.icon ? <Image src={`/images/effects/BuffIcon_${buff.icon}.png`} boxSize="16px" alt={buff.icon} display="inline-block" /> : null}
       <Text as="span" fontSize="sm" fontWeight="bold" textDecoration="underline" color="gray.200">{BUFF_TYPE_NAMES[buff.type]}</Text>
+      {removeTarget ? <Text as="span" fontSize="sm" color="orange.200">{removeTarget}</Text> : null}
       {valStr ? <Text as="span" fontSize="sm" fontWeight="bold" color={valColor}>{valStr}</Text> : null}
     </HStack>
   );
 
   let durStr = "";
-  if (buff.eraseType === 3) durStr = "Permanent";
+  if (buff.eraseType === 3 || buff.eraseType === 4) durStr = "Permanent";
   else if (buff.eraseType === 0 && buff.turns > 0) durStr = `${buff.turns} rounds`;
   else if (buff.eraseType === 1) durStr = buff.turns > 1 ? `×${buff.turns}` : "×1";
 
@@ -346,7 +387,8 @@ function BuffEffectRow({ buff, topBorder = false, extraCondNode }: { buff: Skill
   const descResolved = rawDesc && rawDesc !== buff.desc;
 
   let noteStr = "";
-  if (buff.eraseType === 0 && buff.turns === 0) noteStr = "Instant";
+  if (buff.eraseType === 4) noteStr = "Carries over";
+  else if (buff.eraseType === 0 && buff.turns === 0) noteStr = "Instant";
   else if (buff.overlapType === 1) noteStr = "Renew";
   else if (buff.overlapType === 3) noteStr = "Single";
   else if (buff.overlapType === 4 && buff.overlapMax !== 0) noteStr = "Update";
@@ -418,7 +460,7 @@ function BuffCondTags({ rep, skipCond65 = false }: { rep: SkillBuff; skipCond65?
     : "";
 
   const hasAny = triggerLabel || targetLabel || p1 || p2 || extraCondTags.length
-    || rep.eraseType === 2 || rep.eraseType === 4
+    || rep.eraseType === 2
     || (rep.filterBody?.length ?? 0) || (rep.filterClass?.length ?? 0) || (rep.filterRole?.length ?? 0);
   if (!hasAny) return null;
 
@@ -447,7 +489,6 @@ function BuffCondTags({ rep, skipCond65 = false }: { rep: SkillBuff; skipCond65?
         </Pill>
       ) : null}
       {rep.eraseType === 2 ? <Pill bg="orange.900" color="orange.300">on trigger</Pill> : null}
-      {rep.eraseType === 4 ? <Pill bg="orange.900" color="orange.300">preserved</Pill>  : null}
       {(rep.filterBody?.length  ?? 0) > 0 ? <Pill bg="cyan.900"  color="cyan.200" >{rep.filterBody.map((v: number)  => BODY_NAMES[v]  ?? v).join("/")} only</Pill> : null}
       {(rep.filterClass?.length ?? 0) > 0 ? <Pill bg="blue.900"  color="blue.200" >{rep.filterClass.map((v: number) => CLASS_NAMES[v] ?? v).join("/")} only</Pill> : null}
       {(rep.filterRole?.length  ?? 0) > 0 ? <Pill bg="green.900" color="green.200">{rep.filterRole.map((v: number)  => ROLE_NAMES[v]  ?? v).join("/")} only</Pill> : null}
@@ -530,8 +571,7 @@ function BuffGroup({ group, groupIdx }: { group: SkillBuff[]; groupIdx: number }
               {applyCondParts2.after}
             </Pill>
           ) : null}
-          {rep.eraseType === 2 ? <Pill bg="orange.900" color="orange.300">on trigger</Pill>   : null}
-          {rep.eraseType === 4 ? <Pill bg="orange.900" color="orange.300">preserved</Pill>    : null}
+          {rep.eraseType === 2 ? <Pill bg="orange.900" color="orange.300">on trigger</Pill> : null}
           {(rep.filterBody?.length  ?? 0) > 0 ? <Pill bg="cyan.900"  color="cyan.200"  >{rep.filterBody.map((v: number)  => BODY_NAMES[v]  ?? v).join("/")} only</Pill> : null}
           {(rep.filterClass?.length ?? 0) > 0 ? <Pill bg="blue.900"  color="blue.200"  >{rep.filterClass.map((v: number) => CLASS_NAMES[v] ?? v).join("/")} only</Pill> : null}
           {(rep.filterRole?.length  ?? 0) > 0 ? <Pill bg="green.900" color="green.200" >{rep.filterRole.map((v: number)  => ROLE_NAMES[v]  ?? v).join("/")} only</Pill> : null}
@@ -548,20 +588,127 @@ function BuffGroup({ group, groupIdx }: { group: SkillBuff[]; groupIdx: number }
   );
 }
 
-// ── applyCond=65 "count of <char set>" tier table ────────────────────────────
-// 65 is an EXACT-count gate: as N of a fixed char set are in battle, a different
-// tier of buffs applies. Rather than render each tier as a disconnected block, we
-// cluster all 65-groups that share a char set into one table: one row per count.
+// ── shared tiered-buff table (used by cond64 and cond65) ─────────────────────
+// Both conditions cluster buff groups into rows with a labeled left-gutter pill.
+// TieredBuffGroup renders the common chrome; callers supply header content and
+// per-row pill nodes. Each row holds one or more SkillBuff[] groups stacked vertically.
 
+const COND64 = 64;
 const COND65 = 65;
 
-// the 65 condition on a buff (it can sit in either condition slot); null if none.
-function cond65(b: SkillBuff): { count: number; vals: string[] } | null {
-  if (b.applyCond === COND65) return { count: b.applyCondCount, vals: b.applyCondVals };
-  if (b.applyCond2 === COND65) return { count: b.applyCondCount2 ?? 0, vals: b.applyCondVals2 ?? [] };
-  return null;
+// Shared context: conditions/trigger/target common to every buff in a tier table,
+// hoisted into the header so they aren't repeated per-row. skipCond is the cond
+// ordinal whose pill is already represented by the row label (64 or 65).
+interface TieredCtx {
+  rep: SkillBuff | null;
+  sharedTrigger: boolean;
+  sharedTarget: boolean;
+  sharedApplyCond: number | null;
 }
-const setKey = (vals: string[]) => vals.join("|");
+
+function buildTieredCtx(allBuffs: SkillBuff[], skipCond: number): TieredCtx {
+  if (allBuffs.length === 0)
+    return { rep: null, sharedTrigger: false, sharedTarget: false, sharedApplyCond: null };
+  const first = allBuffs[0];
+  const sharedTrigger = allBuffs.every((b) => b.trigger === first.trigger);
+  const sharedTarget  = allBuffs.every((b) => b.targetType === first.targetType);
+  const getNonSkipCond = (b: SkillBuff): number | null => {
+    if (b.applyCond  !== skipCond && b.applyCond  !== 63 && b.applyCond  != null) return b.applyCond;
+    if (b.applyCond2 !== skipCond && b.applyCond2 !== 63 && b.applyCond2 != null) return b.applyCond2;
+    return null;
+  };
+  const firstCond = getNonSkipCond(first);
+  const sharedApplyCond = firstCond !== null && allBuffs.every((b) => getNonSkipCond(b) === firstCond)
+    ? firstCond : null;
+  const hasAnything = sharedTrigger || sharedTarget || sharedApplyCond !== null;
+  return { rep: hasAnything ? first : null, sharedTrigger, sharedTarget, sharedApplyCond };
+}
+
+// Per-buff extra-cond node: shows only the conditions NOT already in the shared header.
+function tieredExtraCondNode(bf: SkillBuff, ctx: TieredCtx, skipCond: number): React.ReactNode | null {
+  const synthetic: SkillBuff = {
+    ...bf,
+    trigger:    ctx.sharedTrigger ? 12 : bf.trigger,
+    targetType: ctx.sharedTarget  ? 0  : bf.targetType,
+  };
+  if (ctx.sharedApplyCond !== null) {
+    if (synthetic.applyCond !== skipCond && synthetic.applyCond === ctx.sharedApplyCond)
+      synthetic.applyCond = 63;
+    else if (synthetic.applyCond2 !== skipCond && synthetic.applyCond2 === ctx.sharedApplyCond)
+      synthetic.applyCond2 = 63;
+  }
+  const node = <BuffCondTags rep={synthetic} skipCond65 />;
+  const hasExtra =
+    (!ctx.sharedTrigger && TRIGGER_LABELS[bf.trigger] != null) ||
+    (!ctx.sharedTarget  && TARGET_LABELS[bf.targetType] != null) ||
+    (ctx.sharedApplyCond === null && (
+      (bf.applyCond  !== skipCond && bf.applyCond  !== 63 && bf.applyCond  != null) ||
+      (bf.applyCond2 !== skipCond && bf.applyCond2 !== 63 && bf.applyCond2 != null)
+    ));
+  return hasExtra ? node : null;
+}
+
+interface TieredRow {
+  key: string | number;
+  pill: React.ReactNode;       // gutter label (e.g. "3 in battle" or "40%")
+  groups: SkillBuff[][];       // one or more buff groups stacked in this row
+}
+
+interface TieredBuffGroupProps {
+  accentColor: string;         // left-border colour (blue for cond65, yellow for cond64)
+  title: React.ReactNode;      // bold header text
+  subtitle: string;            // muted helper text under title
+  headerTags?: React.ReactNode; // pills/tags in the header (trigger, shared cond, etc.)
+  gutterW?: string;            // left gutter width (default "84px")
+  rows: TieredRow[];
+  ctx: TieredCtx;
+  skipCond: number;            // which cond ordinal the row label already covers
+}
+
+function TieredBuffGroup({
+  accentColor, title, subtitle, headerTags, gutterW = "84px", rows, ctx, skipCond,
+}: TieredBuffGroupProps) {
+  return (
+    <Box w="100%" borderLeftWidth="3px" borderLeftColor={accentColor} borderRadius="4px" overflow="clip" bg="gray.800">
+      <Box px={2} pt={1.5} pb={1.5} bg="blackAlpha.300" borderBottomWidth="1px" borderBottomColor="whiteAlpha.100">
+        <Text fontSize="sm" color="gray.100" fontWeight="bold" mb={0.5}>{title}</Text>
+        <Text fontSize="xs" color="gray.500">{subtitle}</Text>
+        {headerTags ? <Box mt={1}>{headerTags}</Box> : null}
+        {ctx.rep ? (
+          <Box mt={1}>
+            <BuffCondTags
+              rep={{ ...ctx.rep,
+                trigger:    ctx.sharedTrigger ? 12 : ctx.rep.trigger,
+                targetType: ctx.sharedTarget  ? 0  : ctx.rep.targetType,
+              }}
+              skipCond65
+            />
+          </Box>
+        ) : null}
+      </Box>
+      <VStack spacing={0} align="stretch" divider={<Box h="1px" bg="whiteAlpha.200" />}>
+        {rows.map((row) => (
+          <Flex key={row.key} align="stretch">
+            <Flex flexShrink={0} w={gutterW} px={2} py={1.5} align="flex-start" justify="center"
+              bg="blackAlpha.300" borderRightWidth="1px" borderRightColor="whiteAlpha.100">
+              {row.pill}
+            </Flex>
+            <VStack flex={1} minW={0} spacing={0} align="stretch">
+              {row.groups.map((g, gi) =>
+                g.map((bf, bi) => (
+                  <BuffEffectRow
+                    key={`${gi}-${bi}`} buff={bf} topBorder={gi > 0 || bi > 0}
+                    extraCondNode={tieredExtraCondNode(bf, ctx, skipCond)}
+                  />
+                ))
+              )}
+            </VStack>
+          </Flex>
+        ))}
+      </VStack>
+    </Box>
+  );
+}
 
 // a clickable unit reference (hover card + link to the detail page), inline so it
 // sits inside the requirement sentence without breaking onto its own line.
@@ -587,112 +734,93 @@ function CharSetName({ vals }: { vals: string[] }) {
   );
 }
 
-// Derive conditions shared across ALL buffs in a cond65 group so they can be
-// shown once in the header. Checks: trigger, targetType, and the non-65 applyCond.
-// Returns { rep, sharedTrigger, sharedTarget, sharedCond } — all optional.
-function sharedCond65Context(tiers: Map<number, SkillBuff[]>): {
-  rep: SkillBuff | null;
-  sharedTrigger: boolean;
-  sharedTarget: boolean;
-  sharedApplyCond: number | null;
-} {
-  const allBuffs = Array.from(tiers.values()).flat();
-  if (allBuffs.length === 0) return { rep: null, sharedTrigger: false, sharedTarget: false, sharedApplyCond: null };
-  const first = allBuffs[0];
-
-  const sharedTrigger = allBuffs.every((b) => b.trigger === first.trigger);
-  const sharedTarget  = allBuffs.every((b) => b.targetType === first.targetType);
-
-  // non-65 applyCond: the cond slot that isn't 65 and isn't "always" (63)
-  const getNonCond65Cond = (b: SkillBuff): number | null => {
-    if (b.applyCond !== COND65 && b.applyCond !== 63 && b.applyCond != null) return b.applyCond;
-    if (b.applyCond2 !== COND65 && b.applyCond2 !== 63 && b.applyCond2 != null) return b.applyCond2;
-    return null;
-  };
-  const firstCond = getNonCond65Cond(first);
-  const sharedApplyCond = firstCond !== null && allBuffs.every((b) => getNonCond65Cond(b) === firstCond)
-    ? firstCond : null;
-
-  const hasAnything = sharedTrigger || sharedTarget || sharedApplyCond !== null;
-  return { rep: hasAnything ? first : null, sharedTrigger, sharedTarget, sharedApplyCond };
+// ── cond65: "N of <char set> in battle" ──────────────────────────────────────
+// the 65 condition on a buff (it can sit in either condition slot); null if none.
+function cond65(b: SkillBuff): { count: number; vals: string[] } | null {
+  if (b.applyCond === COND65) return { count: b.applyCondCount, vals: b.applyCondVals };
+  if (b.applyCond2 === COND65) return { count: b.applyCondCount2 ?? 0, vals: b.applyCondVals2 ?? [] };
+  return null;
 }
 
-// Returns a BuffCondTags node for the non-shared conditions on a specific buff,
-// or null if everything is already covered by the shared header.
-function extraCondNode(
-  bf: SkillBuff,
-  ctx: ReturnType<typeof sharedCond65Context>,
-): React.ReactNode | null {
-  // Build a synthetic "rep" that zeroes out whatever is already in the shared header.
-  const synthetic: SkillBuff = {
-    ...bf,
-    trigger:    ctx.sharedTrigger ? 12 : bf.trigger,   // 12 = "Always" (no pill)
-    targetType: ctx.sharedTarget  ? 0  : bf.targetType, // 0 has no label
-  };
-  // Also null out the shared applyCond slot
-  if (ctx.sharedApplyCond !== null) {
-    if (synthetic.applyCond !== COND65 && synthetic.applyCond === ctx.sharedApplyCond) {
-      synthetic.applyCond = 63; // treat as "always" → no pill
-    } else if (synthetic.applyCond2 !== COND65 && synthetic.applyCond2 === ctx.sharedApplyCond) {
-      synthetic.applyCond2 = 63;
-    }
-  }
-  const node = <BuffCondTags rep={synthetic} skipCond65 />;
-  // Check if there's anything left to show after nulling out shared parts.
-  const hasExtra =
-    (!ctx.sharedTrigger && TRIGGER_LABELS[bf.trigger] != null) ||
-    (!ctx.sharedTarget  && TARGET_LABELS[bf.targetType] != null) ||
-    (ctx.sharedApplyCond === null && (
-      (bf.applyCond  !== COND65 && bf.applyCond  !== 63 && bf.applyCond  != null) ||
-      (bf.applyCond2 !== COND65 && bf.applyCond2 !== 63 && bf.applyCond2 != null)
-    ));
-  return hasExtra ? node : null;
-}
-
-// One tier table for a char set: header = the set, rows = count → its buff effects.
 function Cond65Group({ tiers, setVals }: { tiers: Map<number, SkillBuff[]>; setVals: string[] }) {
   const counts = Array.from(tiers.keys()).sort((a, b) => a - b);
-  const ctx = sharedCond65Context(tiers);
-  
-  const group = tiers.get(counts[0])!;
-  const rep = group[0];
+  const allBuffs = Array.from(tiers.values()).flat();
+  const ctx = buildTieredCtx(allBuffs, COND65);
+
+  const rep = tiers.get(counts[0])![0];
   const tr  = (id: string) => { const r = t(id); return r !== id ? r : ""; };
   const trg = (id: string) => { const r = tr(id); return r ? buffName(r) : ""; };
-  // global sometimes stores "0" for an unnamed buff instead of an empty string;
-  // treat both as "no name" so the header shows "???" rather than the attr label.
   const rawName = trg(rep.name);
   const groupName = rawName && rawName !== "0" ? rawName : "";
 
+  const rows: TieredRow[] = counts.map((n) => ({
+    key: n,
+    pill: <Pill bg="blue.900" color="blue.200">{n} in battle</Pill>,
+    groups: [tiers.get(n)!],
+  }));
+
   return (
-    <Box w="100%" borderLeftWidth="3px" borderLeftColor="#3182ce" borderRadius="4px" overflow="clip" bg="gray.800">
-      <Box px={2} pt={1.5} pb={1.5} bg="blackAlpha.300" borderBottomWidth="1px" borderBottomColor="whiteAlpha.100">
-        <Text fontSize="sm" color="gray.100" fontWeight="bold">
-          { groupName } — <Box as="span" color="teal.100"><CharSetName vals={setVals} /></Box>
-        </Text>
-        <Text fontSize="xs" color="gray.500">scales with how many of these units are in battle</Text>
-        {/* shared trigger / target / applyCond shown once under the title */}
-        {ctx.rep ? (
-          <Box mt={1}>
-            <BuffCondTags rep={ctx.rep} skipCond65 />
-          </Box>
-        ) : null}
-      </Box>
-      <VStack spacing={0} align="stretch" divider={<Box h="1px" bg="whiteAlpha.200" />}>
-        {counts.map((n) => (
-          <Flex key={n} align="stretch">
-            <Flex flexShrink={0} w="84px" px={2} py={1.5} align="flex-start" justify="center"
-              bg="blackAlpha.300" borderRightWidth="1px" borderRightColor="whiteAlpha.100">
-              <Pill bg="blue.900" color="blue.200">{n} in battle</Pill>
-            </Flex>
-            <VStack flex={1} minW={0} spacing={0} align="stretch">
-              {tiers.get(n)!.map((bf, i) => (
-                <BuffEffectRow key={i} buff={bf} topBorder={i > 0} extraCondNode={extraCondNode(bf, ctx)} />
-              ))}
-            </VStack>
-          </Flex>
-        ))}
-      </VStack>
-    </Box>
+    <TieredBuffGroup
+      accentColor="#3182ce"
+      title={<>{groupName} — <Box as="span" color="teal.100"><CharSetName vals={setVals} /></Box></>}
+      subtitle="scales with how many of these units are in battle"
+      gutterW="84px"
+      rows={rows}
+      ctx={ctx}
+      skipCond={COND65}
+    />
+  );
+}
+
+// ── cond64: "random apply" with per-effect chances ───────────────────────────
+// the 64 condition on a buff (primary slot only — cond 64 is never in slot 2).
+function isCond64(b: SkillBuff): boolean { return b.applyCond === COND64; }
+
+function Cond64Group({
+  marker, tiers,
+}: {
+  marker: SkillBuff[];
+  // slot-index (position in applyCondVals) → list of buff groups for that slot
+  tiers: Map<number, SkillBuff[][]>;
+}) {
+  const rep   = marker[0];
+  const subs  = rep.applyCondSubs ?? [];
+  const slots = Array.from(tiers.keys()).sort((a, b) => a - b);
+
+  const tr  = (id: string) => { const r = t(id); return r !== id ? r : ""; };
+  const trg = (id: string) => { const r = tr(id); return r ? buffName(r) : ""; };
+  const rawName = trg(rep.name);
+  const groupName = rawName && rawName !== "0" ? rawName : "";
+
+  // shared context is derived from the child groups — it picks up the common
+  // applyCond (e.g. cond22 "if self missing [buff]") and renders it once in the
+  // header via ctx.rep / BuffCondTags. Don't render it separately from the marker.
+  const allBuffs = slots.flatMap((si) => tiers.get(si)!.flat());
+  const ctx = buildTieredCtx(allBuffs, COND64);
+
+  const headerTags = TRIGGER_LABELS[rep.trigger] ? (
+    <Flex gap={1.5} flexWrap="wrap">
+      <Pill bg="purple.900" color="purple.200">{TRIGGER_LABELS[rep.trigger]}</Pill>
+    </Flex>
+  ) : null;
+
+  const rows: TieredRow[] = slots.map((si) => ({
+    key: si,
+    pill: <Pill bg="yellow.900" color="yellow.200">{Math.round((subs[si] ?? 0) * 100)}%</Pill>,
+    groups: tiers.get(si)!,
+  }));
+
+  return (
+    <TieredBuffGroup
+      accentColor="#d69e2e"
+      title={groupName || "Random Apply"}
+      subtitle="randomly applies one of the following effects"
+      headerTags={headerTags}
+      gutterW="64px"
+      rows={rows}
+      ctx={ctx}
+      skipCond={COND64}
+    />
   );
 }
 
@@ -718,36 +846,74 @@ export default function BuffList({ buffs }: BuffListProps) {
 
   if (!groups.length) return null;
 
-  // Split groups into normal blocks and 65 tier-tables (clustered by char set).
-  // 65-table position is anchored to where its char set first appears, so order is
-  // preserved relative to the surrounding buffs.
+  const setKey = (vals: string[]) => vals.join("|");
+
+  // Split groups: cond64 marker groups anchor a chance table whose subsequent
+  // groups are claimed by effectKey; cond65 groups cluster into tier tables by
+  // char set; everything else is a normal block.
   type Item =
-    | { kind: "group"; group: SkillBuff[]; idx: number }
+    | { kind: "group";  group: SkillBuff[]; idx: number }
+    | { kind: "cond64"; marker: SkillBuff[]; tiers: Map<number, SkillBuff[][]> }
     | { kind: "cond65"; setVals: string[]; tiers: Map<number, SkillBuff[]> };
   const items: Item[] = [];
+  // cond65: cluster by char-set key
   const tableBySet = new Map<string, Extract<Item, { kind: "cond65" }>>();
+  // cond64: map effectKey → the item that owns it, so subsequent groups can be claimed
+  const claimedBy = new Map<string, Extract<Item, { kind: "cond64" }>>();
 
   groups.forEach((g, idx) => {
-    const c = cond65(g[0]);
-    if (!c) { items.push({ kind: "group", group: g, idx }); return; }
-    const key = setKey(c.vals);
-    let tbl = tableBySet.get(key);
-    if (!tbl) {
-      tbl = { kind: "cond65", setVals: c.vals, tiers: new Map() };
-      tableBySet.set(key, tbl);
-      items.push(tbl);          // anchor the table where this set first appears
+    // --- cond64 marker: anchor item + register its applyCondVals for claiming ---
+    if (isCond64(g[0])) {
+      const marker = g;
+      const tbl: Extract<Item, { kind: "cond64" }> =
+        { kind: "cond64", marker, tiers: new Map() };
+      items.push(tbl);
+      (marker[0].applyCondVals ?? []).forEach((effKey, slotIdx) => {
+        claimedBy.set(effKey, tbl);
+        // pre-seed the slot so order is preserved even if a group is missing
+        tbl.tiers.set(slotIdx, []);
+      });
+      return;
     }
-    const row = tbl.tiers.get(c.count) ?? [];
-    row.push(...g);
-    tbl.tiers.set(c.count, row);
+
+    // --- group claimed by a prior cond64 marker via effectKey ---
+    const effKey = g[0].effectKey ?? "";
+    const owner  = effKey ? claimedBy.get(effKey) : undefined;
+    if (owner) {
+      const slotIdx = (owner.marker[0].applyCondVals ?? []).indexOf(effKey);
+      if (slotIdx >= 0) {
+        const slot = owner.tiers.get(slotIdx) ?? [];
+        slot.push(g);
+        owner.tiers.set(slotIdx, slot);
+      }
+      return;
+    }
+
+    // --- cond65: cluster by char-set key ---
+    const c = cond65(g[0]);
+    if (c) {
+      const key = setKey(c.vals);
+      let tbl = tableBySet.get(key);
+      if (!tbl) {
+        tbl = { kind: "cond65", setVals: c.vals, tiers: new Map() };
+        tableBySet.set(key, tbl);
+        items.push(tbl);
+      }
+      const row = tbl.tiers.get(c.count) ?? [];
+      row.push(...g);
+      tbl.tiers.set(c.count, row);
+      return;
+    }
+
+    items.push({ kind: "group", group: g, idx });
   });
 
   return (
     <VStack spacing={2} align="stretch">
       {items.map((it, i) =>
-        it.kind === "group"
-          ? <BuffGroup key={`g${it.idx}`} group={it.group} groupIdx={it.idx} />
-          : <Cond65Group key={`c${i}`} setVals={it.setVals} tiers={it.tiers} />,
+        it.kind === "cond64" ? <Cond64Group key={`r${i}`} marker={it.marker} tiers={it.tiers} /> :
+        it.kind === "group"  ? <BuffGroup   key={`g${it.idx}`} group={it.group} groupIdx={it.idx} /> :
+                               <Cond65Group key={`c${i}`} setVals={it.setVals} tiers={it.tiers} />,
       )}
     </VStack>
   );
