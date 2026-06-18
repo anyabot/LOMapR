@@ -50,6 +50,7 @@ type SpriteInfo = Mesh & {
   flipX: boolean;
   flipY: boolean;
   color?: [number, number, number, number]; // m_Color [r,g,b,a] when non-white
+  shader?: 'multiply' | 'add' | 'screen' | 'mask'; // non-default Unity material
   rplus?: Mesh; // the R+ twin (swapped in at runtime by RplusSpriteSwitcher)
 };
 type SkinNode = {
@@ -762,6 +763,11 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
             mesh.tint = (Math.round(r * 255) << 16) | (Math.round(g * 255) << 8) | Math.round(b * 255);
             mesh.alpha = a;
           }
+          if (n.sprite.shader === 'multiply') { mesh.blendMode = 'multiply'; console.log('[shader]', n.name, 'multiply'); }
+          else if (n.sprite.shader === 'add') { mesh.blendMode = 'add'; console.log('[shader]', n.name, 'add'); }
+          else if (n.sprite.shader === 'screen') { mesh.blendMode = 'screen'; console.log('[shader]', n.name, 'screen'); }
+          else if (n.sprite.shader === 'mask') { console.log('[shader]', n.name, 'mask (unhandled)'); }
+          // 'mask' (Smile_Mark stencil) — no PixiJS equivalent; rendered normally
           // Wrapper placed under root; its local matrix = the node's world
           // matrix so the mesh (a child of wrapper) renders at the right
           // world-space position/scale/rotation. The mesh keeps its own flip
@@ -876,39 +882,76 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
       app.renderer.on('resize', fit);
 
       const canvas = app.canvas as HTMLCanvasElement;
+      const pointers = new Map<number, { x: number; y: number }>();
       let dragging = false;
       let dragStart = { x: 0, y: 0 };
       let rootStart = { x: 0, y: 0 };
+      let pinchDist0 = 0;
+      let pinchScale0 = 1;
+      let pinchMid = { x: 0, y: 0 };
+      const applyScale = (factor: number, mx: number, my: number) => {
+        const s = root.scale.x * factor;
+        root.position.set(mx + (root.position.x - mx) * factor, my + (root.position.y - my) * factor);
+        root.scale.set(s);
+        if (zoneLayer) { zoneLayer.scale.set(s); zoneLayer.position.copyFrom(root.position); }
+      };
       const onWheel = (e: WheelEvent) => {
         e.preventDefault();
         const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
         const rect = canvas.getBoundingClientRect();
-        const mx = e.clientX - rect.left;
-        const my = e.clientY - rect.top;
-        const newScale = root.scale.x * factor;
-        root.position.set(mx + (root.position.x - mx) * factor, my + (root.position.y - my) * factor);
-        root.scale.set(newScale);
-        if (zoneLayer) { zoneLayer.scale.set(newScale); zoneLayer.position.copyFrom(root.position); }
+        applyScale(factor, e.clientX - rect.left, e.clientY - rect.top);
       };
       const onPointerDown = (e: PointerEvent) => {
-        dragging = false;
-        dragStart = { x: e.clientX, y: e.clientY };
-        rootStart = { x: root.position.x, y: root.position.y };
+        canvas.setPointerCapture(e.pointerId);
+        pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (pointers.size === 2) {
+          const pts = [...pointers.values()];
+          pinchDist0 = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
+          pinchScale0 = root.scale.x;
+          const rect = canvas.getBoundingClientRect();
+          pinchMid = { x: (pts[0].x + pts[1].x) / 2 - rect.left, y: (pts[0].y + pts[1].y) / 2 - rect.top };
+          dragging = false;
+        } else if (pointers.size === 1) {
+          dragging = false;
+          dragStart = { x: e.clientX, y: e.clientY };
+          rootStart = { x: root.position.x, y: root.position.y };
+        }
       };
       const onPointerMove = (e: PointerEvent) => {
-        if (!dragging && e.buttons === 0) return;
+        pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (pointers.size === 2) {
+          const pts = [...pointers.values()];
+          const dist = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
+          if (pinchDist0 > 0) {
+            const s = (pinchScale0 * dist) / pinchDist0;
+            const factor = s / root.scale.x;
+            applyScale(factor, pinchMid.x, pinchMid.y);
+          }
+          return;
+        }
+        if (e.buttons === 0) return;
         const dx = e.clientX - dragStart.x;
         const dy = e.clientY - dragStart.y;
         if (!dragging && Math.hypot(dx, dy) < 4) return;
-        if (!dragging) { dragging = true; canvas.setPointerCapture(e.pointerId); }
+        dragging = true;
         root.position.set(rootStart.x + dx, rootStart.y + dy);
         if (zoneLayer) zoneLayer.position.copyFrom(root.position);
       };
-      const onPointerUp = (e: PointerEvent) => { if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId); dragging = false; };
+      const onPointerUp = (e: PointerEvent) => {
+        pointers.delete(e.pointerId);
+        if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
+        if (pointers.size < 2) { pinchDist0 = 0; dragging = false; }
+        if (pointers.size === 1) {
+          const [pt] = pointers.values();
+          dragStart = { x: pt.x, y: pt.y };
+          rootStart = { x: root.position.x, y: root.position.y };
+        }
+      };
       canvas.addEventListener('wheel', onWheel, { passive: false });
       canvas.addEventListener('pointerdown', onPointerDown);
       canvas.addEventListener('pointermove', onPointerMove);
       canvas.addEventListener('pointerup', onPointerUp);
+      canvas.addEventListener('pointercancel', onPointerUp);
     })().catch((e) => !destroyed && setError(String(e)));
 
     return () => {
@@ -1144,44 +1187,78 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
       }
       app.renderer.on('resize', fit);
 
-      // Zoom (wheel) and drag (pointer) on the canvas.
+      // Zoom (wheel + pinch) and drag (pointer) on the canvas.
       const canvas = app.canvas as HTMLCanvasElement;
+      const pointers = new Map<number, { x: number; y: number }>();
       let dragging = false;
       let dragStart = { x: 0, y: 0 };
       let rootStart = { x: 0, y: 0 };
+      let pinchDist0 = 0;
+      let pinchScale0 = 1;
+      let pinchMid = { x: 0, y: 0 };
+      const applyScale = (factor: number, mx: number, my: number) => {
+        const s = root.scale.x * factor;
+        root.position.set(mx + (root.position.x - mx) * factor, my + (root.position.y - my) * factor);
+        root.scale.set(s);
+        if (zoneLayer) { zoneLayer.scale.set(s); zoneLayer.position.copyFrom(root.position); }
+      };
       const onWheel = (e: WheelEvent) => {
         e.preventDefault();
         const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
         const rect = canvas.getBoundingClientRect();
-        const mx = e.clientX - rect.left;
-        const my = e.clientY - rect.top;
-        const newScale = root.scale.x * factor;
-        root.position.set(
-          mx + (root.position.x - mx) * factor,
-          my + (root.position.y - my) * factor,
-        );
-        root.scale.set(newScale);
-        if (zoneLayer) { zoneLayer.scale.set(newScale); zoneLayer.position.copyFrom(root.position); }
+        applyScale(factor, e.clientX - rect.left, e.clientY - rect.top);
       };
       const onPointerDown = (e: PointerEvent) => {
-        dragging = false;
-        dragStart = { x: e.clientX, y: e.clientY };
-        rootStart = { x: root.position.x, y: root.position.y };
+        canvas.setPointerCapture(e.pointerId);
+        pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (pointers.size === 2) {
+          const pts = [...pointers.values()];
+          pinchDist0 = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
+          pinchScale0 = root.scale.x;
+          const rect = canvas.getBoundingClientRect();
+          pinchMid = { x: (pts[0].x + pts[1].x) / 2 - rect.left, y: (pts[0].y + pts[1].y) / 2 - rect.top };
+          dragging = false;
+        } else if (pointers.size === 1) {
+          dragging = false;
+          dragStart = { x: e.clientX, y: e.clientY };
+          rootStart = { x: root.position.x, y: root.position.y };
+        }
       };
       const onPointerMove = (e: PointerEvent) => {
-        if (!dragging && e.buttons === 0) return;
+        pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (pointers.size === 2) {
+          const pts = [...pointers.values()];
+          const dist = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
+          if (pinchDist0 > 0) {
+            const s = (pinchScale0 * dist) / pinchDist0;
+            const factor = s / root.scale.x;
+            applyScale(factor, pinchMid.x, pinchMid.y);
+          }
+          return;
+        }
+        if (e.buttons === 0) return;
         const dx = e.clientX - dragStart.x;
         const dy = e.clientY - dragStart.y;
         if (!dragging && Math.hypot(dx, dy) < 4) return;
-        if (!dragging) { dragging = true; canvas.setPointerCapture(e.pointerId); }
+        dragging = true;
         root.position.set(rootStart.x + dx, rootStart.y + dy);
         if (zoneLayer) zoneLayer.position.copyFrom(root.position);
       };
-      const onPointerUp = (e: PointerEvent) => { if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId); dragging = false; };
+      const onPointerUp = (e: PointerEvent) => {
+        pointers.delete(e.pointerId);
+        if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
+        if (pointers.size < 2) { pinchDist0 = 0; dragging = false; }
+        if (pointers.size === 1) {
+          const [pt] = pointers.values();
+          dragStart = { x: pt.x, y: pt.y };
+          rootStart = { x: root.position.x, y: root.position.y };
+        }
+      };
       canvas.addEventListener('wheel', onWheel, { passive: false });
       canvas.addEventListener('pointerdown', onPointerDown);
       canvas.addEventListener('pointermove', onPointerMove);
       canvas.addEventListener('pointerup', onPointerUp);
+      canvas.addEventListener('pointercancel', onPointerUp);
     })().catch((e) => !destroyed && setError(String(e)));
 
     return () => {
