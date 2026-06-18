@@ -1,5 +1,6 @@
 export interface SkillBuff {
   group: number;   // LBEI entry index — all slots from the same entry share this
+  effectKey?: string; // LBEI Key field (e.g. "Effect_DS_GraveSong_N_34"), used for cond64 linking
   icon: string;    // BuffIcon key (without "BuffIcon_" prefix)
   name: string;    // loc ID for buff name (resolve with t())
   attr: number;    // BUFF_ATTR_TYPE: 0=BUFF,1=DEBUFF,2=SKILLBUFF,3=ETC,4=ROGUEBUFF,5=ROGUEDEBUFF
@@ -13,6 +14,7 @@ export interface SkillBuff {
   applyCondNames: string[]; // resolved loc IDs for each applyCondVals entry
   applyCondAttrs: number[]; // per-entry attr of the referenced effect (-1=unknown); uses BUFF_ATTR_TYPE
   applyCondCount: number; // BETV_Sub[0]: threshold for count-of-buff conds (e.g. applyCond 20 = have >= N of applyCondVals); 0 if n/a
+  applyCondSubs?: number[]; // cond 64 only: per-entry apply chances (parallel to applyCondVals)
   condAttr: number;    // BETBAT: attr type constraint (BUFF_ATTR_TYPE: 0=Buff,1=Debuff,3=Etc,6=Any)
   // optional SECOND apply-condition (AND-combined with the first), present only when
   // the buff has one (~4% do). Same shape as the primary fields above.
