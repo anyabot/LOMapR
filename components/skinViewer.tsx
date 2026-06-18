@@ -905,7 +905,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
         canvas.setPointerCapture(e.pointerId);
         pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
         if (pointers.size === 2) {
-          const pts = [...pointers.values()];
+          const pts = Array.from(pointers.values());
           pinchDist0 = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
           pinchScale0 = root.scale.x;
           const rect = canvas.getBoundingClientRect();
@@ -920,7 +920,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
       const onPointerMove = (e: PointerEvent) => {
         pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
         if (pointers.size === 2) {
-          const pts = [...pointers.values()];
+          const pts = Array.from(pointers.values());
           const dist = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
           if (pinchDist0 > 0) {
             const s = (pinchScale0 * dist) / pinchDist0;
@@ -942,7 +942,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
         if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
         if (pointers.size < 2) { pinchDist0 = 0; dragging = false; }
         if (pointers.size === 1) {
-          const [pt] = pointers.values();
+          const pt = pointers.values().next().value as { x: number; y: number };
           dragStart = { x: pt.x, y: pt.y };
           rootStart = { x: root.position.x, y: root.position.y };
         }
@@ -1212,7 +1212,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
         canvas.setPointerCapture(e.pointerId);
         pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
         if (pointers.size === 2) {
-          const pts = [...pointers.values()];
+          const pts = Array.from(pointers.values());
           pinchDist0 = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
           pinchScale0 = root.scale.x;
           const rect = canvas.getBoundingClientRect();
@@ -1227,7 +1227,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
       const onPointerMove = (e: PointerEvent) => {
         pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
         if (pointers.size === 2) {
-          const pts = [...pointers.values()];
+          const pts = Array.from(pointers.values());
           const dist = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
           if (pinchDist0 > 0) {
             const s = (pinchScale0 * dist) / pinchDist0;
@@ -1249,7 +1249,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
         if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
         if (pointers.size < 2) { pinchDist0 = 0; dragging = false; }
         if (pointers.size === 1) {
-          const [pt] = pointers.values();
+          const pt = pointers.values().next().value as { x: number; y: number };
           dragStart = { x: pt.x, y: pt.y };
           rootStart = { x: root.position.x, y: root.position.y };
         }
