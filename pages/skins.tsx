@@ -8,7 +8,7 @@ import {
   Table, Tbody, Tr, Td,
 } from '@chakra-ui/react';
 import { CloseIcon, SearchIcon } from '@chakra-ui/icons';
-import { tKr, t } from '@/lib/strings';
+import { tAny } from '@/lib/strings';
 import Head from 'next/head';
 import { fetchSkinList, SkinEntry } from '@/lib/fetchData';
 import SkinViewer from '@/components/skinViewer';
@@ -72,8 +72,11 @@ function skinFaceIcon(faceKey: string) {
   return `/images/icons/${faceKey.replace(/^CharFace_/, 'FormationIcon_')}.png`;
 }
 
+const isDefault = (s: SkinEntry) => s.key.startsWith('default_');
+
 function skinDisplayName(s: SkinEntry) {
-  return tKr(s.name) || tKr(s.packName) || tKr(s.itemName) || s.key;
+  if (isDefault(s)) return 'Default';
+  return tAny(s.name) || tAny(s.packName) || tAny(s.itemName) || s.key;
 }
 
 // ── page ─────────────────────────────────────────────────────────────────────
@@ -95,7 +98,7 @@ export default function Skins() {
     setLoading(true);
     setSelected(null);
     fetchSkinList(region).then((list) => {
-      setSkins(list.reverse());
+      setSkins([...list].reverse());
 
       // Usage
       const cats = getAllUniqueCategoryKeys(list);
@@ -128,7 +131,7 @@ export default function Skins() {
     if (searchTerm) {
       const q = searchTerm.toLowerCase();
       const name = skinDisplayName(s).toLowerCase();
-      const unit = (s.unitEngName || t(s.unitName) || '').toLowerCase();
+      const unit = (s.unitEngName || tAny(s.unitName) || '').toLowerCase();
       if (!name.includes(q) && !unit.includes(q)) return false;
     }
 
@@ -275,7 +278,9 @@ function SkinCard({ skin, selected, onClick }: {
       </Text>
       <Text fontSize="10px" color="gray.500" noOfLines={1} mt={0.5}>{skin.unitEngName}</Text>
       <Box mt={1}>
-        {skin.price != null ? (
+        {isDefault(skin) ? (
+          <Badge colorScheme="gray" fontSize="2xs">Base</Badge>
+        ) : skin.price != null ? (
           <HStack spacing={1} justify="center">
             <Image src="/images/icons/UI_Icon_Currency_Tuna.png" boxSize="14px" alt="tuna" />
             <Text fontSize="xs" color="yellow.300" fontWeight="bold">{skin.price}</Text>
@@ -320,12 +325,12 @@ function SkinPanel({ skin }: { skin: SkinEntry }) {
           <Tbody>
             <Tr>
               <Td fontWeight="semibold" color="gray.400" w="90px" whiteSpace="nowrap">Name</Td>
-              <Td>{tKr(skin.name) || tKr(skin.packName) || skin.key}</Td>
+              <Td>{isDefault(skin) ? 'Default' : (tAny(skin.name) || tAny(skin.packName) || skin.key)}</Td>
             </Tr>
-            {skin.packName && tKr(skin.packName) !== (tKr(skin.itemName) || tKr(skin.name)) && (
+            {skin.packName && tAny(skin.packName) !== (tAny(skin.itemName) || tAny(skin.name)) && (
               <Tr>
                 <Td fontWeight="semibold" color="gray.400" whiteSpace="nowrap">Item</Td>
-                <Td>{tKr(skin.itemName)}</Td>
+                <Td>{tAny(skin.itemName)}</Td>
               </Tr>
             )}
             <Tr>
@@ -367,10 +372,10 @@ function SkinPanel({ skin }: { skin: SkinEntry }) {
                 </Td>
               </Tr>
             )}
-            {tKr(skin.desc) && (
+            {tAny(skin.desc) && (
               <Tr>
                 <Td fontWeight="semibold" color="gray.400" verticalAlign="top">Description</Td>
-                <Td whiteSpace="pre-wrap">{tKr(skin.desc)}</Td>
+                <Td whiteSpace="pre-wrap">{tAny(skin.desc)}</Td>
               </Tr>
             )}
           </Tbody>

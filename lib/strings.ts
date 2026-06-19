@@ -99,6 +99,20 @@ export function t(value: string | undefined | null, lang: Lang = 'en'): string {
   return value;
 }
 
+// Resolve a loc ID from either region's strings. Tries active region first, then
+// falls back to the other region if no English found. Use for skin/item names that
+// exist in both regions but may not be loaded yet when the page first renders.
+export function tAny(value: string | undefined | null): string {
+  if (!value) return '';
+  const res = t(value);
+  if (res && res !== value) return res;
+  // try the other region
+  const other = activeRegion === 'kr' ? 'global' : 'kr';
+  const e = official[other][value];
+  if (e?.en) return e.en;
+  return res || value;
+}
+
 // Resolve a loc ID that originated from KR data, validating against KR Korean text
 // before returning English. Prevents wrong global strings from showing when a loc ID
 // is reused across regions with different content (e.g. BuffName_* / BuffDesc*_ refs).
