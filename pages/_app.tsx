@@ -4,10 +4,12 @@ import { Provider, useSelector, useDispatch } from 'react-redux'
 import { ChakraProvider, type ColorModeProviderProps } from '@chakra-ui/react'
 import { useEffect, useRef, useState } from 'react'
 import { store, RootState } from '@/store'
-import { setStringsRegion, setStringsTranslation, setStringsData, setCommunityData } from '@/lib/strings'
-import { fetchStrings, fetchCommunity } from '@/lib/fetchData'
+import { setStringsRegion, setStringsLayers, setStringsData, setCommunityData, setMtlData, setKrMtlData } from '@/lib/strings'
+import { fetchStrings, fetchCommunity, fetchMtl, fetchKrMtl } from '@/lib/fetchData'
 import { loadRegion, setRegion, Region } from '@/store/regionSlice'
-import { loadTranslation, setTranslation } from '@/store/translationSlice'
+import { loadTranslationLayers, setMtl, setKrMtl, setCommunity,
+         setMtlLoaded, setKrMtlLoaded, setCommunityLoaded,
+         selectMtl, selectKrMtl, selectCommunity } from '@/store/translationSlice'
 import { fetchEnemyAsync } from '@/store/enemySlice'
 import { fetchWorldAsync } from '@/store/worldSlice'
 // fetchEnemySkillsAsync is dispatched lazily in skillTabList when an enemy is selected
@@ -162,23 +164,26 @@ function RegionSync() {
   return null;
 }
 
-// Keep the resolver's translation mode in sync, and apply the persisted choice
-// after mount (store starts at 'community' on server + client). Returns the
-// active mode so it can key the page subtree to re-render t() output on toggle.
+// Keep the resolver's layer flags in sync with the Redux store, and restore
+// persisted choices after mount. Returns a stable key string that changes
+// whenever either toggle flips, so the page subtree re-renders t() output.
 function useTranslationSync(): string {
-  const translation = useSelector((s: RootState) => s.translation.translation);
-  const dispatch = useDispatch<typeof store.dispatch>();
+  const mtl       = useSelector(selectMtl);
+  const krMtl     = useSelector(selectKrMtl);
+  const community = useSelector(selectCommunity);
+  const dispatch  = useDispatch<typeof store.dispatch>();
   useEffect(() => {
-    const saved = loadTranslation();
-    if (saved && saved !== 'community') dispatch(setTranslation(saved));
+    const saved = loadTranslationLayers();
+    if (saved) {
+      if (saved.mtl       != null) dispatch(setMtl(saved.mtl));
+      if (saved.krMtl     != null) dispatch(setKrMtl(saved.krMtl));
+      if (saved.community != null) dispatch(setCommunity(saved.community));
+    }
   }, [dispatch]);
-  // Push the mode into the resolver SYNCHRONOUSLY during render, not in an
-  // effect: the subtree is keyed on `translation`, so it re-resolves t() in the
-  // SAME render that the toggle triggers. An effect runs only AFTER that render,
-  // so t() would resolve with the previous mode and every toggle would lag one
-  // step behind (showing the old language until the next toggle).
-  setStringsTranslation(translation);
-  return translation;
+  // Push flags into the resolver SYNCHRONOUSLY so t() sees the new values in
+  // the same render that the toggle triggers (an effect would lag one step).
+  setStringsLayers({ mtl, krMtl, community });
+  return `${mtl ? 'm' : ''}${krMtl ? 'k' : ''}${community ? 'c' : ''}`;
 }
 
 // Fixed color-mode manager: the app is dark-only. This pins Chakra to dark and
@@ -209,17 +214,24 @@ export default function App({ Component, pageProps }: AppProps) {
 // when tables arrive so the page subtree re-renders with resolved text.
 function useStringsLoader(): string {
   const region = useSelector((s: RootState) => s.region.region);
+  const dispatch = useDispatch<typeof store.dispatch>();
   const [ver, setVer] = useState('');
   // Keep the resolver's active region current SYNCHRONOUSLY at render time (same
   // reasoning as setStringsTranslation in useTranslationSync — an effect would
   // lag a render behind). t() reads activeRegion the moment the subtree renders.
   setStringsRegion(region);
-  // shared community overlay — fetch once
+  // shared overlays — fetch once each
   useEffect(() => {
-    fetchCommunity()
-      .then((d) => { if (d) { setCommunityData(d); setVer((v) => v + 'c'); } })
+    fetchMtl()
+      .then((d) => { if (d) { setMtlData(d); dispatch(setMtlLoaded()); setVer((v) => v + 't'); } })
       .catch(() => {});
-  }, []);
+    fetchKrMtl()
+      .then((d) => { if (d) { setKrMtlData(d); dispatch(setKrMtlLoaded()); setVer((v) => v + 'k'); } })
+      .catch(() => {});
+    fetchCommunity()
+      .then((d) => { if (d) { setCommunityData(d); dispatch(setCommunityLoaded()); setVer((v) => v + 'c'); } })
+      .catch(() => {});
+  }, [dispatch]);
   // per-region official strings — fetch on mount and region change
   useEffect(() => {
     fetchStrings(region)

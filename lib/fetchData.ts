@@ -156,6 +156,14 @@ export async function fetchCommunity() {
   return get('community_translation.json');
 }
 
+export async function fetchMtl() {
+  return get('mtl_translation.json');
+}
+
+export async function fetchKrMtl() {
+  return get('kr_mtl_translation.json');
+}
+
 // Images: merge region over global, then prefer bundled /public art.
 export async function fetchImages(region: Region) {
   const local = await get(`${region}/images.json`);
