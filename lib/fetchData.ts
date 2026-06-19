@@ -237,6 +237,43 @@ export async function fetchUnitBundle(id: string | undefined, region: Region) {
   return get(`global/split/units/${id}.json`);
 }
 
+// Flat skin gallery list. split/skins/skin_list.json — one entry per purchasable
+// skin, with unit context + gallery/filter fields. Region-aware with global fallback.
+export async function fetchSkinList(region: Region) {
+  const regions: Region[] = region === 'global' ? ['global'] : [region, 'global'];
+  for (const r of regions) {
+    const data = await get(`${r}/split/skins/skin_list.json`);
+    if (data) return data as SkinEntry[];
+  }
+  return [] as SkinEntry[];
+}
+
+export interface SkinEntry {
+  unitId: string;
+  unitName: string;        // loc id
+  unitEngName: string;
+  unitIcon: string;
+  key: string;
+  name: string;            // loc id — SkinPackName_* (from CharSkin table)
+  itemName: string;        // loc id — SkinName_* (individual item name)
+  packName: string;        // loc id — SkinPackName_* (shop package name)
+  desc: string;            // loc id — SkinDesc_*
+  category: string[];      // resolved category names (e.g. 'Premium', 'Maid')
+  parts: string[];         // SKIN_IN_PARTS_TYPE names
+  price: number | null;
+  sensitive: boolean;
+  reqGrade: number;
+  model: string;
+  modelDam: string;
+  faceKey: string;
+  faceDamKey: string;
+  bgUse: boolean;
+  bgDamUse: boolean;
+  viewerKind?: 'fixed' | 'spine' | 'skinned';
+  modelDiverged?: boolean;
+  modelDamDiverged?: boolean;
+}
+
 // ── equipment ─────────────────────────────────────────────────────────────────
 
 // Light equip LIST (per-family meta). split/equip/<id>.json holds the full data.

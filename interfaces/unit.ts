@@ -64,8 +64,10 @@ export interface UnitStat {
 // can render it; undefined means mass_pipeline.py hasn't processed this asset yet.
 export interface UnitSkin {
   key: string;
-  name: string;     // loc id ('' for the base look)
-  desc: string;      // loc id
+  name: string;      // loc id — SkinPackName_* (pack/event title, from CharSkin table)
+  desc: string;      // loc id — SkinDesc_* (description)
+  itemName: string;  // loc id — SkinName_* (individual skin name from consumable item)
+  packName: string;  // loc id — SkinPackName_* (shop package name, same source as name)
   category: string[];
   unlockItem: string;
   reqGrade: number;
