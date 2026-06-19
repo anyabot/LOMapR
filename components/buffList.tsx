@@ -10,7 +10,7 @@
 import { Box, Flex, HStack, Image, Text, VStack } from "@chakra-ui/react";
 import React from "react";
 import { SkillBuff } from "@/interfaces/skill";
-import { t } from "@/lib/strings";
+import { t, tKr } from "@/lib/strings";
 import UnitHoverCard from "./unitHoverCard";
 
 // ─── lookup tables (kept local; import from a shared constants file if preferred) ────
@@ -23,7 +23,7 @@ const TARGET_LABELS: Record<number, string> = {
 const TRIGGER_LABELS: Record<number, string> = {
   0: "On skill use", 1: "When hit", 2: "On hit", 3: "When target is buffed",
   4: "Based on grid position", 5: "HP ≤ {0}%", 6: "HP ≥ {0}%",
-  7: "Targeting ally", 8: "When enemy present (wave start)", 9: "On ally death",
+  7: "If {key} in allied squad", 8: "If {key} in enemy squad", 9: "On ally death",
   10: "On death", 11: "On enemy kill", 12: "Always", 13: "Battle start",
   14: "After using specific skill", 15: "On attack", 16: "When attacked",
   17: "On wait", 18: "On move", 19: "On evade", 20: "After wave",
@@ -57,16 +57,16 @@ const APPLY_COND_LABELS: Record<number, string> = {
   23: "If target has ≥ {0} stacks", 24: "If self missing [buff] (joint)",
   // CHECK_COUNT_* compare a counted group size against {0} (e.g. 27 = total units
   // on both sides ≤ {0}).
-  25: "If enemy party ≤ {0}", 26: "If allies ≤ {0}",
-  27: "If total units ≤ {0}", 28: "On round {0} and after",
+  25: "If enemies = {0}", 26: "If allies = {0}",
+  27: "If total units = {0}", 28: "On round {0} and after",
   29: "On round {0} and before", 30: "If [char] not in battle",
-  31: "If self has ≥ {0} of [buff]", 32: "On round {0}", 33: "If Bio allies ≤ {0}",
-  34: "If AGS allies ≤ {0}", 35: "If Bio enemies ≤ {0}", 36: "If AGS enemies ≤ {0}",
-  37: "If ally has [buff]", 38: "If allies are [class]",
-  39: "If allies are [role]", 40: "If self is [class]",
+  31: "If self has ≥ {0} of [buff]", 32: "On round {0}", 33: "If Bio allies = {0}",
+  34: "If AGS allies = {0}", 35: "If Bio enemies = {0}", 36: "If AGS enemies = {0}",
+  37: "If ally has [buff]", 38: "If ≥ {0} allies are [class]",
+  39: "If ≥ {0} allies are [role]", 40: "If self is [class]",
   41: "On even round", 42: "On odd round", 43: "If target missing any [buff]",
-  44: "If target missing [buff]", 45: "If enemies are [class]",
-  46: "If enemies are [role]", 47: "If self ATK > self DEF",
+  44: "If target missing [buff]", 45: "If ≥ {0} enemies are [class]",
+  46: "If ≥ {0} enemies are [role]", 47: "If self ATK > self DEF",
   48: "If self ATK < self DEF", 49: "If self ATK > target ATK",
   50: "If self ATK < target ATK", 51: "If self DEF > target DEF",
   52: "If self DEF < target DEF", 53: "If self EVD > target EVD",
@@ -181,10 +181,20 @@ function resolveCondVal(v: string, nam: string): string {
 }
 
 // one apply-condition's data (a buff has a primary + an optional secondary).
-interface CondData { cond: number; vals: string[]; names: string[]; count: number; }
+// filterVals: fallback ordinals for [class]/[role]/[body] conditions that encode
+// the type in filterClass/filterRole/filterBody rather than applyCondVals.
+interface CondData { cond: number; vals: string[]; names: string[]; count: number; filterVals?: number[]; }
 
-const primaryCond = (b: SkillBuff): CondData =>
-  ({ cond: b.applyCond, vals: b.applyCondVals, names: b.applyCondNames, count: b.applyCondCount });
+const primaryCond = (b: SkillBuff): CondData => {
+  const ac = b.applyCond;
+  // conds 38/39 (allies) and 45/46 (enemies) by class/role encode the type in
+  // filterClass/filterRole when applyCondVals is empty.
+  const filterVals =
+    (ac === 38 || ac === 45) && b.applyCondVals.length === 0 ? (b.filterClass ?? []) :
+    (ac === 39 || ac === 46) && b.applyCondVals.length === 0 ? (b.filterRole  ?? []) :
+    undefined;
+  return { cond: ac, vals: b.applyCondVals, names: b.applyCondNames, count: b.applyCondCount, filterVals };
+};
 const secondaryCond = (b: SkillBuff): CondData | null =>
   b.applyCond2 != null && b.applyCond2 !== 63
     ? { cond: b.applyCond2, vals: b.applyCondVals2 ?? [], names: b.applyCondNames2 ?? [], count: b.applyCondCount2 ?? 0 }
@@ -230,9 +240,11 @@ function resolveApplyCondParts(c: CondData): { before: string; name: string; aft
     // resolve every entry and dedup by display name, not just the first.
     const names = c.vals.map((val, i) => {
       const nm2 = c.names[i] ?? "";
-      const resolved = tr(nm2) || tr(`BuffName_${val}`)
+      const fromDesc = buffName(tKr(`BuffDesc1_${val}`) || tKr(`BuffDesc2_${val}`) || "");
+      const fromName = tKr(nm2) || tKr(`BuffName_${val}`);
+      const resolved = fromDesc || fromName
         || val.replace(/^Effect_[^_]+_/, "").replace(/^Char_[^_]+_/, "").replace(/_/g, " ");
-      return buffName(resolved);   // cut the ": description" tail, like the group header
+      return buffName(resolved);
     });
     // Collapse runs that share the same base name (name minus a trailing number,
     // e.g. "Bonfire Kit 1"…"Bonfire Kit 11" → "Bonfire Kit (Lv 1–11)").
@@ -258,9 +270,13 @@ function resolveApplyCondParts(c: CondData): { before: string; name: string; aft
     nameVal = uniq(collapsed).join(" / ");
   } else if (nameToken && TYPE_MAP[nameToken]) {
     // [class]/[role]/[body]: the value(s) are type ordinals (e.g. 0=Light).
-    if (!v) return null;
+    // When applyCondVals is empty the type may come from filterClass/filterRole
+    // (passed in as filterVals by primaryCond).
+    const srcVals = c.vals.length > 0 ? c.vals
+      : (c.filterVals ?? []).map(String);
+    if (srcVals.length === 0) return null;
     const map = TYPE_MAP[nameToken];
-    const names = c.vals.map((val) => {
+    const names = srcVals.map((val) => {
       const numV = parseInt(val, 10);
       return !isNaN(numV) ? (map[numV] ?? String(numV)) : val;
     });
@@ -320,13 +336,42 @@ const Pill = ({ bg, color, children }: { bg: string; color: string; children: Re
   </Box>
 );
 
+// Types whose value is a ratio (×100 → %) regardless of the stored fmt field.
+// Mirrors _RATIO_TYPES in build/buffs.py — keep in sync.
+const RATIO_TYPES = new Set([
+  1, 3, 5, 7, 9, 11, 13, 15, 17, 19,
+  24, 29, 30, 31, 32,
+  36, 37,
+  39, 41, 43, 45,
+  48, 58,
+  60, 61, 62,
+  70, 71, 72, 73,
+  80, 81,
+  83, 84, 85, 86,
+  90, 91, 92, 94,
+  98, 105, 106,
+  108, 110,
+  111, 112, 113, 114, 115,
+  126, 129,
+  138, 139, 140,
+  144, 145, 146, 147,
+]);
+
+function fmtPct(v: number): string {
+  const p = v * 100;
+  // avoid unnecessary decimals: show up to 4 sig figs, strip trailing zeros
+  const s = parseFloat(p.toPrecision(4)).toString();
+  return `${v > 0 ? "+" : ""}${s}%`;
+}
+
 // a buff's value string + sign/color, by its type/fmt.
 function buffValue(buff: SkillBuff): { str: string; color: string } {
   let valStr = "", valPositive = true;
+  const isPct = buff.fmt === "pct" || RATIO_TYPES.has(buff.type);
   if (buff.type === 33 && buff.val !== 0) valStr = `×${buff.val}`;
   else if ((buff.type === 34 || buff.type === 35) && buff.val !== 0) valStr = `< ${buff.val}`;
-  else if (buff.fmt === "pct" && buff.val !== 0) {
-    valStr = `${buff.val > 0 ? "+" : ""}${Math.round(buff.val * 100)}%`; valPositive = buff.val > 0;
+  else if (isPct && buff.val !== 0) {
+    valStr = fmtPct(buff.val); valPositive = buff.val > 0;
   } else if (buff.type === 21 && buff.val !== 0) valStr = String(buff.val);
   else if (buff.fmt === "flat" && buff.val !== 0) {
     valStr = `${buff.val > 0 ? "+" : ""}${buff.val}`; valPositive = buff.val > 0;
@@ -505,7 +550,13 @@ function BuffGroup({ group, groupIdx }: { group: SkillBuff[]; groupIdx: number }
   // global sometimes stores "0" for an unnamed buff instead of an empty string;
   // treat both as "no name" so the header shows "???" rather than the attr label.
   const rawName = trg(rep.name);
-  const groupName = rawName && rawName !== "0" ? rawName : "";
+  // When the Nam-derived name is just the parent group prefix (e.g. "Élan Vital") but
+  // the desc has a more specific "SubEffectName : value" format, prefer the desc name.
+  // Only applies when the group has one buff and the desc name differs from rawName.
+  const rawDesc = rep.desc ? t(rep.desc) : "";
+  const descName = rawDesc && rawDesc !== rep.desc && rawDesc.includes(" : ") && group.length === 1
+    ? buffName(rawDesc) : "";
+  const groupName = (descName && descName !== rawName ? descName : rawName) || "";
 
   const resolveTriggerLabel = (triggerType: number) => {
     const raw = TRIGGER_LABELS[triggerType];

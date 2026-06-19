@@ -1,38 +1,36 @@
-// Localization-string resolver (two layers, both keyed by localization id),
-// region-aware.
+// Localization-string resolver — optional layers on top of official game text.
 //
-//   strings.json      official game text (Table_Localization_en/ko) — DEFAULT.
-//   strings_old.json  legacy hand-translation overlay (the pre-global KR fan
-//                     translation); applied on top when the toggle is on.
+// Layers (all keyed by localization ID):
+//   official    game text from Table_Localization_en/ko — always active.
+//   mtl         Global MTL: machine-translated global skill text.
+//   krMtl       Missing KR MTL: KR-only skills not present in global.
+//   community   Community fan-translation overlay.
 //
-// Base data stores raw localization ids in text fields; t() resolves them for
-// the ACTIVE region. The region is set once (by the region toggle) so the many
-// `t(id)` call sites don't each need to pass it. Unknown ids pass through.
+// Precedence (highest wins): community > krMtl > mtl > official.
+// Each overlay layer is independently togglable; official is always on.
 //
-// Tables start empty and are filled at runtime: the app fetches strings and the
-// community overlay from R2 (see _app.tsx) and calls setStringsData /
-// setCommunityData. They are NOT bundled — importing the /data JSON statically
-// would inline the entire dataset (tens of MB) into the client bundle.
+// Tables start empty and are filled at runtime via the set* functions (see
+// _app.tsx). They are NOT bundled statically — each is fetched from R2.
 
 export type Lang = 'en' | 'ko';
 export type Region = 'global' | 'kr';
 
 type StringTable = { [id: string]: { en?: string; ko?: string } };
 
-// Official game text per region — populated at runtime by setStringsData().
-const official: Record<Region, StringTable> = {
-  global: {},
-  kr: {},
-};
-// Community translation overlay — a single SHARED, region-agnostic file,
-// populated at runtime by setCommunityData().
+const official: Record<Region, StringTable> = { global: {}, kr: {} };
+let mtl:       StringTable = {};
+let krMtl:     StringTable = {};
 let community: StringTable = {};
 
-// Populate a region's official table at runtime (from the /api/strings fetch).
 export function setStringsData(region: Region, table: StringTable) {
   if (table && Object.keys(table).length) official[region] = table;
 }
-// Populate the shared community overlay at runtime (from /api/community).
+export function setMtlData(table: StringTable) {
+  if (table && Object.keys(table).length) mtl = table;
+}
+export function setKrMtlData(table: StringTable) {
+  if (table && Object.keys(table).length) krMtl = table;
+}
 export function setCommunityData(table: StringTable) {
   if (table && Object.keys(table).length) community = table;
 }
@@ -42,34 +40,78 @@ export function setStringsRegion(region: Region) {
   activeRegion = region;
 }
 
-// 'community' prefers the OLD hand-translation overlay; 'official' uses only the
-// official in-game text. Set by the navbar toggle so t() call sites stay simple.
-let activeTranslation: 'community' | 'official' = 'community';
-export function setStringsTranslation(mode: 'community' | 'official') {
-  activeTranslation = mode;
+let activeMtl       = false;
+let activeKrMtl     = false;
+let activeCommunity = false;
+export function setStringsLayers(opts: { mtl: boolean; krMtl: boolean; community: boolean }) {
+  activeMtl       = opts.mtl;
+  activeKrMtl     = opts.krMtl;
+  activeCommunity = opts.community;
 }
 
-// Resolve one localization id to text for the active region.
-//   lang   'en' | 'ko'
+// Resolve one localization id for the active region + active layers.
+// Korean always uses official text. Unknown ids pass through unchanged.
 //
-// Precedence depends on the active translation mode (navbar toggle):
-//   'community' (default): OLD hand-translation overlay FIRST, then official.
-//   'official':            official game text only.
-// Korean always uses official text (OLD has no KO). Unknown ids pass through.
+// MTL precedence is region-aware:
+//   KR region:     community > krMtl > mtl > official
+//   global region: community > mtl > krMtl > official
 export function t(value: string | undefined | null, lang: Lang = 'en'): string {
   if (value == null) return '';
 
-  if (activeTranslation === 'community' && lang === 'en') {
-    const o = community[value];
-    if (o?.en) return o.en;
+  if (lang === 'en') {
+    if (activeCommunity) {
+      const o = community[value];
+      if (o?.en) return o.en;
+    }
+    if (activeRegion === 'kr') {
+      if (activeKrMtl) {
+        const o = krMtl[value];
+        if (o?.en) return o.en;
+      }
+      if (activeMtl) {
+        const o = mtl[value];
+        if (o?.en) return o.en;
+      }
+    } else {
+      if (activeMtl) {
+        const o = mtl[value];
+        if (o?.en) return o.en;
+      }
+      if (activeKrMtl) {
+        const o = krMtl[value];
+        if (o?.en) return o.en;
+      }
+    }
   }
 
   const e = official[activeRegion][value];
-  if (e) {
-    // requested language -> English -> Korean fallback. Never surface the raw
-    // localization id when KO text exists for it.
-    return e[lang] || e.en || e.ko || value;
-  }
+  if (e) return e[lang] || e.en || e.ko || value;
 
-  return value; // not a known id: pass through (already-resolved text)
+  return value;
+}
+
+// Resolve a loc ID that originated from KR data, validating against KR Korean text
+// before returning English. Prevents wrong global strings from showing when a loc ID
+// is reused across regions with different content (e.g. BuffName_* / BuffDesc*_ refs).
+// Always reads KR ko as the ground truth; returns English from the active region/layers
+// only if KR ko matches — otherwise falls back to KR ko itself (so something shows).
+export function tKr(value: string | undefined | null): string {
+  if (!value) return '';
+  const krEntry = official['kr'][value];
+  if (!krEntry) return '';
+  const krKo = (krEntry.ko ?? '').trim();
+  // Check active region's en — but only trust it if KR ko matches (same content).
+  const activeEntry = official[activeRegion][value];
+  if (activeEntry?.en && activeRegion === 'kr') return activeEntry.en;
+  if (activeEntry?.en && activeRegion !== 'kr') {
+    // global: only use global en if KR ko matches global ko (same string, just translated)
+    const globalKo = (activeEntry.ko ?? '').trim();
+    if (globalKo && globalKo === krKo) return activeEntry.en;
+  }
+  // Check overlay layers (MTL etc.) — these are keyed by ID so ko-match is implicit
+  if (activeCommunity) { const o = community[value]; if (o?.en) return o.en; }
+  if (activeKrMtl)     { const o = krMtl[value];     if (o?.en) return o.en; }
+  if (activeMtl)       { const o = mtl[value];        if (o?.en) return o.en; }
+  // Fall back to KR ko so something meaningful shows rather than the raw ID
+  return krKo || value;
 }
