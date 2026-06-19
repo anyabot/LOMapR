@@ -185,8 +185,13 @@ function resolveCondVal(v: string, nam: string): string {
 // the type in filterClass/filterRole/filterBody rather than applyCondVals.
 interface CondData { cond: number; vals: string[]; names: string[]; count: number; filterVals?: number[]; }
 
+// Clamp any applyCond value beyond the known enum max (68) to 63 (unconditional).
+// KR has extra entries past __MAX__ that global doesn't; they all mean "no condition".
+const BETAC_MAX = 68;
+const normAc = (ac: number) => ac > BETAC_MAX ? 63 : ac;
+
 const primaryCond = (b: SkillBuff): CondData => {
-  const ac = b.applyCond;
+  const ac = normAc(b.applyCond);
   // conds 38/39 (allies) and 45/46 (enemies) by class/role encode the type in
   // filterClass/filterRole when applyCondVals is empty.
   const filterVals =
@@ -196,8 +201,8 @@ const primaryCond = (b: SkillBuff): CondData => {
   return { cond: ac, vals: b.applyCondVals, names: b.applyCondNames, count: b.applyCondCount, filterVals };
 };
 const secondaryCond = (b: SkillBuff): CondData | null =>
-  b.applyCond2 != null && b.applyCond2 !== 63
-    ? { cond: b.applyCond2, vals: b.applyCondVals2 ?? [], names: b.applyCondNames2 ?? [], count: b.applyCondCount2 ?? 0 }
+  b.applyCond2 != null && normAc(b.applyCond2) !== 63
+    ? { cond: normAc(b.applyCond2), vals: b.applyCondVals2 ?? [], names: b.applyCondNames2 ?? [], count: b.applyCondCount2 ?? 0 }
     : null;
 
 function resolveApplyCondParts(c: CondData): { before: string; name: string; after: string } | null {
@@ -681,8 +686,8 @@ function buildTieredCtx(allBuffs: SkillBuff[], skipCond: number): TieredCtx {
   const sharedTrigger = allBuffs.every((b) => b.trigger === first.trigger);
   const sharedTarget  = allBuffs.every((b) => b.targetType === first.targetType);
   const getNonSkipCond = (b: SkillBuff): number | null => {
-    if (b.applyCond  !== skipCond && b.applyCond  !== 63 && b.applyCond  != null) return b.applyCond;
-    if (b.applyCond2 !== skipCond && b.applyCond2 !== 63 && b.applyCond2 != null) return b.applyCond2;
+    if (b.applyCond  != null && normAc(b.applyCond)  !== skipCond && normAc(b.applyCond)  !== 63) return normAc(b.applyCond);
+    if (b.applyCond2 != null && normAc(b.applyCond2) !== skipCond && normAc(b.applyCond2) !== 63) return normAc(b.applyCond2);
     return null;
   };
   const firstCond = getNonSkipCond(first);
@@ -805,8 +810,8 @@ function CharSetName({ vals }: { vals: string[] }) {
 // ── cond65: "N of <char set> in battle" ──────────────────────────────────────
 // the 65 condition on a buff (it can sit in either condition slot); null if none.
 function cond65(b: SkillBuff): { count: number; vals: string[] } | null {
-  if (b.applyCond === COND65) return { count: b.applyCondCount, vals: b.applyCondVals };
-  if (b.applyCond2 === COND65) return { count: b.applyCondCount2 ?? 0, vals: b.applyCondVals2 ?? [] };
+  if (normAc(b.applyCond) === COND65) return { count: b.applyCondCount, vals: b.applyCondVals };
+  if (b.applyCond2 != null && normAc(b.applyCond2) === COND65) return { count: b.applyCondCount2 ?? 0, vals: b.applyCondVals2 ?? [] };
   return null;
 }
 
@@ -842,7 +847,7 @@ function Cond65Group({ tiers, setVals }: { tiers: Map<number, SkillBuff[]>; setV
 
 // ── cond64: "random apply" with per-effect chances ───────────────────────────
 // the 64 condition on a buff (primary slot only — cond 64 is never in slot 2).
-function isCond64(b: SkillBuff): boolean { return b.applyCond === COND64; }
+function isCond64(b: SkillBuff): boolean { return normAc(b.applyCond) === COND64; }
 
 function Cond64Group({
   marker, tiers,
