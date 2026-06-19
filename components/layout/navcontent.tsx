@@ -1,38 +1,18 @@
-import { Box, Stack, ButtonGroup, Button, HStack, Text } from "@chakra-ui/react";
+import { Box, Stack, HStack, Select } from "@chakra-ui/react";
 import NavLink from "./navlink"
 import { useAppSelector, useAppDispatch } from "@/hooks";
 import { selectRegion, setRegion, Region } from "@/store/regionSlice";
 import { selectTranslation, setTranslation, Translation } from "@/store/translationSlice";
 
-// Generic segmented toggle (used for region + translation).
-function SegToggle<T extends string>({
-  label, value, options, onChange,
-}: {
-  label: string;
-  value: T;
-  options: [T, string][];
-  onChange: (v: T) => void;
-}) {
-  return (
-    <HStack spacing={1.5}>
-      <Text fontSize="xs" color="gray.500" textTransform="uppercase" letterSpacing="wide">
-        {label}
-      </Text>
-      <ButtonGroup isAttached size="sm">
-        {options.map(([v, text]) => (
-          <Button
-            key={v}
-            colorScheme={value === v ? "yellow" : "gray"}
-            variant={value === v ? "solid" : "outline"}
-            onClick={() => value !== v && onChange(v)}
-          >
-            {text}
-          </Button>
-        ))}
-      </ButtonGroup>
-    </HStack>
-  );
-}
+const REGION_OPTIONS: [Region, string][] = [
+  ["global", "🌐 Global"],
+  ["kr",     "🇰🇷 KR"],
+];
+
+const TRANSLATION_OPTIONS: [Translation, string][] = [
+  ["community", "Community"],
+  ["official",  "Official"],
+];
 
 function NavContent({ isOpen }: { isOpen: boolean }) {
   const region = useAppSelector(selectRegion);
@@ -56,27 +36,41 @@ function NavContent({ isOpen }: { isOpen: boolean }) {
       >
         <HStack spacing={[3, 3, 4]} flexWrap="wrap" justify={["center", "center", "flex-start"]}>
           <NavLink to="/">Home</NavLink>
-          <NavLink to="/world">World</NavLink>
-          <NavLink to="/sanctum">Sanctum</NavLink>
           <NavLink to="/units">Units</NavLink>
           <NavLink to="/equipment">Equipment</NavLink>
+          <NavLink to="/world">World</NavLink>
+          <NavLink to="/sanctum">Sanctum</NavLink>
           <NavLink to="/enemies">Enemies</NavLink>
           <NavLink to="/iw">Infinite War</NavLink>
         </HStack>
 
-        <HStack spacing={4} flexWrap="wrap" justify="center">
-          <SegToggle<Region>
-            label="Server"
+        <HStack spacing={2} flexWrap="wrap" justify="center">
+          <Select
+            size="sm"
             value={region}
-            options={[["global", "Global"], ["kr", "KR"]]}
-            onChange={(v) => dispatch(setRegion(v))}
-          />
-          <SegToggle<Translation>
-            label="Text"
+            onChange={(e) => dispatch(setRegion(e.target.value as Region))}
+            w="auto"
+            borderColor="whiteAlpha.300"
+            _hover={{ borderColor: "whiteAlpha.500" }}
+            cursor="pointer"
+          >
+            {REGION_OPTIONS.map(([v, label]) => (
+              <option key={v} value={v}>{label}</option>
+            ))}
+          </Select>
+          <Select
+            size="sm"
             value={translation}
-            options={[["community", "Community"], ["official", "Official"]]}
-            onChange={(v) => dispatch(setTranslation(v))}
-          />
+            onChange={(e) => dispatch(setTranslation(e.target.value as Translation))}
+            w="auto"
+            borderColor="whiteAlpha.300"
+            _hover={{ borderColor: "whiteAlpha.500" }}
+            cursor="pointer"
+          >
+            {TRANSLATION_OPTIONS.map(([v, label]) => (
+              <option key={v} value={v}>{label}</option>
+            ))}
+          </Select>
         </HStack>
       </Stack>
     </Box>

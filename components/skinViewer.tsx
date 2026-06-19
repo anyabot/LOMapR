@@ -665,6 +665,8 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
   // effect) — toggle visibility must therefore drive mesh.renderable
   // directly instead of the (now-empty) anchor container's `visible`.
   const flatMeshesRef = useRef<{ mesh: any; wrapper: any; order: number; chain: string[] }[]>([]);
+  const togglesRef = useRef<Record<string, boolean>>({});
+  togglesRef.current = toggles;
   const animTickRef = useRef<((t: number) => void) | null>(null);
   const playClipRef = useRef<((key: string) => void) | null>(null);
   const playingRef = useRef(true);
@@ -841,8 +843,30 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
 
       // Add every wrapper (holding a leaf mesh at its correct world-space
       // transform) directly under root, sorted by Unity's scene-wide order.
+      // Apply the current toggle state now so initial visibility is correct
+      // even though the toggle useEffect fired before this async build finished.
       if (flatMeshes.length) {
         root.sortableChildren = true;
+        // Recompute byId visibility with the current toggle state.
+        const curToggles = togglesRef.current;
+        const initHidden = new Set<string>();
+        const initForced = new Set<string>();
+        for (const t of layout.toggles ?? []) {
+          const on = curToggles[t.key] ?? t.default;
+          if (t.kind === 'swap') {
+            (on ? t.swapOff : t.swapOn).forEach((id) => initHidden.add(id));
+            (on ? t.swapOn : t.swapOff).forEach((id) => initForced.add(id));
+          } else {
+            if (on) t.members.forEach((id) => initForced.add(id));
+            else t.members.forEach((id) => initHidden.add(id));
+          }
+        }
+        const applyInit = (n: SkinNode) => {
+          const node = byId[n.id];
+          if (node) node.visible = (initForced.has(n.id) || n.active) && !initHidden.has(n.id);
+          n.children.forEach(applyInit);
+        };
+        (layout.nodes ?? []).forEach(applyInit);
         for (const { wrapper, order, chain } of flatMeshes) {
           wrapper.zIndex = order;
           wrapper.renderable = chain.every((id) => byId[id].visible);
@@ -1307,7 +1331,8 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
     const byId = nodesByIdRef.current;
 
     const hidden = new Set<string>();
-    // swap-toggle "active" side: force visible even if n.active=false in scene
+    // swap-toggle "active" side: force visible even if n.active=false in scene.
+    // plain toggle ON also forces members visible (they may have active=false in scene).
     const forced = new Set<string>();
     for (const t of layout.toggles ?? []) {
       const on = toggles[t.key] ?? t.default;
@@ -1315,7 +1340,8 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
         (on ? t.swapOff : t.swapOn).forEach((id) => hidden.add(id));
         (on ? t.swapOn : t.swapOff).forEach((id) => forced.add(id));
       } else {
-        if (!on) t.members.forEach((id) => hidden.add(id));
+        if (on) t.members.forEach((id) => forced.add(id));
+        else t.members.forEach((id) => hidden.add(id));
       }
     }
 
