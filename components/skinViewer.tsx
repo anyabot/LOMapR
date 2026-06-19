@@ -612,6 +612,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
 
   const [playing, setPlaying] = useState(true);
   const [loadState, setLoadState] = useState<'fetching' | 'unpacking' | 'ready' | 'error'>('fetching');
+  const [canvasReady, setCanvasReady] = useState(false);
   const filesRef = useRef<Map<string, Blob> | null>(null);
 
   useEffect(() => {
@@ -621,6 +622,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
     setLayout(null);
     filesRef.current = null;
     setLoadState('fetching');
+    setCanvasReady(false);
     (async () => {
       const files = await loadSkinArchive(skin);
       if (cancelled) throw new Error('cancelled');
@@ -1065,10 +1067,18 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
           const s = skeletonData.findSkin(n);
           if (s) result.addSkin(s);
         }
+        // Stop the ticker for this frame so setSkin+setToSetupPose don't render
+        // a bare T-pose before the animation re-applies bone transforms.
+        const wasRunning = app.ticker.started;
+        if (wasRunning) app.ticker.stop();
         spine.skeleton.setSkin(result);
         spine.skeleton.setToSetupPose();
         spine.skeleton.setSlotsToSetupPose();
         spine.skeleton.updateWorldTransform(Physics.update);
+        // Force one animation update so bones are in the correct pose before
+        // the next paint, then resume.
+        spine.update(0);
+        if (wasRunning) app.ticker.start();
       };
       composeSkinRef.current = compose;
       compose(spineFaceRef.current, spineBreast, spinePartsRef.current);
@@ -1438,8 +1448,8 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
     <Box>
       {error && <Text color="red.400" fontSize="sm" mb={1}>{error}</Text>}
       <Box h={height} bg="gray.800" borderRadius="md" overflow="hidden" position="relative" border="1px solid" borderColor="whiteAlpha.200">
-        <Box ref={hostRef} position="absolute" inset={0} />
-        {!layout && !error && (
+        <Box ref={hostRef} position="absolute" inset={0} opacity={loadState === 'ready' ? 1 : 0} />
+        {loadState !== 'ready' && !error && (
           <Center position="absolute" inset={0} color="gray.500" pointerEvents="none" flexDirection="column" gap={2}>
             <Spinner />
             <Text fontSize="sm">{loadState === 'unpacking' ? 'unpacking…' : 'fetching…'}</Text>
