@@ -282,7 +282,7 @@ export default function UnitDetail() {
             <Text fontSize="xs" color="gray.500">{unit.id}</Text>
           </VStack>
         </Flex>
-
+                  console.log(detailLoaded, unit.stat, unit.promotions);
         {!detailLoaded ? (
           <Center py={20}><Spinner color="yellow.400" /></Center>
         ) : (() => {

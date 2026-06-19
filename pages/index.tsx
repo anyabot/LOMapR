@@ -14,6 +14,8 @@ import Link from 'next/link';
 import Head from 'next/head';
 
 const SECTIONS: [string, string, string][] = [
+  ['/units', 'Units', 'Playable units with stats, skills and skins'],
+  ['/equipment', 'Equipment', 'All equipment with stats and set effects'],
   ['/world', 'World', 'Story & event stages, waves and enemies'],
   ['/enemies', 'Enemy List', 'Every enemy with stats and skills'],
   ['/sanctum', 'Sanctum of Alteration', 'Floors, restrictions and resource gain'],
@@ -96,7 +98,7 @@ export default function Home() {
         ) : null}
 
         {/* Section quick-nav */}
-        <SimpleGrid columns={[1, 2, 2, 4]} spacing={4}>
+        <SimpleGrid columns={[1, 2, 3, 3]} spacing={4}>
           {SECTIONS.map(([href, title, desc]) => (
             <Box
               key={href}

@@ -1,49 +1,91 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { RootState } from '../store';
 
-// 'community' = prefer the OLD hand/fan translation overlay (default);
-// 'official'  = use only the official in-game English.
-export type Translation = 'community' | 'official';
-
+// Translation layers — each is an independent toggle.
+// official is always on (base layer, can't be disabled).
+// Precedence (highest wins): community > krMtl > mtl > official.
 export interface TranslationState {
-  translation: Translation;
+  mtl:           boolean;   // Global MTL (machine-translated global skills)
+  krMtl:         boolean;   // Missing KR MTL (KR-only skills not in global)
+  community:     boolean;   // Community fan-translation
+  mtlLoaded:     boolean;   // true once mtl_translation.json has been fetched
+  krMtlLoaded:   boolean;   // true once kr_mtl_translation.json has been fetched
+  communityLoaded: boolean; // true once community_translation.json has been fetched
 }
 
-const STORAGE_KEY = 'lomapr.translation';
+const STORAGE_KEY_MTL       = 'lomapr.translation.mtl';
+const STORAGE_KEY_KR_MTL    = 'lomapr.translation.krMtl';
+const STORAGE_KEY_COMMUNITY = 'lomapr.translation.community';
 
-export function loadTranslation(): Translation | null {
+function readBool(key: string, fallback: boolean): boolean {
   try {
-    const v = typeof window !== 'undefined' && window.localStorage.getItem(STORAGE_KEY);
-    return v === 'official' || v === 'community' ? v : null;
+    const v = typeof window !== 'undefined' && window.localStorage.getItem(key);
+    return v === 'true' ? true : v === 'false' ? false : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+export function loadTranslationLayers(): Partial<TranslationState> | null {
+  try {
+    if (typeof window === 'undefined') return null;
+    return {
+      mtl:       readBool(STORAGE_KEY_MTL,       false),
+      krMtl:     readBool(STORAGE_KEY_KR_MTL,    false),
+      community: readBool(STORAGE_KEY_COMMUNITY, false),
+    };
   } catch {
     return null;
   }
 }
 
-// Default 'community' (OLD overlay preferred); same on server and client so no
-// hydration mismatch — the persisted value is applied after mount.
 const initialState: TranslationState = {
-  translation: 'community',
+  mtl:             false,
+  krMtl:           false,
+  community:       false,
+  mtlLoaded:       false,
+  krMtlLoaded:     false,
+  communityLoaded: false,
 };
 
 export const translationSlice = createSlice({
   name: 'translation',
   initialState,
   reducers: {
-    setTranslation: (state, action: PayloadAction<Translation>) => {
-      state.translation = action.payload;
+    setMtl: (state, action: PayloadAction<boolean>) => {
+      state.mtl = action.payload;
       try {
-        if (typeof window !== 'undefined') {
-          window.localStorage.setItem(STORAGE_KEY, action.payload);
-        }
-      } catch {
-        /* ignore storage errors */
-      }
+        if (typeof window !== 'undefined')
+          window.localStorage.setItem(STORAGE_KEY_MTL, String(action.payload));
+      } catch { /* ignore */ }
     },
+    setKrMtl: (state, action: PayloadAction<boolean>) => {
+      state.krMtl = action.payload;
+      try {
+        if (typeof window !== 'undefined')
+          window.localStorage.setItem(STORAGE_KEY_KR_MTL, String(action.payload));
+      } catch { /* ignore */ }
+    },
+    setCommunity: (state, action: PayloadAction<boolean>) => {
+      state.community = action.payload;
+      try {
+        if (typeof window !== 'undefined')
+          window.localStorage.setItem(STORAGE_KEY_COMMUNITY, String(action.payload));
+      } catch { /* ignore */ }
+    },
+    setMtlLoaded:       (state) => { state.mtlLoaded       = true; },
+    setKrMtlLoaded:     (state) => { state.krMtlLoaded     = true; },
+    setCommunityLoaded: (state) => { state.communityLoaded = true; },
   },
 });
 
-export const { setTranslation } = translationSlice.actions;
-export const selectTranslation = (state: RootState) => state.translation.translation;
+export const { setMtl, setKrMtl, setCommunity,
+               setMtlLoaded, setKrMtlLoaded, setCommunityLoaded } = translationSlice.actions;
+export const selectMtl             = (state: RootState) => state.translation.mtl;
+export const selectKrMtl           = (state: RootState) => state.translation.krMtl;
+export const selectCommunity       = (state: RootState) => state.translation.community;
+export const selectMtlLoaded       = (state: RootState) => state.translation.mtlLoaded;
+export const selectKrMtlLoaded     = (state: RootState) => state.translation.krMtlLoaded;
+export const selectCommunityLoaded = (state: RootState) => state.translation.communityLoaded;
 
 export default translationSlice.reducer;
