@@ -232,8 +232,15 @@ function useStringsLoader(): string {
       .then((d) => { if (d) { setCommunityData(d); dispatch(setCommunityLoaded()); setVer((v) => v + 'c'); } })
       .catch(() => {});
   }, [dispatch]);
-  // per-region official strings — fetch on mount and region change
+  // per-region official strings — always load global (needed as fallback in tKr),
+  // then load the active region if it differs
   useEffect(() => {
+    fetchStrings('global')
+      .then((d) => { if (d) { setStringsData('global', d); setVer((v) => v + 'g'); } })
+      .catch(() => {});
+  }, []);
+  useEffect(() => {
+    if (region === 'global') return; // already loaded above
     fetchStrings(region)
       .then((d) => { if (d) { setStringsData(region, d); setVer((v) => v + region[0]); } })
       .catch(() => {});

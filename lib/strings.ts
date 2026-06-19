@@ -85,7 +85,16 @@ export function t(value: string | undefined | null, lang: Lang = 'en'): string {
   }
 
   const e = official[activeRegion][value];
-  if (e) return e[lang] || e.en || e.ko || value;
+  if (e) {
+    if (lang !== 'en') return e[lang] || e.ko || value;
+    if (e.en) return e.en;
+    // KR entry has no English — fall back to global if Korean content matches
+    if (activeRegion === 'kr') {
+      const g = official['global'][value];
+      if (g?.en && g.ko && g.ko.trim() === (e.ko ?? '').trim()) return g.en;
+    }
+    return e.ko || value;
+  }
 
   return value;
 }
@@ -100,18 +109,27 @@ export function tKr(value: string | undefined | null): string {
   const krEntry = official['kr'][value];
   if (!krEntry) return '';
   const krKo = (krEntry.ko ?? '').trim();
-  // Check active region's en — but only trust it if KR ko matches (same content).
-  const activeEntry = official[activeRegion][value];
-  if (activeEntry?.en && activeRegion === 'kr') return activeEntry.en;
-  if (activeEntry?.en && activeRegion !== 'kr') {
-    // global: only use global en if KR ko matches global ko (same string, just translated)
-    const globalKo = (activeEntry.ko ?? '').trim();
-    if (globalKo && globalKo === krKo) return activeEntry.en;
-  }
-  // Check overlay layers (MTL etc.) — these are keyed by ID so ko-match is implicit
+
+  // MTL layers first (highest precedence after community)
   if (activeCommunity) { const o = community[value]; if (o?.en) return o.en; }
-  if (activeKrMtl)     { const o = krMtl[value];     if (o?.en) return o.en; }
-  if (activeMtl)       { const o = mtl[value];        if (o?.en) return o.en; }
+  if (activeRegion === 'kr') {
+    if (activeKrMtl) { const o = krMtl[value]; if (o?.en) return o.en; }
+    if (activeMtl)   { const o = mtl[value];   if (o?.en) return o.en; }
+  } else {
+    if (activeMtl)   { const o = mtl[value];   if (o?.en) return o.en; }
+    if (activeKrMtl) { const o = krMtl[value]; if (o?.en) return o.en; }
+  }
+
+  // Official KR en
+  if (krEntry.en) return krEntry.en;
+
+  // KR has no English — try global if Korean content matches
+  const globalEntry = official['global'][value];
+  if (globalEntry?.en) {
+    const globalKo = (globalEntry.ko ?? '').trim();
+    if (globalKo && globalKo === krKo) return globalEntry.en;
+  }
+
   // Fall back to KR ko so something meaningful shows rather than the raw ID
   return krKo || value;
 }

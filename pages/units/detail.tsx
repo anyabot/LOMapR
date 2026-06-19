@@ -25,7 +25,7 @@ import { UnitData, FullUnitData, UnitReq, UnitStat, LinkBonus } from '@/interfac
 import { EquipData } from '@/interfaces/equip';
 import { RewardEntry } from '@/interfaces/world';
 import { Skill } from '@/interfaces/skill';
-import { t } from '@/lib/strings';
+import { t, tKr } from '@/lib/strings';
 import RewardList from '@/components/rewardList';
 import SkillTab from '@/components/enemyTab/skillTab';
 import SkinViewer from '@/components/skinViewer';
@@ -905,7 +905,7 @@ function SkinTab({ unit }: { unit: FullUnitData }) {
                 {iconSrc && (
                   <Image
                     src={iconSrc}
-                    alt={t(s.name) || s.key || 'Base'}
+                    alt={tKr(s.name || s.packName || s.itemName) || s.key || 'Base'}
                     boxSize="80px"
                     objectFit="contain"
                     mx="auto"
@@ -914,7 +914,7 @@ function SkinTab({ unit }: { unit: FullUnitData }) {
                   />
                 )}
                 <Text fontSize="xs" fontWeight={selected ? 'bold' : 'normal'} noOfLines={2} lineHeight="1.3">
-                  {s.key === '' ? 'Default' : t(s.name) || s.key}
+                  {s.key === '' ? 'Default' : tKr(s.name || s.packName || s.itemName) || s.key}
                 </Text>
 
                 <Box mt={1}>
@@ -940,14 +940,28 @@ function SkinTab({ unit }: { unit: FullUnitData }) {
         <Box borderWidth={1} borderColor="whiteAlpha.200" borderRadius="md" overflow="hidden" fontSize="sm">
           <Table size="sm" variant="simple">
             <Tbody>
-              <Tr>
-                <Td fontWeight="semibold" color="gray.400" w="90px" whiteSpace="nowrap">Name</Td>
-                <Td>{t(skin.name) || skin.key}</Td>
-              </Tr>
+              {skin.itemName && (
+                <Tr>
+                  <Td fontWeight="semibold" color="gray.400" w="90px" whiteSpace="nowrap">Name</Td>
+                  <Td>{tKr(skin.itemName) || skin.key}</Td>
+                </Tr>
+              )}
+              {!skin.itemName && (
+                <Tr>
+                  <Td fontWeight="semibold" color="gray.400" w="90px" whiteSpace="nowrap">Name</Td>
+                  <Td>{tKr(skin.name) || skin.key}</Td>
+                </Tr>
+              )}
+              {skin.packName && tKr(skin.packName) !== tKr(skin.itemName) && (
+                <Tr>
+                  <Td fontWeight="semibold" color="gray.400" whiteSpace="nowrap">Pack</Td>
+                  <Td>{tKr(skin.packName)}</Td>
+                </Tr>
+              )}
               {skin.desc && (
                 <Tr>
                   <Td fontWeight="semibold" color="gray.400" verticalAlign="top">Description</Td>
-                  <Td whiteSpace="pre-wrap">{t(skin.desc)}</Td>
+                  <Td whiteSpace="pre-wrap">{tKr(skin.desc)}</Td>
                 </Tr>
               )}
             </Tbody>

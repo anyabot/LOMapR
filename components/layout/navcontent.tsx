@@ -151,6 +151,7 @@ function NavContent({ isOpen }: { isOpen: boolean }) {
         <HStack spacing={[3, 3, 4]} flexWrap="wrap" justify={["center", "center", "flex-start"]}>
           <NavLink to="/">Home</NavLink>
           <NavLink to="/units">Units</NavLink>
+          <NavLink to="/skins">Skins</NavLink>
           <NavLink to="/equipment">Equipment</NavLink>
           <NavLink to="/world">World</NavLink>
           <NavLink to="/sanctum">Sanctum</NavLink>
