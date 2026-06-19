@@ -127,9 +127,9 @@ export const BUFF_TYPE_NAMES: Record<number, string> = {
   132: "DMG Recovery (round)", 133: "Same Skill DMG Reduce",
   134: "Silenced (skill 1)", 135: "Silenced (skill 2)", 136: "Silenced (passive)",
   137: "Add Role Type", 138: "Area Skill Power", 139: "Area DMG",
-  140: "Double Attack", 141: "Resist Check ATK", 142: "DEF DMG Reduce",
-  143: "DEF DMG Add", 144: "DMG (% giver max HP)", 145: "DMG (% giver cur HP)",
-  146: "DMG (% target max HP)", 147: "DMG (% target cur HP)",
+  140: "Skill Reuse", 141: "Adaptive Damage", 142: "Barrier (DEF-based)",
+  143: "ATK Up (DEF-based)", 144: "Fixed DMG (% giver max HP)", 145: "Fixed DMG (% giver cur HP)",
+  146: "Fixed DMG (% target max HP)", 147: "Fixed DMG (% target cur HP)",
   148: "AP Cost Adjust (skill 1)", 149: "AP Cost Adjust (skill 2)",
   150: "Buff Prevention (specific)", 151: "All Effect Prevention (specific)",
 };
@@ -338,6 +338,8 @@ const Pill = ({ bg, color, children }: { bg: string; color: string; children: Re
 
 // Types whose value is a ratio (×100 → %) regardless of the stored fmt field.
 // Mirrors _RATIO_TYPES in build/buffs.py — keep in sync.
+// Note: 107/108 (Range skill 1/2) are in the python _RATIO_TYPES but store flat integers, excluded here.
+// Note: 141/142/143/144/145/146/147 have custom display logic below, excluded from generic ratio handling.
 const RATIO_TYPES = new Set([
   1, 3, 5, 7, 9, 11, 13, 15, 17, 19,
   24, 29, 30, 31, 32,
@@ -350,12 +352,13 @@ const RATIO_TYPES = new Set([
   83, 84, 85, 86,
   90, 91, 92, 94,
   98, 105, 106,
-  108, 110,
+  110,
   111, 112, 113, 114, 115,
   126, 129,
   138, 139, 140,
-  144, 145, 146, 147,
 ]);
+
+const ADAPTIVE_DMG_TYPES: Record<number, string> = { 0: "Phys", 1: "Fire", 2: "Ice", 3: "Electric" };
 
 function fmtPct(v: number): string {
   const p = v * 100;
@@ -367,16 +370,30 @@ function fmtPct(v: number): string {
 // a buff's value string + sign/color, by its type/fmt.
 function buffValue(buff: SkillBuff): { str: string; color: string } {
   let valStr = "", valPositive = true;
-  const isPct = buff.fmt === "pct" || RATIO_TYPES.has(buff.type);
-  if (buff.type === 33 && buff.val !== 0) valStr = `×${buff.val}`;
-  else if ((buff.type === 34 || buff.type === 35) && buff.val !== 0) valStr = `< ${buff.val}`;
-  else if (isPct && buff.val !== 0) {
-    valStr = fmtPct(buff.val); valPositive = buff.val > 0;
-  } else if (buff.type === 21 && buff.val !== 0) valStr = String(buff.val);
-  else if (buff.fmt === "flat" && buff.val !== 0) {
-    valStr = `${buff.val > 0 ? "+" : ""}${buff.val}`; valPositive = buff.val > 0;
-  } else if (buff.fmt === "tid" && buff.val !== 0) valStr = BUFF_TYPE_NAMES[buff.val] ?? String(buff.val);
-  const color = buff.fmt === "tid" || [21, 33, 34, 35].includes(buff.type)
+  const t = buff.type;
+  const v = buff.val;
+  const isPct = buff.fmt === "pct" || RATIO_TYPES.has(t);
+  if (t === 33 && v !== 0) valStr = `×${v}`;
+  else if ((t === 34 || t === 35) && v !== 0) valStr = `< ${v}`;
+  // Types 107/108: Range (skill 1/2) — stored as flat integers by the extractor but fmt="pct" in source; override
+  else if ((t === 107 || t === 108) && v !== 0) { valStr = `${v > 0 ? "+" : ""}${v}`; valPositive = v > 0; }
+  // Type 141: Adaptive Damage — val is the damage type ordinal (0=Phys,1=Fire,2=Ice,3=Electric)
+  else if (t === 141 && v !== 0) { valStr = ADAPTIVE_DMG_TYPES[v] ?? String(v); }
+  // Type 142: Barrier equal to X% of DEF — val is a fraction, ×100 → %
+  else if (t === 142 && v !== 0) { valStr = `${parseFloat((v * 100).toPrecision(4))}% of DEF`; valPositive = v > 0; }
+  // Type 143: Flat ATK increase equal to X% of DEF — val is a fraction, ×100 → %
+  else if (t === 143 && v !== 0) { valStr = `${parseFloat((v * 100).toPrecision(4))}% of DEF`; valPositive = v > 0; }
+  // Types 144–147: DMG proportional to HP — val is already a ratio but show without + prefix (it's always damage)
+  else if ((t === 144 || t === 145 || t === 146 || t === 147) && v !== 0) {
+    valStr = `${parseFloat((v * 100).toPrecision(4))}%`; valPositive = false;
+  }
+  else if (isPct && v !== 0) {
+    valStr = fmtPct(v); valPositive = v > 0;
+  } else if (t === 21 && v !== 0) valStr = String(v);
+  else if (buff.fmt === "flat" && v !== 0) {
+    valStr = `${v > 0 ? "+" : ""}${v}`; valPositive = v > 0;
+  } else if (buff.fmt === "tid" && v !== 0) valStr = BUFF_TYPE_NAMES[v] ?? String(v);
+  const color = buff.fmt === "tid" || [21, 33, 34, 35, 141].includes(t)
     ? "gray.200" : valPositive ? "green.300" : "red.300";
   return { str: valStr, color };
 }
