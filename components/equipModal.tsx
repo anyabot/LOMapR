@@ -14,7 +14,7 @@ import { selectWorld, fetchWorldAsync } from '@/store/worldSlice';
 import { selectUnits, fetchUnitsAsync } from '@/store/unitSlice';
 import { EquipRank } from '@/interfaces/equip';
 import { t } from '@/lib/strings';
-import { rankTag, rankColor, typeIcon, roleIcon, equipIcon, EXCHANGE_META } from '@/lib/rank';
+import { rankTag, rankColor, typeIcon, roleIcon, equipIcon, EXCHANGE_META, unitDisplayName } from '@/lib/rank';
 import { StatRow, StatSection } from '@/components/statBlock';
 import BuffList from '@/components/buffList';
 import UnitHoverCard from '@/components/unitHoverCard';
@@ -226,7 +226,7 @@ export default function EquipModal() {
                               size="sm" colorScheme="purple" gap={1} _hover={{ bg: 'purple.600' }}>
                               {(() => {
                                 const u = units[rank.pcLimit];
-                                return u ? (u.profile?.engName || t(u.name)) : 'Unit-locked';
+                                return u ? unitDisplayName(u) : 'Unit-locked';
                               })()}
                             </Tag>
                           </UnitHoverCard>

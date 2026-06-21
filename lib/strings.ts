@@ -1,96 +1,126 @@
-// Localization-string resolver — optional layers on top of official game text.
+// Localization-string resolver.
 //
-// Layers (all keyed by localization ID):
-//   official    game text from Table_Localization_en/ko — always active.
-//   mtl         Global MTL: machine-translated global skill text.
-//   krMtl       Missing KR MTL: KR-only skills not present in global.
-//   community   Community fan-translation overlay.
+// Strings are split into chunks loaded independently:
+//   common   unit/enemy/faction names — loaded eagerly on app start
+//   skill    skill names + descriptions — lazy, loaded when skill tab opens
+//   buff     buff names + descriptions — lazy, loaded when skill tab opens
+//   stage    stage/chapter/mission names — lazy, loaded when world pages open
+//   item     equip/consumable names — lazy, loaded when item UI opens
+//   shop     skin/pack names — lazy, loaded on skins page
+//
+// Overlay layers (all chunks):
+//   official    game text from Table_Localization_en/ko — always active
+//   mtl         Global MTL: machine-translated global skill text
+//   krMtl       Missing KR MTL: KR-only skills not in global
+//   community   Community fan-translation overlay
 //
 // Precedence (highest wins): community > krMtl > mtl > official.
-// Each overlay layer is independently togglable; official is always on.
-//
-// Tables start empty and are filled at runtime via the set* functions (see
-// _app.tsx). They are NOT bundled statically — each is fetched from R2.
 
 export type Lang = 'en' | 'ko';
 export type Region = 'global' | 'kr';
+export type StringChunk = 'common' | 'skill' | 'buff' | 'stage' | 'item' | 'shop';
 
 type StringTable = { [id: string]: { en?: string; ko?: string } };
 
-const official: Record<Region, StringTable> = { global: {}, kr: {} };
+// Per-region, per-chunk official strings
+const official: Record<Region, Partial<Record<StringChunk, StringTable>>> = {
+  global: {},
+  kr: {},
+};
+
+// Which chunks have been loaded per region
+const loaded: Record<Region, Set<StringChunk>> = { global: new Set(), kr: new Set() };
+
 let mtl:       StringTable = {};
 let krMtl:     StringTable = {};
 let community: StringTable = {};
 
-export function setStringsData(region: Region, table: StringTable) {
-  if (table && Object.keys(table).length) official[region] = table;
-}
-export function setMtlData(table: StringTable) {
-  if (table && Object.keys(table).length) mtl = table;
-}
-export function setKrMtlData(table: StringTable) {
-  if (table && Object.keys(table).length) krMtl = table;
-}
-export function setCommunityData(table: StringTable) {
-  if (table && Object.keys(table).length) community = table;
-}
-
 let activeRegion: Region = 'global';
-export function setStringsRegion(region: Region) {
-  activeRegion = region;
-}
-
 let activeMtl       = false;
 let activeKrMtl     = false;
 let activeCommunity = false;
+
+export function setStringsRegion(region: Region) { activeRegion = region; }
 export function setStringsLayers(opts: { mtl: boolean; krMtl: boolean; community: boolean }) {
-  activeMtl       = opts.mtl;
-  activeKrMtl     = opts.krMtl;
-  activeCommunity = opts.community;
+  activeMtl = opts.mtl; activeKrMtl = opts.krMtl; activeCommunity = opts.community;
 }
 
-// Resolve one localization id for the active region + active layers.
-// Korean always uses official text. Unknown ids pass through unchanged.
+export function setChunkData(region: Region, chunk: StringChunk, table: StringTable) {
+  if (table && Object.keys(table).length) {
+    official[region][chunk] = table;
+    loaded[region].add(chunk);
+  }
+}
+
+export function isChunkLoaded(region: Region, chunk: StringChunk): boolean {
+  return loaded[region].has(chunk);
+}
+
+export function setMtlData(table: StringTable)       { if (table && Object.keys(table).length) mtl = table; }
+export function setKrMtlData(table: StringTable)     { if (table && Object.keys(table).length) krMtl = table; }
+export function setCommunityData(table: StringTable) { if (table && Object.keys(table).length) community = table; }
+
+// Legacy setters used by _app.tsx during migration — maps a full flat table
+// (old strings.json shape) to the common chunk so existing loaders still work.
+export function setStringsData(region: Region, table: StringTable) {
+  setChunkData(region, 'common', table);
+}
+
+// Look up a single ID across all loaded chunks for a given region.
+function officialLookup(region: Region, id: string): { en?: string; ko?: string } | undefined {
+  for (const chunk of Object.values(official[region])) {
+    const e = chunk?.[id];
+    if (e) return e;
+  }
+  return undefined;
+}
+
+// Resolve one localization id.
 //
-// MTL precedence is region-aware:
-//   KR region:     community > krMtl > mtl > official
-//   global region: community > mtl > krMtl > official
-export function t(value: string | undefined | null, lang: Lang = 'en'): string {
+// opts.region  — override the active region for this lookup (used for cross-region checks)
+// opts.lang    — 'en' (default) or 'ko'
+// opts.strict  — when true and active region is 'kr', validate that the KR Korean
+//                matches before returning global English (tKr behaviour)
+export function t(
+  value: string | undefined | null,
+  opts?: Lang | { lang?: Lang; region?: Region; strict?: boolean },
+): string {
   if (value == null) return '';
+
+  const lang:   Lang   = typeof opts === 'string' ? opts : (opts?.lang   ?? 'en');
+  const region: Region = typeof opts === 'string' ? activeRegion : (opts?.region ?? activeRegion);
+  const strict          = typeof opts === 'string' ? false        : (opts?.strict ?? false);
 
   if (lang === 'en') {
     if (activeCommunity) {
       const o = community[value];
       if (o?.en) return o.en;
     }
-    if (activeRegion === 'kr') {
-      if (activeKrMtl) {
-        const o = krMtl[value];
-        if (o?.en) return o.en;
-      }
-      if (activeMtl) {
-        const o = mtl[value];
-        if (o?.en) return o.en;
-      }
+    if (region === 'kr') {
+      if (activeKrMtl) { const o = krMtl[value]; if (o?.en) return o.en; }
+      if (activeMtl)   { const o = mtl[value];   if (o?.en) return o.en; }
     } else {
-      if (activeMtl) {
-        const o = mtl[value];
-        if (o?.en) return o.en;
-      }
-      if (activeKrMtl) {
-        const o = krMtl[value];
-        if (o?.en) return o.en;
-      }
+      if (activeMtl)   { const o = mtl[value];   if (o?.en) return o.en; }
+      if (activeKrMtl) { const o = krMtl[value]; if (o?.en) return o.en; }
     }
   }
 
-  const e = official[activeRegion][value];
+  const e = officialLookup(region, value);
   if (e) {
     if (lang !== 'en') return e[lang] || e.ko || value;
-    if (e.en) return e.en;
-    // KR entry has no English — fall back to global if Korean content matches
-    if (activeRegion === 'kr') {
-      const g = official['global'][value];
+    if (e.en) {
+      // strict mode: only return English if KR Korean matches global Korean
+      if (strict && region === 'kr') {
+        const krKo = (e.ko ?? '').trim();
+        const g = officialLookup('global', value);
+        if (g?.en && g.ko && g.ko.trim() === krKo) return g.en;
+        return krKo || value;
+      }
+      return e.en;
+    }
+    // KR entry has no English — try global if Korean content matches
+    if (region === 'kr') {
+      const g = officialLookup('global', value);
       if (g?.en && g.ko && g.ko.trim() === (e.ko ?? '').trim()) return g.en;
     }
     return e.ko || value;
@@ -99,32 +129,26 @@ export function t(value: string | undefined | null, lang: Lang = 'en'): string {
   return value;
 }
 
-// Resolve a loc ID from either region's strings. Tries active region first, then
-// falls back to the other region if no English found. Use for skin/item names that
-// exist in both regions but may not be loaded yet when the page first renders.
+// Resolve a loc ID from either region (tries active first, then the other).
+// Replaces tAny() — call as t(id, { region: 'any' }) or use this alias.
 export function tAny(value: string | undefined | null): string {
   if (!value) return '';
   const res = t(value);
   if (res && res !== value) return res;
-  // try the other region
-  const other = activeRegion === 'kr' ? 'global' : 'kr';
-  const e = official[other][value];
+  const other: Region = activeRegion === 'kr' ? 'global' : 'kr';
+  const e = officialLookup(other, value);
   if (e?.en) return e.en;
   return res || value;
 }
 
-// Resolve a loc ID that originated from KR data, validating against KR Korean text
-// before returning English. Prevents wrong global strings from showing when a loc ID
-// is reused across regions with different content (e.g. BuffName_* / BuffDesc*_ refs).
-// Always reads KR ko as the ground truth; returns English from the active region/layers
-// only if KR ko matches — otherwise falls back to KR ko itself (so something shows).
+// Resolve a loc ID that originated from KR data, validating KR Korean as ground
+// truth before returning English. Replaces tKr() — now a thin alias over t().
 export function tKr(value: string | undefined | null): string {
   if (!value) return '';
-  const krEntry = official['kr'][value];
+  const krEntry = officialLookup('kr', value);
   if (!krEntry) return '';
   const krKo = (krEntry.ko ?? '').trim();
 
-  // MTL layers first (highest precedence after community)
   if (activeCommunity) { const o = community[value]; if (o?.en) return o.en; }
   if (activeRegion === 'kr') {
     if (activeKrMtl) { const o = krMtl[value]; if (o?.en) return o.en; }
@@ -134,16 +158,8 @@ export function tKr(value: string | undefined | null): string {
     if (activeKrMtl) { const o = krMtl[value]; if (o?.en) return o.en; }
   }
 
-  // Official KR en
   if (krEntry.en) return krEntry.en;
-
-  // KR has no English — try global if Korean content matches
-  const globalEntry = official['global'][value];
-  if (globalEntry?.en) {
-    const globalKo = (globalEntry.ko ?? '').trim();
-    if (globalKo && globalKo === krKo) return globalEntry.en;
-  }
-
-  // Fall back to KR ko so something meaningful shows rather than the raw ID
+  const g = officialLookup('global', value);
+  if (g?.en && g.ko && g.ko.trim() === krKo) return g.en;
   return krKo || value;
 }

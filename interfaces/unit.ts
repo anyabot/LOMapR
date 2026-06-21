@@ -96,6 +96,7 @@ export interface UnitData {
   // ── light list fields (always present) ──────────────────────────────────────
   id: string;
   name: string;        // loc id (resolve with t())
+  canonName: string;   // canonical hand-curated English display name (from unit_names.json)
   rarity: number;      // StartGrade (2=B, 3=A, 4=S, 5=SS, 6=SSS)
   maxGrade: number;    // highest attainable grade via promotion
   type: string;        // Light / Heavy / Air (ActorClassType; MOBILITY shows as Air)

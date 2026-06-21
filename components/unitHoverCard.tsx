@@ -7,7 +7,7 @@ import {
 import { useAppSelector, useAppDispatch } from '@/hooks';
 import { selectUnit, fetchUnitsAsync } from '@/store/unitSlice';
 import { t } from '@/lib/strings';
-import { rankTag, rankColor, roleRankIcon, typeIcon, roleIcon, factionIcon } from '@/lib/rank';
+import { rankTag, rankColor, roleRankIcon, typeIcon, roleIcon, factionIcon, unitDisplayName } from '@/lib/rank';
 
 /**
  * Reusable unit hover-card. Wrap any trigger (a reward chip, a name, an icon) and
@@ -39,7 +39,7 @@ export default function UnitHoverCard({
 
   if (!unitId || !unit) return <>{children}</>;
 
-  const name = unit.profile?.engName || t(unit.name);
+  const name = unitDisplayName(unit);
   const rankRole = roleRankIcon(unit.role, unit.rarity);
 
   const content = (

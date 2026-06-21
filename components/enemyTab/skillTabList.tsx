@@ -16,6 +16,9 @@ import AIGraphView from './aiGraph';
 import { useAppSelector, useAppDispatch } from '@/hooks';
 import { selectEnemySkills, selectEnemySkillStatus, fetchEnemySkillsAsync } from '@/store/skillSlice';
 import { selectAI, fetchEnemyAIAsync } from '@/store/aiSlice';
+import { selectChunkLoaded } from '@/store/stringsSlice';
+import { useSelector } from 'react-redux';
+import type { RootState } from '@/store';
 
 const BUFF_SHOW_KEY = "skillTab_showBuffs";
 
@@ -23,6 +26,9 @@ export default function SkillTabList({skills, atk, info, rank, enemyId} : {skill
 
   const dispatch = useAppDispatch();
   const id = enemyId ?? '';
+  const region = useSelector((s: RootState) => s.region.region);
+  const skillReady = useSelector(selectChunkLoaded(region, 'skill'));
+  const buffReady  = useSelector(selectChunkLoaded(region, 'buff'));
 
   const skillInfo = useAppSelector(state => selectEnemySkills(state, id));
   const skillStatus = useAppSelector(state => selectEnemySkillStatus(state, id));
@@ -78,7 +84,21 @@ export default function SkillTabList({skills, atk, info, rank, enemyId} : {skill
     _selected: { opacity: 1, borderBottomColor: 'yellow.400', bg: 'whiteAlpha.100' },
   } as const;
 
+  const stringsReady = skillReady && buffReady;
+
   if (skillStatus === 'failed') return (<h2>Fetch Skill Info Failed</h2>)
+  if (!stringsReady) return (
+    <Flex align="center" justify="center" py={8} gap={3} color="gray.500">
+      <Box
+        w="20px" h="20px" borderRadius="full"
+        border="2px solid" borderColor="gray.600"
+        borderTopColor="yellow.400"
+        style={{ animation: 'spin 0.7s linear infinite' }}
+      />
+      <Text fontSize="sm">Loading skill data…</Text>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </Flex>
+  );
   return (
       <Tabs variant='unstyled' size="sm">
         <Flex align="center" gap={2}>

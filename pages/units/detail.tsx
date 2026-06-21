@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Link from 'next/link';
@@ -31,7 +31,7 @@ import SkillTab from '@/components/enemyTab/skillTab';
 import SkinViewer from '@/components/skinViewer';
 import CopyLink from '@/components/copyLink';
 import { StatRow, StatPair, StatSection } from '@/components/statBlock';
-import { rankTag, rankColor, roleRankIcon, typeIcon, roleIcon, equipIcon, factionIcon } from '@/lib/rank';
+import { rankTag, rankColor, roleRankIcon, typeIcon, roleIcon, equipIcon, factionIcon, unitDisplayName } from '@/lib/rank';
 
 // Units cap at level 100 before the lv-limit unlocks; HP/ATK/DEF grow linearly
 // from stat[grade].X[0] (lv1) to X[1] (lv100). The other stats are flat per grade.
@@ -178,6 +178,14 @@ export default function UnitDetail() {
   // the heavy detail half rides in the same bundle as skills; gate stat-dependent
   // UI on it having loaded.
   const detailLoaded = !!unit?.stat;
+  // Keep the last fully-loaded unit+skills so we can continue rendering while a
+  // region switch fetches the new bundle (avoids tab index reset on every switch).
+  const lastFullRef = useRef<FullUnitData | null>(null);
+  const lastSkillsRef = useRef<{ [key: string]: Skill }>({});
+  if (detailLoaded && unit) {
+    lastFullRef.current = unit as FullUnitData;
+    if (Object.keys(skills).length > 0) lastSkillsRef.current = skills;
+  }
 
   // calculator state: selected grade (index into unit.stat) + level.
   const [gradeIdx, setGradeIdx] = useState(0);
@@ -219,7 +227,7 @@ export default function UnitDetail() {
 
   // prefer the English display name from the collection profile; fall back to the
   // resolved unit name loc id.
-  const name = unit.profile?.engName || t(unit.name);
+  const name = unitDisplayName(unit);
   // top grade stats at lv-cap → ATK passed to SkillTab (rate → damage preview).
   // stat lives in the heavy detail bundle, absent until it loads.
   const topStat = unit.stat?.[unit.stat.length - 1];
@@ -282,12 +290,13 @@ export default function UnitDetail() {
             <Text fontSize="xs" color="gray.500">{unit.id}</Text>
           </VStack>
         </Flex>
-                  console.log(detailLoaded, unit.stat, unit.promotions);
-        {!detailLoaded ? (
+        {(!detailLoaded && !lastFullRef.current) ? (
           <Center py={20}><Spinner color="yellow.400" /></Center>
         ) : (() => {
-        // gated on detailLoaded → every heavy field is present here.
-        const full = unit as FullUnitData;
+        // Use the current data if loaded; fall back to last-known while a region
+        // switch fetches the new bundle — keeps the tabs mounted and avoids resetting
+        // the selected tab index.
+        const full = (detailLoaded ? unit : lastFullRef.current) as FullUnitData;
         return (
         <Tabs colorScheme="yellow" variant="enclosed" isLazy>
           <TabList flexWrap="wrap">
@@ -312,7 +321,7 @@ export default function UnitDetail() {
 
             {/* ── Tab 2: skills (with a form toggle for transform units) ────── */}
             <TabPanel px={0}>
-              <SkillsTab unit={full} skills={skills} headerAtk={headerAtk} skillStatus={skillStatus} />
+              <SkillsTab unit={full} skills={detailLoaded ? skills : lastSkillsRef.current} headerAtk={headerAtk} skillStatus={skillStatus} />
             </TabPanel>
 
             {/* ── Tab 3: profile (collection flavor) ───────────────────────── */}

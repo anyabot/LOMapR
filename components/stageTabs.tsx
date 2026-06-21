@@ -5,6 +5,7 @@ import {
 import { ArrowLeftIcon, ArrowRightIcon, StarIcon } from '@chakra-ui/icons';
 import { Stage, WaveDrop, RewardEntry, StageMission } from '@/interfaces/world';
 import { t } from '@/lib/strings';
+import { unitDisplayName } from '@/lib/rank';
 import { useEffect } from 'react';
 import { useAppSelector, useAppDispatch } from '@/hooks';
 import { selectUnits } from '@/store/unitSlice';
@@ -302,7 +303,7 @@ function MissionRow({ mission: m }: { mission: StageMission }) {
   // sits inside the requirement sentence without breaking onto its own line.
   const unitLink = (id: string) => {
     const u = units[id];
-    const label = u ? (u.profile?.engName || t(u.name)) : shortKey(id);
+    const label = u ? unitDisplayName(u) : shortKey(id);
     return (
       <UnitHoverCard unitId={id} inline>
         <Box as="span" color="yellow.300" fontWeight="semibold" cursor="pointer"

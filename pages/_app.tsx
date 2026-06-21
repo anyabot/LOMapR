@@ -4,8 +4,9 @@ import { Provider, useSelector, useDispatch } from 'react-redux'
 import { ChakraProvider, type ColorModeProviderProps } from '@chakra-ui/react'
 import { useEffect, useRef, useState } from 'react'
 import { store, RootState } from '@/store'
-import { setStringsRegion, setStringsLayers, setStringsData, setCommunityData, setMtlData, setKrMtlData } from '@/lib/strings'
-import { fetchStrings, fetchCommunity, fetchMtl, fetchKrMtl } from '@/lib/fetchData'
+import { setStringsRegion, setStringsLayers, setChunkData, setCommunityData, setMtlData, setKrMtlData } from '@/lib/strings'
+import { fetchStringChunk, fetchCommunity, fetchMtl, fetchKrMtl } from '@/lib/fetchData'
+import { markChunkLoaded, setTransitioning, selectTransitioning } from '@/store/stringsSlice'
 import { loadRegion, setRegion, Region } from '@/store/regionSlice'
 import { loadTranslationLayers, setMtl, setKrMtl, setCommunity,
          setMtlLoaded, setKrMtlLoaded, setCommunityLoaded,
@@ -164,6 +165,7 @@ function RegionSync() {
   return null;
 }
 
+
 // Keep the resolver's layer flags in sync with the Redux store, and restore
 // persisted choices after mount. Returns a stable key string that changes
 // whenever either toggle flips, so the page subtree re-renders t() output.
@@ -208,19 +210,18 @@ export default function App({ Component, pageProps }: AppProps) {
   );
 }
 
-// Load the localization tables from the API (Firebase in prod, where the /data
-// files aren't deployed) into the t() resolver. Strings are per-region; the
-// community overlay is shared/fetched once. Returns a version token that bumps
-// when tables arrive so the page subtree re-renders with resolved text.
+// Load all string chunks for a region. The common chunk is the critical one
+// (unit/enemy names on every grid); skill+buff are loaded here too but consumed
+// lazily by skillTabList. Returns a version token that bumps when any chunk arrives.
 function useStringsLoader(): string {
   const region = useSelector((s: RootState) => s.region.region);
   const dispatch = useDispatch<typeof store.dispatch>();
   const [ver, setVer] = useState('');
-  // Keep the resolver's active region current SYNCHRONOUSLY at render time (same
-  // reasoning as setStringsTranslation in useTranslationSync — an effect would
-  // lag a render behind). t() reads activeRegion the moment the subtree renders.
+
+  // Keep the resolver's active region current SYNCHRONOUSLY at render time.
   setStringsRegion(region);
-  // shared overlays — fetch once each
+
+  // Shared overlays — fetch once each (region-independent)
   useEffect(() => {
     fetchMtl()
       .then((d) => { if (d) { setMtlData(d); dispatch(setMtlLoaded()); setVer((v) => v + 't'); } })
@@ -232,35 +233,63 @@ function useStringsLoader(): string {
       .then((d) => { if (d) { setCommunityData(d); dispatch(setCommunityLoaded()); setVer((v) => v + 'c'); } })
       .catch(() => {});
   }, [dispatch]);
-  // per-region official strings — always load global (needed as fallback in tKr),
-  // then load the active region if it differs
+
+  // Per-region chunk loading. Global is always loaded (needed as tKr fallback).
+  // On region change: set transitioning until common chunk arrives.
+  const prevRegion = useRef<string>('');
   useEffect(() => {
-    fetchStrings('global')
-      .then((d) => { if (d) { setStringsData('global', d); setVer((v) => v + 'g'); } })
-      .catch(() => {});
-  }, []);
-  useEffect(() => {
-    if (region === 'global') return; // already loaded above
-    fetchStrings(region)
-      .then((d) => { if (d) { setStringsData(region, d); setVer((v) => v + region[0]); } })
-      .catch(() => {});
+    const isSwitch = prevRegion.current !== '' && prevRegion.current !== region;
+    prevRegion.current = region;
+    if (isSwitch) dispatch(setTransitioning(true));
+
+    const chunks = (['common', 'skill', 'buff', 'stage', 'item', 'shop'] as const);
+    const regionsToLoad: Array<typeof region> = region === 'global' ? ['global'] : ['global', region];
+
+    for (const r of regionsToLoad) {
+      for (const chunk of chunks) {
+        fetchStringChunk(r, chunk).then((d) => {
+          if (d) {
+            setChunkData(r, chunk, d);
+            dispatch(markChunkLoaded({ region: r, chunk }));
+            setVer((v) => v + r[0] + chunk[0]);
+            // Clear transitioning once the active region's common chunk lands
+            if (r === region && chunk === 'common') dispatch(setTransitioning(false));
+          }
+        }).catch(() => {
+          if (r === region && chunk === 'common') dispatch(setTransitioning(false));
+        });
+      }
+    }
+  // Re-run when region changes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [region]);
+
   return ver;
 }
 
 function AppBody({ Component, pageProps }: Pick<AppProps, 'Component' | 'pageProps'>) {
   const translation = useTranslationSync();
-  // stringsVer drives a re-render when string tables arrive (it's state on this
-  // component, so updating it re-renders the subtree and re-runs t()) — but it's
-  // deliberately NOT in the key: keying on it would UNMOUNT/REMOUNT the page on
-  // every async table load, flashing the loader and wiping local UI state
-  // (search box, filters) a few seconds after the page settled. A plain
-  // re-render refreshes t() output without tearing the tree down.
+  const transitioning = useSelector(selectTransitioning);
+  // stringsVer drives a re-render when string tables arrive — deliberately NOT
+  // used as a key (that would unmount/remount the page on every chunk load).
   useStringsLoader();
-  // Translation toggle is user-initiated and rare; re-key on it so the whole
-  // subtree re-resolves cleanly.
   return (
     <Layout>
+      {/* Region-switch overlay: fade while the common chunk for the new region loads */}
+      {transitioning && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 9999,
+          background: 'rgba(15,17,21,0.7)', backdropFilter: 'blur(2px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          transition: 'opacity 0.15s',
+        }}>
+          <div style={{ width: 36, height: 36, border: '3px solid #2c313c',
+            borderTopColor: '#ECC94B', borderRadius: '50%',
+            animation: 'spin 0.7s linear infinite' }} />
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+      )}
+      {/* Translation toggle is user-initiated and rare; re-key so t() re-resolves */}
       <div key={translation}>
         <Component {...pageProps} />
       </div>
