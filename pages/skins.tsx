@@ -308,11 +308,8 @@ function SkinPanel({ skin }: { skin: SkinEntry }) {
   const asset = showDam && hasDam ? damAsset : baseAsset;
   const isDiverged = showDam && hasDam ? !!skin.modelDamDiverged : !!skin.modelDiverged;
   const isSkinnedBase = skin.viewerKind === 'skinned' && !(showDam && hasDam);
-  const hasKr = isDiverged || isSkinnedBase;
+  const hasKr = isDiverged;
   const archiveKey = asset && isDiverged ? `${asset}__${viewRegion}` : asset;
-  const skinnedModel = isSkinnedBase && asset
-    ? (viewRegion === 'kr' && hasKr ? `${asset}__kr` : asset)
-    : undefined;
   const effectiveViewerKind = isSkinnedBase
     ? 'skinned'
     : skin.viewerKind === 'skinned' ? undefined : skin.viewerKind;
@@ -391,8 +388,8 @@ function SkinPanel({ skin }: { skin: SkinEntry }) {
         <Text color="gray.500" fontSize="sm">Not processed yet.</Text>
       ) : (
         <SkinViewer
-          key={archiveKey + viewRegion}
-          skin={skinnedModel ?? archiveKey}
+          key={isSkinnedBase ? asset : archiveKey + viewRegion}
+          skin={isSkinnedBase ? asset : archiveKey}
           height="60vh"
           parts={skin.parts}
           hasDam={hasDam}
