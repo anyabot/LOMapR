@@ -11,6 +11,7 @@ import { Box, Flex, HStack, Image, Text, VStack } from "@chakra-ui/react";
 import React from "react";
 import { SkillBuff } from "@/interfaces/skill";
 import { t, tKr } from "@/lib/strings";
+import { useTranslationVersion } from "@/lib/translationVersion";
 import UnitHoverCard from "./unitHoverCard";
 
 // ─── lookup tables (kept local; import from a shared constants file if preferred) ────
@@ -904,6 +905,7 @@ interface BuffListProps {
 }
 
 export default function BuffList({ buffs }: BuffListProps) {
+  useTranslationVersion();
   // Group consecutive buffs that share the same group index.
   const groups: SkillBuff[][] = [];
   for (const buff of buffs) {

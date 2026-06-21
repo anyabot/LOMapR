@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Stage, StageSubType } from '@/interfaces/world';
 import { t } from '@/lib/strings';
+import { useTranslationVersion } from '@/lib/translationVersion';
 
 // Canvas-rendered stage map. Stages are laid out in rows by subtype
 // (Side / Main / Ex), ordered by `pos` within each row. Each stage is a small
@@ -44,6 +45,7 @@ interface Props {
 }
 
 export default function StageGrid({ stages, selected, onSelect }: Props) {
+  useTranslationVersion();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [hover, setHover] = useState<string>("");
   const imagesRef = useRef<Record<string, HTMLImageElement>>({});

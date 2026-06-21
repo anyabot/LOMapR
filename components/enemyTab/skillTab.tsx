@@ -1,6 +1,7 @@
 import { TabPanel, Text, Image, Box, Flex, VStack, HStack, Tag, Wrap, WrapItem } from "@chakra-ui/react";
 import { Skill } from "@/interfaces/skill";
 import { t } from "@/lib/strings";
+import { useTranslationVersion } from "@/lib/translationVersion";
 import SkillArea from "./skillArea";
 import BuffList from "@/components/buffList";
 import React from "react";
@@ -14,7 +15,7 @@ export default function SkillTab({
   atk: number;
   showBuffs: boolean;
 }) {
-
+  useTranslationVersion();
   const splitTag = (str: string) => {
     // The game's source text uses `&n` for an in-line newline; normalize it (and any
     // literal "\n") to a <br> tag so the tokenizer below turns it into a real break.

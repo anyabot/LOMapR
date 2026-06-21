@@ -10,6 +10,7 @@ import {
 import { ArrowForwardIcon, ExternalLinkIcon } from '@chakra-ui/icons';
 import EventImage from '@/components/eventImage';
 import { t } from '@/lib/strings';
+import { useTranslationVersion } from '@/lib/translationVersion';
 import Link from 'next/link';
 import Head from 'next/head';
 
@@ -33,6 +34,7 @@ const LINKS: [string, string][] = [
 ];
 
 export default function Home() {
+  useTranslationVersion();
   const world = useAppSelector(selectWorld);
   const imagelink = useAppSelector(selectImage);
   const dispatch = useAppDispatch();

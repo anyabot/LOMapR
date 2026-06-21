@@ -8,6 +8,7 @@ import { useAppSelector, useAppDispatch } from '@/hooks';
 import { selectEquip, selectEquipStatus, fetchEquipAsync, setActiveEquip } from '@/store/equipSlice';
 import { EquipData } from '@/interfaces/equip';
 import { t } from '@/lib/strings';
+import { useTranslationVersion } from '@/lib/translationVersion';
 import { rankTag, rankColor, equipIcon, EXCHANGE_META } from '@/lib/rank';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
@@ -29,6 +30,7 @@ type TypeFilter = typeof TYPES[number];
 const isExclusive = (e: EquipData) => !!e.pcLimit;
 
 export default function Equipment() {
+  useTranslationVersion();
   const equip = useAppSelector(selectEquip);
   const status = useAppSelector(selectEquipStatus);
   const dispatch = useAppDispatch();

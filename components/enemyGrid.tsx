@@ -6,12 +6,14 @@ import { setActive, fetchEnemyAsync, selectEnemy } from '@/store/enemySlice';
 import { selectImage, fetchImageAsync } from '@/store/imageSlice';
 import { Image, Text, Tag, Grid, GridItem } from '@chakra-ui/react';
 import { t } from '@/lib/strings';
+import { useTranslationVersion } from '@/lib/translationVersion';
 
 interface Props {
   wave: (EnemyIndex | null)[]
 }
 
 export default function EnemyGrid({wave}: Props) {
+  useTranslationVersion();
   const imagelink = useAppSelector(selectImage)
   const dispatch = useAppDispatch();
   useEffect(() => {

@@ -33,6 +33,7 @@ import { StatRow, StatPair, StatSection } from '@/components/statBlock';
 
 import { EnemyFull } from '@/interfaces/enemy';
 import { t } from '@/lib/strings';
+import { useTranslationVersion } from '@/lib/translationVersion';
 import { typeIcon, roleIcon, RANK_COLOR } from '@/lib/rank';
 
 import { useAppSelector, useAppDispatch } from '@/hooks';
@@ -48,7 +49,7 @@ const ENEMY_RANK_COLOR: Record<string, string> = {
 };
 
 export default function EnemyModal() {
-
+  useTranslationVersion();
   const activeEnemy = useAppSelector(selectActiveEnemy);
   const initialLevel = useAppSelector(selectActiveLevel);
   const imagelink = useAppSelector(selectImage);

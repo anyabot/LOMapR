@@ -26,6 +26,7 @@ import { EquipData } from '@/interfaces/equip';
 import { RewardEntry } from '@/interfaces/world';
 import { Skill } from '@/interfaces/skill';
 import { t, tKr } from '@/lib/strings';
+import { useTranslationVersion } from '@/lib/translationVersion';
 import RewardList from '@/components/rewardList';
 import SkillTab from '@/components/enemyTab/skillTab';
 import SkinViewer from '@/components/skinViewer';
@@ -162,6 +163,7 @@ function scaleSkill(skill: Skill, skillLv: number, spAdd: number, buffLv: number
 }
 
 export default function UnitDetail() {
+  useTranslationVersion();
   const router = useRouter();
   const id = router.query.id as string;
   const dispatch = useAppDispatch();

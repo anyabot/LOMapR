@@ -6,10 +6,11 @@ import Link from 'next/link';
 import { useAppSelector, useAppDispatch } from '@/hooks';
 import { selectWorld, selectWorldStatus, fetchWorldAsync } from '@/store/worldSlice';
 import { t } from '@/lib/strings';
+import { useTranslationVersion } from '@/lib/translationVersion';
 import Apperance from './appearance';
 
 export default function ApperanceList({used, usedSanctum} : {used: {[key: string]: [number, string][]}, usedSanctum:boolean}) {
-
+  useTranslationVersion();
   const world = useAppSelector(selectWorld);
   const worldStatus = useAppSelector(selectWorldStatus);
   const dispatch = useAppDispatch();

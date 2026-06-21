@@ -9,6 +9,7 @@ import {
 } from '@chakra-ui/react';
 import { CloseIcon, SearchIcon } from '@chakra-ui/icons';
 import { tAny } from '@/lib/strings';
+import { useTranslationVersion } from '@/lib/translationVersion';
 import Head from 'next/head';
 import { fetchSkinList, SkinEntry } from '@/lib/fetchData';
 import SkinViewer from '@/components/skinViewer';
@@ -82,6 +83,7 @@ function skinDisplayName(s: SkinEntry) {
 // ── page ─────────────────────────────────────────────────────────────────────
 
 export default function Skins() {
+  useTranslationVersion();
   const region = useAppSelector(selectRegion);
 
   const [skins, setSkins] = useState<SkinEntry[]>([]);

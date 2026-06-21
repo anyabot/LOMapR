@@ -7,6 +7,7 @@ import {
 import { useAppSelector, useAppDispatch } from '@/hooks';
 import { selectUnit, fetchUnitsAsync } from '@/store/unitSlice';
 import { t } from '@/lib/strings';
+import { useTranslationVersion } from '@/lib/translationVersion';
 import { rankTag, rankColor, roleRankIcon, typeIcon, roleIcon, factionIcon, unitDisplayName } from '@/lib/rank';
 
 /**
@@ -31,6 +32,7 @@ export default function UnitHoverCard({
   // sentence without forcing a line break. Default is the full-width chip wrapper.
   inline?: boolean;
 }) {
+  useTranslationVersion();
   const dispatch = useAppDispatch();
   const unit = useAppSelector((s) => (unitId ? selectUnit(s, unitId) : null));
 

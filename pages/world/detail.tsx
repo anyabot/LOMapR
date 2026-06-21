@@ -8,6 +8,7 @@ import Link from 'next/link';
 import SimpleCard from '@/components/simpleCard';
 import CopyLink from '@/components/copyLink';
 import { t } from '@/lib/strings';
+import { useTranslationVersion } from '@/lib/translationVersion';
 import {
   SimpleGrid, Heading, Divider, Button, HStack, Badge, Center, VStack,
 } from '@chakra-ui/react';
@@ -15,6 +16,7 @@ import { ArrowBackIcon } from '@chakra-ui/icons';
 import Head from 'next/head';
 
 export default function Home() {
+  useTranslationVersion();
   const world = useAppSelector(selectWorld);
   const imagelink = useAppSelector(selectImage);
   const dispatch = useAppDispatch();
