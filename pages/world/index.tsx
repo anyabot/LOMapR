@@ -6,6 +6,7 @@ import Link from 'next/link'
 import SimpleCard from '@/components/simpleCard';
 import EventImage from '@/components/eventImage';
 import { t } from '@/lib/strings';
+import { useTranslationVersion } from '@/lib/translationVersion';
 import { World } from '@/interfaces/world';
 import {
   SimpleGrid, Heading, Divider, HStack, Badge, Center, VStack, Text,
@@ -15,6 +16,7 @@ import { ArrowForwardIcon } from '@chakra-ui/icons';
 import Head from 'next/head';
 
 export default function Home() {
+  useTranslationVersion();
   const world = useAppSelector(selectWorld);
   const worldStatus = useAppSelector(selectWorldStatus);
   const imagelink = useAppSelector(selectImage);

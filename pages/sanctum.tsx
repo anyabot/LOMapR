@@ -37,9 +37,11 @@ import EnemyGrid from "@/components/enemyGrid";
 import GameText from "@/components/gameText";
 import CopyLink from "@/components/copyLink";
 import { t } from "@/lib/strings";
+import { useTranslationVersion } from "@/lib/translationVersion";
 import styles from "@/styles/custom.module.css";
 
 export default function Home() {
+  useTranslationVersion();
   const sanctum = useAppSelector(selectSanctum);
   const sanctumStatus = useAppSelector(selectSanctumStatus);
   const activeFloor = useAppSelector(selectActiveFloor);

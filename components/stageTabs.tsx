@@ -5,6 +5,7 @@ import {
 import { ArrowLeftIcon, ArrowRightIcon, StarIcon } from '@chakra-ui/icons';
 import { Stage, WaveDrop, RewardEntry, StageMission } from '@/interfaces/world';
 import { t } from '@/lib/strings';
+import { useTranslationVersion } from '@/lib/translationVersion';
 import { unitDisplayName } from '@/lib/rank';
 import { useEffect } from 'react';
 import { useAppSelector, useAppDispatch } from '@/hooks';
@@ -45,6 +46,7 @@ export default function StageTabs({
   currWave: number;
   setCurrWave: (n: number) => void;
 }) {
+  useTranslationVersion();
   const isBattle = !!stage.waves.length;
   const r = stage.rewards;
   const tabs: { label: string; icon?: React.ReactNode; panel: React.ReactNode }[] = [];

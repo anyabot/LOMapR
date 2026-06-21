@@ -5,6 +5,7 @@ import { useAppSelector, useAppDispatch } from '@/hooks';
 import { selectItems, ItemInfo } from '@/store/itemSlice';
 import { setActiveEquip } from '@/store/equipSlice';
 import { t } from '@/lib/strings';
+import { useTranslationVersion } from '@/lib/translationVersion';
 import { rankColor } from '@/lib/rank';
 import UnitHoverCard from './unitHoverCard';
 
@@ -164,6 +165,7 @@ export default function RewardList({
   // first within a kind (drop panels). Off by default so reward order is kept.
   sort?: boolean;
 }) {
+  useTranslationVersion();
   const items = useAppSelector(selectItems);
   const amountColor = tone === 'yellow' ? 'yellow.300' : tone === 'teal' ? 'teal.200' : 'gray.300';
   const ordered = sort ? sortRewards(rewards, items) : rewards;

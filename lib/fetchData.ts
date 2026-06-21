@@ -280,6 +280,55 @@ export interface SkinEntry {
   modelDamDiverged?: boolean;
 }
 
+// ── gacha simulator ───────────────────────────────────────────────────────────
+
+export type GachaEntry =
+  | {
+      kind: 'skin';
+      id: string;
+      key: string;
+      rate: number;
+      unitId: string;
+      unitEngName: string;
+      unitIcon: string;
+      nameId: string;      // raw loc ID — resolve via tAny at runtime
+      packNameId: string;
+      itemNameId: string;
+      category: string[];
+      price?: number;
+    }
+  | {
+      kind: 'item';
+      id: string;
+      key: string;
+      rate: number;
+      qty: number;
+      icon: string;
+      grade: number;
+      name: { en: string; ko: string };  // pre-resolved at build time
+    };
+
+export interface GachaPools {
+  skin_1x:       GachaEntry[];
+  skin_11x:      GachaEntry[];
+  n_1x:          GachaEntry[];
+  n_11x:         GachaEntry[];
+  n_event_11x:   GachaEntry[];
+  praemium_1x:   GachaEntry[];
+  praemium_11x:  GachaEntry[];
+  quest_1x:      GachaEntry[];
+  quest_10x:     GachaEntry[];
+}
+
+export async function fetchGachaPools(region: Region): Promise<GachaPools | null> {
+  const regions: Region[] = region === 'global' ? ['global'] : [region, 'global'];
+  for (const r of regions) {
+    const data = await get(`${r}/split/gacha/gacha.json`);
+    if (data) return data as GachaPools;
+  }
+  return null;
+}
+
 // ── equipment ─────────────────────────────────────────────────────────────────
 
 // Light equip LIST (per-family meta). split/equip/<id>.json holds the full data.

@@ -3,6 +3,7 @@ import { selectWorld, selectWorldStageStatus, fetchWorldAsync, fetchWorldStageAs
 import { fetchItemsAsync } from '@/store/itemSlice';
 import { Stage, Zone } from '@/interfaces/world';
 import { t } from '@/lib/strings';
+import { useTranslationVersion } from '@/lib/translationVersion';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router'
 import StageGrid from '@/components/stageGrid'
@@ -17,7 +18,7 @@ import { ArrowBackIcon } from '@chakra-ui/icons';
 import Head from 'next/head';
 
 export default function Home() {
-
+  useTranslationVersion();
   const world = useAppSelector(selectWorld);
   const dispatch = useAppDispatch();
   useEffect(() => {

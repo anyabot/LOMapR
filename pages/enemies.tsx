@@ -11,6 +11,7 @@ import { CloseIcon, SearchIcon } from '@chakra-ui/icons';
 import { useRouter } from 'next/router';
 import SimpleCard from '@/components/simpleCard';
 import { t } from '@/lib/strings';
+import { useTranslationVersion } from '@/lib/translationVersion';
 import { typeIcon, roleIcon } from '@/lib/rank';
 import { Image } from '@chakra-ui/react';
 import Head from 'next/head';
@@ -19,6 +20,7 @@ const ROLES = ['Attacker', 'Defender', 'Supporter'] as const;
 const TYPES = ['Light', 'Air', 'Heavy'] as const;
 
 export default function Home() {
+  useTranslationVersion();
   const enemy = useAppSelector(selectEnemy);
   const enemyStatus = useAppSelector(selectEnemyStatus);
   const imagelink = useAppSelector(selectImage);
