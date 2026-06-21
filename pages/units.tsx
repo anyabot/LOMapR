@@ -8,8 +8,7 @@ import {
 } from '@chakra-ui/react';
 import { CloseIcon, SearchIcon } from '@chakra-ui/icons';
 import { useRouter } from 'next/router';
-import { t } from '@/lib/strings';
-import { rankTag, rankColor, roleRankIcon, typeIcon, roleIcon } from '@/lib/rank';
+import { rankTag, rankColor, roleRankIcon, typeIcon, roleIcon, unitDisplayName } from '@/lib/rank';
 import Head from 'next/head';
 
 // One table per class type (rows of the page); columns = role; rows = grade.
@@ -24,8 +23,7 @@ type TypeKey = (typeof TYPES)[number];
 type RoleKey = (typeof ROLES)[number];
 type BodyKey = (typeof BODIES)[number];
 
-// Display name: prefer the collection English name, else the resolved loc id.
-const unitName = (u: UnitData): string => u.profile?.engName || t(u.name);
+const unitName = unitDisplayName;
 
 export default function Units() {
   const units = useAppSelector(selectUnits);

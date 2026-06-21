@@ -55,6 +55,13 @@ export const equipIcon = (kind: string): string | null =>
 export const factionIcon = (key: string): string | null =>
   key ? `/images/common/${key}.png` : null;
 
+// Canonical display name for a unit. canonName is hand-curated (unit_names.json)
+// and is the top-priority source; falls back to the loc id resolved by t().
+import { t } from '@/lib/strings';
+import type { UnitData } from '@/interfaces/unit';
+export const unitDisplayName = (u: { canonName?: string; name: string; profile?: { engName?: string } | null }): string =>
+  u.canonName || u.profile?.engName || t(u.name);
+
 // Equip exchange-shop source -> display label + badge color (Sanctum / Infinite War).
 export const EXCHANGE_META: Record<'Sanctum' | 'IW', { label: string; color: string }> = {
   Sanctum: { label: 'Sanctum', color: 'blue' },

@@ -147,6 +147,12 @@ export async function fetchStrings(region: Region) {
   return getWithFallback(region, 'strings.json');
 }
 
+export type StringChunk = 'common' | 'skill' | 'buff' | 'stage' | 'item' | 'shop';
+
+export async function fetchStringChunk(region: Region, chunk: StringChunk) {
+  return getWithFallback(region, `split/strings/strings.${chunk}.json`);
+}
+
 // Item / unit lookup (id -> {name, icon, grade, kind}) for reward & drop display.
 export async function fetchItems(region: Region) {
   return getWithFallback(region, 'item.json');
