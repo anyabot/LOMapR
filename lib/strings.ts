@@ -14,7 +14,10 @@
 //   krMtl       Missing KR MTL: KR-only skills not in global
 //   community   Community fan-translation overlay
 //
-// Precedence (highest wins): community > krMtl > mtl > official.
+// Resolution rule: community > mtl > krMtl > official (global region)
+//                  community > krMtl > mtl > official (kr region)
+// Official: try active region first, fall back to other region.
+// KR English: only returned when KR Korean matches global Korean.
 
 export type Lang = 'en' | 'ko';
 export type Region = 'global' | 'kr';
@@ -77,26 +80,15 @@ function officialLookup(region: Region, id: string): { en?: string; ko?: string 
 
 // Resolve one localization id.
 //
-// opts.region  — override the active region for this lookup (used for cross-region checks)
-// opts.lang    — 'en' (default) or 'ko'
-// opts.strict  — when true and active region is 'kr', validate that the KR Korean
-//                matches before returning global English (tKr behaviour)
-export function t(
-  value: string | undefined | null,
-  opts?: Lang | { lang?: Lang; region?: Region; strict?: boolean },
-): string {
-  if (value == null) return '';
-
-  const lang:   Lang   = typeof opts === 'string' ? opts : (opts?.lang   ?? 'en');
-  const region: Region = typeof opts === 'string' ? activeRegion : (opts?.region ?? activeRegion);
-  const strict          = typeof opts === 'string' ? false        : (opts?.strict ?? false);
+// Rule: community > (krMtl > mtl when KR, mtl > krMtl when global) > official.
+// Official: try active region first; if not found, try the other region.
+// KR English: only used when KR Korean matches global Korean (same content).
+export function t(value: string | undefined | null, lang: Lang = 'en'): string {
+  if (!value) return '';
 
   if (lang === 'en') {
-    if (activeCommunity) {
-      const o = community[value];
-      if (o?.en) return o.en;
-    }
-    if (region === 'kr') {
+    if (activeCommunity) { const o = community[value]; if (o?.en) return o.en; }
+    if (activeRegion === 'kr') {
       if (activeKrMtl) { const o = krMtl[value]; if (o?.en) return o.en; }
       if (activeMtl)   { const o = mtl[value];   if (o?.en) return o.en; }
     } else {
@@ -105,61 +97,32 @@ export function t(
     }
   }
 
-  const e = officialLookup(region, value);
-  if (e) {
-    if (lang !== 'en') return e[lang] || e.ko || value;
-    if (e.en) {
-      // strict mode: only return English if KR Korean matches global Korean
-      if (strict && region === 'kr') {
-        const krKo = (e.ko ?? '').trim();
-        const g = officialLookup('global', value);
-        if (g?.en && g.ko && g.ko.trim() === krKo) return g.en;
-        return krKo || value;
-      }
-      return e.en;
-    }
-    // KR entry has no English — try global if Korean content matches
-    if (region === 'kr') {
+  // Try active region first
+  const primary = officialLookup(activeRegion, value);
+  if (primary) {
+    if (lang !== 'en') return primary[lang] || primary.ko || value;
+    if (primary.en) return primary.en;
+    // Active region entry has no English — validate via KR ko vs global ko
+    if (activeRegion === 'kr') {
       const g = officialLookup('global', value);
-      if (g?.en && g.ko && g.ko.trim() === (e.ko ?? '').trim()) return g.en;
+      if (g?.en && g.ko && g.ko.trim() === (primary.ko ?? '').trim()) return g.en;
     }
-    return e.ko || value;
+    return primary.ko || value;
+  }
+
+  // Fall back to other region
+  const other: Region = activeRegion === 'kr' ? 'global' : 'kr';
+  const secondary = officialLookup(other, value);
+  if (secondary) {
+    if (lang !== 'en') return secondary[lang] || secondary.ko || value;
+    if (secondary.en) return secondary.en;
+    return secondary.ko || value;
   }
 
   return value;
 }
 
-// Resolve a loc ID from either region (tries active first, then the other).
-// Replaces tAny() — call as t(id, { region: 'any' }) or use this alias.
-export function tAny(value: string | undefined | null): string {
-  if (!value) return '';
-  const res = t(value);
-  if (res && res !== value) return res;
-  const other: Region = activeRegion === 'kr' ? 'global' : 'kr';
-  const e = officialLookup(other, value);
-  if (e?.en) return e.en;
-  return res || value;
-}
-
-// Resolve a loc ID that originated from KR data, validating KR Korean as ground
-// truth before returning English. Replaces tKr() — now a thin alias over t().
-export function tKr(value: string | undefined | null): string {
-  if (!value) return '';
-  const krEntry = officialLookup('kr', value);
-  if (!krEntry) return '';
-  const krKo = (krEntry.ko ?? '').trim();
-
-  if (activeCommunity) { const o = community[value]; if (o?.en) return o.en; }
-  if (activeRegion === 'kr') {
-    if (activeKrMtl) { const o = krMtl[value]; if (o?.en) return o.en; }
-    if (activeMtl)   { const o = mtl[value];   if (o?.en) return o.en; }
-  } else {
-    if (activeMtl)   { const o = mtl[value];   if (o?.en) return o.en; }
-    if (activeKrMtl) { const o = krMtl[value]; if (o?.en) return o.en; }
-  }
-
-  if (krEntry.en) return krEntry.en;
-  const g = officialLookup('global', value);
-  if (g?.en && g.ko && g.ko.trim() === krKo) return g.en;
-  return krKo || value;
-}
+// Kept as aliases so import sites compile without mass-renaming.
+// Both collapse to t() — the single resolution rule covers all cases.
+export const tKr  = t;
+export const tAny = t;

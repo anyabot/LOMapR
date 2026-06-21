@@ -230,6 +230,13 @@ function useStringsAndTranslation(): number {
         });
       }
     }
+
+    // Always load KR shop chunk — KR-only skins appear in global view too
+    if (region === 'global') {
+      fetchStringChunk('kr', 'shop').then((d) => {
+        if (d) { setChunkData('kr', 'shop', d); setVer((v) => v + 1); }
+      }).catch(() => {});
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [region]);
 

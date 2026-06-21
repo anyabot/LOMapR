@@ -414,8 +414,8 @@ const UNITY_VIEWER_BASE = (
     : '/unity-viewer/'
 ).replace(/\/$/, '');
 
-function UnityViewer({ skin, height, parts, hasRplus, hasBg, hasDam, showDam, onToggleDam }: {
-  skin: string; height: string | number; parts: string[]; hasRplus?: boolean; hasBg?: boolean;
+function UnityViewer({ skin, height, parts, hasRplus, hasKr, hasBg, hasDam, showDam, onToggleDam }: {
+  skin: string; height: string | number; parts: string[]; hasRplus?: boolean; hasKr?: boolean; hasBg?: boolean;
   hasDam?: boolean; showDam?: boolean; onToggleDam?: () => void;
 }) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -425,9 +425,10 @@ function UnityViewer({ skin, height, parts, hasRplus, hasBg, hasDam, showDam, on
   const [showParts, setShowParts] = useState(true);
   const [showBg, setShowBg] = useState(true);
   const [showZones, setShowZones] = useState(false);
-  const [rplus, setRplus] = useState(false);
+  const [variant, setVariant] = useState<string>('base');
+  const [availableVariants, setAvailableVariants] = useState<string[]>([]);
 
-  // base skin name without region suffix for R+ swap
+  // base skin name without region suffix
   const baseSkin = skin.replace(/__kr$/, '');
 
   const send = (msg: object) => {
@@ -443,6 +444,7 @@ function UnityViewer({ skin, height, parts, hasRplus, hasBg, hasDam, showDam, on
           if (e.data.data?.length) setFace(e.data.data[0]);
           break;
         case 'part': setHasParts(!!e.data.data); break;
+        case 'variants': setAvailableVariants(e.data.data ?? []); break;
       }
     };
     window.addEventListener('message', handler);
@@ -450,8 +452,8 @@ function UnityViewer({ skin, height, parts, hasRplus, hasBg, hasDam, showDam, on
   }, []);
 
   useEffect(() => {
-    setFaceList([]); setHasParts(false);
-    setFace(''); setShowParts(true); setShowBg(true); setShowZones(false); setRplus(false);
+    setFaceList([]); setHasParts(false); setAvailableVariants([]);
+    setFace(''); setShowParts(true); setShowBg(true); setShowZones(false); setVariant('base');
   }, [skin]);
 
   useEffect(() => { send({ type: 'bg', active: showBg }); }, [skin, showBg]);
@@ -459,10 +461,10 @@ function UnityViewer({ skin, height, parts, hasRplus, hasBg, hasDam, showDam, on
   useEffect(() => { send({ type: 'part', active: showParts }); }, [showParts]);
   useEffect(() => { send({ type: 'collider', active: showZones }); }, [showZones]);
   useEffect(() => {
-    send({ type: 'model', model: rplus ? `${baseSkin}_rplus` : baseSkin });
-  }, [rplus, baseSkin]);
+    send({ type: 'variant', variant: variant === 'base' ? '' : variant });
+  }, [variant]);
 
-  const iframeSrc = `${UNITY_VIEWER_BASE}/index.html?model=${encodeURIComponent(skin)}`;
+  const iframeSrc = `${UNITY_VIEWER_BASE}/index.html?model=${encodeURIComponent(baseSkin)}`;
   const faceName = face.replace(/^face\/.*_/, '');
 
   return (
@@ -515,32 +517,63 @@ function UnityViewer({ skin, height, parts, hasRplus, hasBg, hasDam, showDam, on
           </Box>
         )}
 
-        {/* Bottom-right: parts + bg + R+ + dam toggles */}
-        {(hasParts || hasBg || hasRplus || hasDam) && (
-          <VStack position="absolute" bottom={2} right={2} spacing={1} align="flex-end"
-            bg="blackAlpha.500" borderRadius="md" px={1} py={1}>
-            {hasParts && (
-              <IconBtn src="/images/shop/UI_SkinProp_Parts_N.png" alt="Parts"
-                label={showParts ? 'Hide parts' : 'Show parts'} active={showParts}
-                onClick={() => setShowParts((v) => !v)} />
-            )}
-            {hasBg && (
-              <IconBtn src="/images/UI_Lobby_Icon_Props_1.png" alt="BG"
-                label={showBg ? 'Hide BG' : 'Show BG'} active={showBg}
-                onClick={() => setShowBg((v) => !v)} />
-            )}
-            {hasRplus && (
-              <IconBtn src="/images/shop/icon-secret-marks.png" alt="R+"
-                label={rplus ? 'R+ on' : 'R+ off'} active={rplus}
-                onClick={() => setRplus((v) => !v)} />
-            )}
-            {hasDam && onToggleDam && (
-              <IconBtn src="/images/shop/UI_Icon_ClothBroken.png" alt="Damaged"
-                label={showDam ? 'Damaged — click for normal' : 'Normal — click for damaged'} active={!!showDam}
-                onClick={onToggleDam} />
-            )}
-          </VStack>
-        )}
+        {/* Bottom-right: props/bg group + variant radio group + dam toggle */}
+        <HStack position="absolute" bottom={2} right={2} spacing={1} align="flex-end">
+          {/* Variant radio: base / kr / sfw / kr_sfw / rplus */}
+          {availableVariants.length > 0 && (
+            <HStack bg="blackAlpha.500" borderRadius="md" px={1} py={1} spacing={1}>
+              {(['base', ...availableVariants] as string[]).map((v) => {
+                const icons: Record<string, string> = {
+                  base:  '/images/shop/icon-platform-onestore.png',
+                  kr:    '/images/shop/icon-platform-onestore-kr.png',
+                  sfw:   '/images/shop/icon-platform-google.png',
+                  rplus: '/images/shop/icon-secret-marks.png',
+                };
+                const tips: Record<string, string> = {
+                  base:  'Global (OneStore)',
+                  kr:    'KR version',
+                  sfw:   'Uncensored (Google Play)',
+                  rplus: 'R+',
+                };
+                const active = variant === v;
+                const icon = icons[v];
+                return (
+                  <Tooltip key={v} label={tips[v] ?? v} fontSize="xs" hasArrow placement="top">
+                    <Box as="button" onClick={() => { if (!active) setVariant(v); }}
+                      position="relative" boxSize="36px"
+                      opacity={active ? 1 : 0.4} transition="opacity 0.15s"
+                      _hover={{ opacity: active ? 0.8 : 0.65 }}
+                      outline={active ? '2px solid' : 'none'}
+                      outlineColor="yellow.400"
+                      borderRadius="sm">
+                      <Image src={icon} alt={tips[v] ?? v} boxSize="36px" objectFit="contain" />
+                    </Box>
+                  </Tooltip>
+                );
+              })}
+            </HStack>
+          )}
+          {/* Props/bg/dam group */}
+          {(hasParts || hasBg || hasDam) && (
+            <VStack bg="blackAlpha.500" borderRadius="md" px={1} py={1} spacing={1}>
+              {hasParts && (
+                <IconBtn src="/images/shop/UI_SkinProp_Parts_N.png" alt="Parts"
+                  label={showParts ? 'Hide parts' : 'Show parts'} active={showParts}
+                  onClick={() => setShowParts((v) => !v)} />
+              )}
+              {hasBg && (
+                <IconBtn src="/images/UI_Lobby_Icon_Props_1.png" alt="BG"
+                  label={showBg ? 'Hide BG' : 'Show BG'} active={showBg}
+                  onClick={() => setShowBg((v) => !v)} />
+              )}
+              {hasDam && onToggleDam && (
+                <IconBtn src="/images/shop/UI_Icon_ClothBroken.png" alt="Damaged"
+                  label={showDam ? 'Damaged — click for normal' : 'Normal — click for damaged'} active={!!showDam}
+                  onClick={onToggleDam} />
+              )}
+            </VStack>
+          )}
+        </HStack>
       </Box>
 
       {/* Control bar below canvas — zones toggle, matching PixiJS spine viewer */}
@@ -586,7 +619,7 @@ type SkinViewerProps = {
 export default function SkinViewer(props: SkinViewerProps) {
   if (props.viewerKind === 'skinned') {
     return <UnityViewer skin={props.skin} height={props.height ?? '70vh'} parts={props.parts ?? []}
-      hasRplus={props.hasRplus} hasBg={props.hasBg}
+      hasRplus={props.hasRplus} hasKr={props.hasKr} hasBg={props.hasBg}
       hasDam={props.hasDam} showDam={props.showDam} onToggleDam={props.onToggleDam} />;
   }
   return <PixiSkinViewer {...props} />;

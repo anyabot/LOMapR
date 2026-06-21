@@ -25,7 +25,7 @@ import { UnitData, FullUnitData, UnitReq, UnitStat, LinkBonus } from '@/interfac
 import { EquipData } from '@/interfaces/equip';
 import { RewardEntry } from '@/interfaces/world';
 import { Skill } from '@/interfaces/skill';
-import { t, tKr } from '@/lib/strings';
+import { t, tKr, tAny } from '@/lib/strings';
 import { useTranslationVersion } from '@/lib/translationVersion';
 import RewardList from '@/components/rewardList';
 import SkillTab from '@/components/enemyTab/skillTab';
@@ -858,6 +858,7 @@ function skinFaceIcon(faceKey: string): string {
 
 
 function SkinTab({ unit }: { unit: FullUnitData }) {
+  useTranslationVersion();
   const region = useAppSelector(selectRegion);
   const skins = unit.skins || [];
   const [idx, setIdx] = useState(0);
@@ -875,17 +876,10 @@ function SkinTab({ unit }: { unit: FullUnitData }) {
   const damAsset = (skin.modelDam || '').toLowerCase();
   const asset = (showDam && hasDam ? damAsset : baseAsset);
   const isDiverged = showDam && hasDam ? !!skin.modelDamDiverged : !!skin.modelDiverged;
-  // Dam skins for skinned viewer fall back to PixiJS archive (no Unity bundle for dam)
+  // skinned base: Unity variant bundle handles kr/sfw/kr_sfw internally
+  // skinned dam / PixiJS: use archive; diverged = __global or __kr suffix
   const isSkinnedBase = skin.viewerKind === 'skinned' && !(showDam && hasDam);
-  const hasKr = isDiverged || (isSkinnedBase && !!(skin as any).hasKr);
-  const archiveKey = asset && isDiverged
-    ? `${asset}__${viewRegion}`
-    : asset;
-  // For skinned base skin, pass model name to UnityViewer; KR uses raw CDN bundle
-  const skinnedModel = isSkinnedBase && asset
-    ? (viewRegion === 'kr' && hasKr) ? `${asset}__kr` : asset
-    : undefined;
-  // Dam of a skinned skin: use undefined so SkinViewer reads kind from archive layout.json
+  const archiveKey = asset && isDiverged ? `${asset}__${viewRegion}` : asset;
   const effectiveViewerKind = isSkinnedBase ? 'skinned' : skin.viewerKind === 'skinned' ? undefined : skin.viewerKind;
 
   return (
@@ -916,7 +910,7 @@ function SkinTab({ unit }: { unit: FullUnitData }) {
                 {iconSrc && (
                   <Image
                     src={iconSrc}
-                    alt={tKr(s.name || s.packName || s.itemName) || s.key || 'Base'}
+                    alt={t(s.name || s.packName || s.itemName) || s.key || 'Base'}
                     boxSize="80px"
                     objectFit="contain"
                     mx="auto"
@@ -925,7 +919,7 @@ function SkinTab({ unit }: { unit: FullUnitData }) {
                   />
                 )}
                 <Text fontSize="xs" fontWeight={selected ? 'bold' : 'normal'} noOfLines={2} lineHeight="1.3">
-                  {s.key === '' ? 'Default' : tKr(s.name || s.packName || s.itemName) || s.key}
+                  {s.key === '' ? 'Default' : t(s.name || s.packName || s.itemName) || s.key}
                 </Text>
 
                 <Box mt={1}>
@@ -954,25 +948,25 @@ function SkinTab({ unit }: { unit: FullUnitData }) {
               {skin.itemName && (
                 <Tr>
                   <Td fontWeight="semibold" color="gray.400" w="90px" whiteSpace="nowrap">Name</Td>
-                  <Td>{tKr(skin.itemName) || skin.key}</Td>
+                  <Td>{t(skin.itemName) || skin.key}</Td>
                 </Tr>
               )}
               {!skin.itemName && (
                 <Tr>
                   <Td fontWeight="semibold" color="gray.400" w="90px" whiteSpace="nowrap">Name</Td>
-                  <Td>{tKr(skin.name) || skin.key}</Td>
+                  <Td>{t(skin.name) || skin.key}</Td>
                 </Tr>
               )}
-              {skin.packName && tKr(skin.packName) !== tKr(skin.itemName) && (
+              {skin.packName && t(skin.packName) !== t(skin.itemName) && (
                 <Tr>
                   <Td fontWeight="semibold" color="gray.400" whiteSpace="nowrap">Pack</Td>
-                  <Td>{tKr(skin.packName)}</Td>
+                  <Td>{t(skin.packName)}</Td>
                 </Tr>
               )}
               {skin.desc && (
                 <Tr>
                   <Td fontWeight="semibold" color="gray.400" verticalAlign="top">Description</Td>
-                  <Td whiteSpace="pre-wrap">{tKr(skin.desc)}</Td>
+                  <Td whiteSpace="pre-wrap">{t(skin.desc)}</Td>
                 </Tr>
               )}
             </Tbody>
@@ -988,8 +982,8 @@ function SkinTab({ unit }: { unit: FullUnitData }) {
       ) : (
         <Box position="relative">
           <SkinViewer
-            key={archiveKey + viewRegion}
-            skin={skinnedModel ?? archiveKey}
+            key={isSkinnedBase ? asset : archiveKey}
+            skin={isSkinnedBase ? asset : archiveKey}
             height="60vh"
             parts={skin.parts}
             hasDam={hasDam}
@@ -998,7 +992,7 @@ function SkinTab({ unit }: { unit: FullUnitData }) {
             viewerKind={effectiveViewerKind}
             hasRplus={(skin as any).hasRplus}
             hasBg={(skin as any).bgUse}
-            hasKr={hasKr}
+            hasKr={isDiverged}
             viewRegion={viewRegion}
             onToggleRegion={() => setViewRegion((r) => r === 'global' ? 'kr' : 'global')}
           />
