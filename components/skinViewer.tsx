@@ -777,7 +777,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
       // the wrapper container that will be added to root (holding the composed
       // world matrix so the mesh renders in the right place/scale/rotation),
       // the sort order, and the ancestor chain for visibility recompute.
-      const flatMeshes: { mesh: any; wrapper: any; order: number; chain: string[] }[] = [];
+      const flatMeshes: { mesh: any; wrapper: any; order: number; chain: string[]; sprite: SpriteInfo }[] = [];
 
       // Build a container tree for visibility/toggle tracking, and compute each
       // node's world matrix explicitly (parentMat × nodeLocalMat) so we don't
@@ -1035,7 +1035,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
       appRef.current = null;
       if (app && appReady) app.destroy(true);
     };
-  }, [layout, skin]);
+  }, [layout, skin, resetKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Swap textures on existing fixed-skin meshes when variant changes — no rebuild needed.
   useEffect(() => {
