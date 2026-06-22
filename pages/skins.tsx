@@ -300,16 +300,13 @@ function SkinCard({ skin, selected, onClick }: {
 function SkinPanel({ skin }: { skin: SkinEntry }) {
   const region = useAppSelector(selectRegion);
   const [showDam, setShowDam] = useState(false);
-  const [viewRegion, setViewRegion] = useState<'global' | 'kr'>('global');
 
   const hasDam = !!skin.modelDam;
   const baseAsset = skin.model;
   const damAsset = skin.modelDam;
   const asset = showDam && hasDam ? damAsset : baseAsset;
-  const isDiverged = showDam && hasDam ? !!skin.modelDamDiverged : !!skin.modelDiverged;
   const isSkinnedBase = skin.viewerKind === 'skinned' && !(showDam && hasDam);
-  const hasKr = isDiverged;
-  const archiveKey = asset && isDiverged ? `${asset}__${viewRegion}` : asset;
+  const archiveKey = asset;
   const effectiveViewerKind = isSkinnedBase
     ? 'skinned'
     : skin.viewerKind === 'skinned' ? undefined : skin.viewerKind;
@@ -388,18 +385,15 @@ function SkinPanel({ skin }: { skin: SkinEntry }) {
         <Text color="gray.500" fontSize="sm">Not processed yet.</Text>
       ) : (
         <SkinViewer
-          key={isSkinnedBase ? asset : archiveKey + viewRegion}
+          key={isSkinnedBase ? asset : archiveKey}
           skin={isSkinnedBase ? asset : archiveKey}
           height="60vh"
           parts={skin.parts}
           hasDam={hasDam}
           showDam={showDam}
-          onToggleDam={() => { setShowDam((v) => !v); setViewRegion('global'); }}
+          onToggleDam={() => setShowDam((v) => !v)}
           viewerKind={effectiveViewerKind}
           hasBg={skin.bgUse}
-          hasKr={hasKr}
-          viewRegion={viewRegion}
-          onToggleRegion={() => setViewRegion((r) => r === 'global' ? 'kr' : 'global')}
         />
       )}
     </VStack>

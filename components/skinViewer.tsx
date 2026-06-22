@@ -51,7 +51,9 @@ type SpriteInfo = Mesh & {
   flipY: boolean;
   color?: [number, number, number, number]; // m_Color [r,g,b,a] when non-white
   shader?: 'multiply' | 'add' | 'screen' | 'mask'; // non-default Unity material
-  rplus?: Mesh; // the R+ twin (swapped in at runtime by RplusSpriteSwitcher)
+  rplus?: Mesh; // R+ twin
+  kr?: Mesh;    // KR-censored variant
+  sfw?: Mesh;   // Google Play SFW variant
 };
 type SkinNode = {
   id: string; // stable GameObject id (toggles reference these)
@@ -117,6 +119,7 @@ type Layout = {
   // spine case (export_spine.py): Spine runtime assets + metadata.
   skel?: string; atlas?: string; animations?: string[]; skins?: string[];
   skinGroups?: { base?: string; faces?: string[]; parts?: string[]; defaultFace?: string };
+  sfw?: { textures?: Record<string, string>; atlas?: string; skel?: string };
   animator?: {
     states: Record<string, { name: string; clip: string | null; loop: boolean; exit: number | null }>;
     default: number;
@@ -138,18 +141,21 @@ function baseSkinKey(skin: string): string {
   return skin.replace(/__(global|kr)$/, '');
 }
 
-// whether any node/mesh in this layout actually has an R+ twin texture —
-// the R+ toggle is hidden entirely when a skin has no R+ variant at all.
-function layoutHasRplus(layout: Layout): boolean {
+// whether any fixed-skin node has a given variant key (rplus / kr / sfw)
+function layoutHasVariant(layout: Layout, key: 'rplus' | 'kr' | 'sfw'): boolean {
   if (layout.kind === 'fixed') {
     const walk = (n: SkinNode): boolean =>
-      !!n.sprite?.rplus || n.children.some(walk);
+      !!n.sprite?.[key] || n.children.some(walk);
     return (layout.nodes ?? []).some(walk);
   }
-  if (layout.kind === 'skinned' || layout.kind === 'skinned-anim') {
+  if (key === 'rplus' && (layout.kind === 'skinned' || layout.kind === 'skinned-anim')) {
     return (layout.meshes ?? []).some((m) => !!(m as SkinnedMesh | AnimMesh).rplusTex);
   }
   return false;
+}
+
+function layoutHasRplus(layout: Layout): boolean {
+  return layoutHasVariant(layout, 'rplus');
 }
 
 // --- 4x4 matrix math (row-major, column vectors) for skeletal skinning ------
@@ -631,7 +637,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
   const rootRef = useRef<any>(null);
   const pixiRef = useRef<any>(null);
   const u2pxRef = useRef<number>(1);
-  const [rplus, setRplus] = useState(false);
+  const [variant, setVariant] = useState<'base' | 'kr' | 'sfw' | 'rplus'>('base');
   const [error, setError] = useState<string | null>(null);
   const [layout, setLayout] = useState<Layout | null>(null);
   const [toggles, setToggles] = useState<Record<string, boolean>>({});
@@ -639,6 +645,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
   const [spineFace, setSpineFace] = useState<string>('');
   const [spineParts, setSpineParts] = useState<Record<string, boolean>>({});
   const [spineBreast, setSpineBreast] = useState<string>('');
+  const [spineAvailableSkins, setSpineAvailableSkins] = useState<Set<string> | null>(null);
   const showBg = toggles['bg'] ?? true;
   const [showZones, setShowZones] = useState(false);
   const zoneOverlayRef = useRef<any>(null);
@@ -646,6 +653,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
   const [playing, setPlaying] = useState(true);
   const [loadState, setLoadState] = useState<'fetching' | 'unpacking' | 'ready' | 'error'>('fetching');
   const [canvasReady, setCanvasReady] = useState(false);
+  const [resetKey, setResetKey] = useState(0);
   const filesRef = useRef<Map<string, Blob> | null>(null);
 
   useEffect(() => {
@@ -670,16 +678,17 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
         if (cancelled) return;
         setLayout(l);
         setLoadState('ready');
-        setRplus(false);
+        setVariant('base');
         setToggles(Object.fromEntries((l.toggles ?? []).map((t) => [t.key, t.default])));
         if (l.kind === 'spine') {
           setSpineAnim((l.animations ?? []).includes('Idle_1') ? 'Idle_1' : (l.animations?.[0] ?? ''));
           setSpineFace(l.skinGroups?.defaultFace ?? '');
           const parts = l.skinGroups?.parts ?? [];
-          setSpineParts(Object.fromEntries(parts.filter((p) => !p.startsWith('breast/')).map((p) => [p, false])));
+          setSpineParts(Object.fromEntries(parts.filter((p) => !p.startsWith('breast/')).map((p) => [p, p === 'default' || p.startsWith('decorations/')])));
           const breastOptions = parts.filter((p) => p.startsWith('breast/'));
           const defaultBreast = breastOptions.find((p) => p === 'breast/Unedited') ?? breastOptions[0] ?? '';
           setSpineBreast(defaultBreast);
+          setSpineAvailableSkins(null);
         }
       })
       .catch((e) => {
@@ -691,7 +700,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
       cancelled = true;
       revokeSkinUrls(skin);
     };
-  }, [skin]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [skin, resetKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const nodesByIdRef = useRef<Record<string, any>>({});
   const meshByIdRef = useRef<Record<string, any>>({});
@@ -699,7 +708,8 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
   // draw-order sorting (see the comment above `flatMeshes` in the build
   // effect) — toggle visibility must therefore drive mesh.renderable
   // directly instead of the (now-empty) anchor container's `visible`.
-  const flatMeshesRef = useRef<{ mesh: any; wrapper: any; order: number; chain: string[] }[]>([]);
+  const flatMeshesRef = useRef<{ mesh: any; wrapper: any; order: number; chain: string[]; sprite: SpriteInfo }[]>([]);
+  const texturesRef = useRef<Record<string, any>>({});
   const togglesRef = useRef<Record<string, boolean>>({});
   togglesRef.current = toggles;
   const animTickRef = useRef<((t: number) => void) | null>(null);
@@ -708,7 +718,6 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
   playingRef.current = playing;
   useEffect(() => {
     if (!layout || layout.kind === 'spine' || layout.skin !== baseSkinKey(skin)) return;
-    if (rplus && !layoutHasRplus(layout)) { setRplus(false); return; }
     let destroyed = false;
     let app: any = null;
     let appReady = false;
@@ -724,6 +733,8 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
         if (n.sprite) {
           texNames.add(n.sprite.tex);
           if (n.sprite.rplus) texNames.add(n.sprite.rplus.tex);
+          if (n.sprite.kr) texNames.add(n.sprite.kr.tex);
+          if (n.sprite.sfw) texNames.add(n.sprite.sfw.tex);
         }
         n.children.forEach(collect);
       };
@@ -739,6 +750,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
           textures[tex] = await loadTexture(PIXI, skin, files, tex);
         }),
       );
+      texturesRef.current = textures;
       if (destroyed) return;
 
       app = new PIXI.Application();
@@ -765,7 +777,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
       // the wrapper container that will be added to root (holding the composed
       // world matrix so the mesh renders in the right place/scale/rotation),
       // the sort order, and the ancestor chain for visibility recompute.
-      const flatMeshes: { mesh: any; wrapper: any; order: number; chain: string[] }[] = [];
+      const flatMeshes: { mesh: any; wrapper: any; order: number; chain: string[]; sprite: SpriteInfo }[] = [];
 
       // Build a container tree for visibility/toggle tracking, and compute each
       // node's world matrix explicitly (parentMat × nodeLocalMat) so we don't
@@ -785,12 +797,11 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
         const worldMat = parentMat.clone().append(node.localTransform);
 
         if (n.sprite) {
-          const m = rplus && n.sprite.rplus ? n.sprite.rplus : n.sprite;
           const mesh = new PIXI.MeshSimple({
-            texture: textures[m.tex],
-            vertices: new Float32Array(m.verts),
-            uvs: new Float32Array(m.uvs),
-            indices: new Uint32Array(m.indices),
+            texture: textures[n.sprite.tex],
+            vertices: new Float32Array(n.sprite.verts),
+            uvs: new Float32Array(n.sprite.uvs),
+            indices: new Uint32Array(n.sprite.indices),
           });
           if (n.sprite.flipX) mesh.scale.x = -1;
           if (n.sprite.flipY) mesh.scale.y = -1;
@@ -812,7 +823,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
           const wrapper = new PIXI.Container();
           wrapper.setFromMatrix(worldMat);
           wrapper.addChild(mesh);
-          flatMeshes.push({ mesh, wrapper, order: n.sprite.order, chain });
+          flatMeshes.push({ mesh, wrapper, order: n.sprite.order, chain, sprite: n.sprite });
         }
         n.children.forEach((c) => node.addChild(build(c, chain, worldMat)));
         return node;
@@ -822,7 +833,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
       const meshById: Record<string, any> = {};
       let zoneLayer: any = null;
       if (layout.kind === 'skinned-anim') {
-        buildSkinnedAnim(PIXI, layout, root, textures, rplus, meshById,
+        buildSkinnedAnim(PIXI, layout, root, textures, variant === 'rplus', meshById,
                          (fn) => { animTickRef.current = fn; },
                          () => playingRef.current, ppu,
                          (fn) => { playClipRef.current = fn; });
@@ -852,7 +863,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
         }
       } else if (layout.kind === 'skinned') {
         for (const m of (layout.meshes ?? []) as SkinnedMesh[]) {
-          const tex = rplus && m.rplusTex ? m.rplusTex : m.tex;
+          const tex = variant === 'rplus' && m.rplusTex ? m.rplusTex : m.tex;
           const mesh = new PIXI.MeshSimple({
             texture: textures[tex],
             vertices: new Float32Array(m.verts),
@@ -1018,15 +1029,35 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
       nodesByIdRef.current = {};
       meshByIdRef.current = {};
       flatMeshesRef.current = [];
+      texturesRef.current = {};
       animTickRef.current = null;
       playClipRef.current = null;
       appRef.current = null;
       if (app && appReady) app.destroy(true);
     };
-  }, [layout, skin, rplus]);
+  }, [layout, skin, resetKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Swap textures on existing fixed-skin meshes when variant changes — no rebuild needed.
+  useEffect(() => {
+    if (!layout || layout.kind === 'spine') return;
+    if (variant !== 'base' && !layoutHasVariant(layout, variant as 'rplus' | 'kr' | 'sfw')) { setVariant('base'); return; }
+    const textures = texturesRef.current;
+    for (const { mesh, sprite } of flatMeshesRef.current) {
+      const vkey = (variant === 'rplus' && sprite.rplus) ? sprite.rplus
+                 : (variant === 'kr'    && sprite.kr)    ? sprite.kr
+                 : (variant === 'sfw'   && sprite.sfw)   ? sprite.sfw
+                 : null;
+      mesh.texture = textures[(vkey ?? sprite).tex] ?? textures[sprite.tex];
+    }
+  }, [layout, variant]);
 
   const spineRef = useRef<any>(null);
+  const spineSfwRef = useRef<any>(null); // second Spine object for skel-differs case
   const bgSpriteRef = useRef<any>(null);
+  const bgSpriteSfwRef = useRef<any>(null); // second BG sprite for skel-differs case
+  // Per atlas page: base and sfw SpineTexture objects for texture-swap case
+  const spinePageTexRef = useRef<{ page: any; base: any; sfw: any }[]>([]);
+  const spineBgTexRef = useRef<{ base: any; sfw: any } | null>(null);
   const composeSkinRef = useRef<((face: string, breast: string, parts: Record<string, boolean>) => void) | null>(null);
   const spineStateRef = useRef<number>(0);
   const reactThenRef = useRef<((trigger: 'breast' | 'Tep_1') => void) | null>(null);
@@ -1036,11 +1067,18 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
   spineBreastRef.current = spineBreast;
   const spinePartsRef = useRef(spineParts);
   spinePartsRef.current = spineParts;
+  const variantRef = useRef(variant);
+  variantRef.current = variant;
   useEffect(() => {
     if (!layout || layout.kind !== 'spine' || layout.skin !== baseSkinKey(skin)) return;
     let destroyed = false;
     let app: any = null;
     let appReady = false;
+    // Clear refs immediately so the swap effect can't act on stale objects from a prior skin
+    spineRef.current = null;
+    spineSfwRef.current = null;
+    spinePageTexRef.current = [];
+    spineBgTexRef.current = null;
 
     (async () => {
       const PIXI = await import('pixi.js');
@@ -1051,23 +1089,68 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
       if (!files) return;
 
       if (!layout.atlas || !layout.skel) return;
-      const atlasText = await readText(files, layout.atlas);
-      const textureAtlas = new TextureAtlas(atlasText);
-      await Promise.all(
-        textureAtlas.pages.map(async (page: any) => {
-          const blobUrl = urlFor(skin, files, page.name);
+      const sfwMeta = layout.sfw ?? null;
+      const sfwHasSkel = !!(sfwMeta?.skel);
+
+      // Helper: load a TextureAtlas with base textures, and optionally pre-load sfw textures
+      const loadAtlas = async (atlasName: string, texOverrides: Record<string, string> = {}) => {
+        const atlasText = await readText(files, atlasName);
+        const ta = new TextureAtlas(atlasText);
+        await Promise.all(ta.pages.map(async (page: any) => {
+          const overrideName = texOverrides[page.name];
+          const blobUrl = urlFor(skin, files, overrideName ?? page.name);
           const texture = await PIXI.Assets.load({
             src: blobUrl,
             loadParser: 'loadTextures',
             data: { alphaMode: page.pma ? 'premultiplied-alpha' : 'premultiply-alpha-on-upload' },
           });
           page.setTexture(SpineTexture.from(texture.source));
-        }),
-      );
-      const [atlas, skelJson] = [textureAtlas, JSON.parse(await readText(files, layout.skel))];
+        }));
+        return ta;
+      };
+
+      // Always load base atlas/skel
+      const baseAtlas = await loadAtlas(layout.atlas);
       if (destroyed) return;
-      const sjson = new SkeletonJson(new AtlasAttachmentLoader(atlas));
-      const skeletonData = sjson.readSkeletonData(skelJson);
+
+      // If sfw textures differ but skel is same, pre-load sfw textures for instant swap
+      // If sfw skel differs, load a full separate atlas for it
+      let sfwAtlas: any = null;
+      if (sfwMeta) {
+        if (sfwMeta.atlas) {
+          // sfw atlas already has correct page names baked in — no overrides needed
+          sfwAtlas = await loadAtlas(sfwMeta.atlas);
+        } else {
+          // same atlas structure, just different texture files
+          sfwAtlas = await loadAtlas(layout.atlas, sfwMeta.textures ?? {});
+        }
+        if (destroyed) return;
+      }
+
+      // Build page texture swap table (texture-only sfw case)
+      if (!sfwHasSkel && sfwMeta) {
+        spinePageTexRef.current = baseAtlas.pages.map((page: any, i: number) => ({
+          page,
+          base: page.texture, // SpineTexture set above
+          sfw: sfwAtlas?.pages[i]?.texture ?? page.texture,
+        }));
+      } else {
+        spinePageTexRef.current = [];
+      }
+
+      const baseSkelJson = JSON.parse(await readText(files, layout.skel));
+      if (destroyed) return;
+      const sjson = new SkeletonJson(new AtlasAttachmentLoader(baseAtlas));
+      const skeletonData = sjson.readSkeletonData(baseSkelJson);
+
+      // If sfw has a different skeleton, build it too
+      let sfwSkeletonData: any = null;
+      if (sfwHasSkel && sfwMeta?.skel && sfwAtlas) {
+        const sfwSkelJson = JSON.parse(await readText(files, sfwMeta.skel));
+        if (destroyed) return;
+        const sfwSjson = new SkeletonJson(new AtlasAttachmentLoader(sfwAtlas));
+        sfwSkeletonData = sfwSjson.readSkeletonData(sfwSkelJson);
+      }
 
       app = new PIXI.Application();
       await app.init({ backgroundAlpha: 0, antialias: true, resizeTo: hostRef.current! });
@@ -1076,57 +1159,112 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
       appRef.current = app;
       hostRef.current!.replaceChildren(app.canvas);
 
-
       const W = layout.world ?? {};
-      let bgTex: any = null;
-      if (W.bg) bgTex = await loadTexture(PIXI, skin, files, W.bg.tex);
+
+      // Load BG textures (base + sfw if different)
+      let bgTexBase: any = null;
+      let bgTexSfw: any = null;
+      if (W.bg) {
+        bgTexBase = await loadTexture(PIXI, skin, files, W.bg.tex);
+        const sfwBgName = sfwMeta?.textures?.[W.bg.tex];
+        bgTexSfw = sfwBgName ? await loadTexture(PIXI, skin, files, sfwBgName) : null;
+      }
       if (destroyed) { if (appReady) app?.destroy(true); return; }
+
+      spineBgTexRef.current = bgTexBase ? { base: bgTexBase, sfw: bgTexSfw ?? bgTexBase } : null;
+
+      const isSfw = variantRef.current === 'sfw';
 
       const spine = new Spine({ skeletonData });
       spineRef.current = spine;
       const startAnim = (layout.animations ?? []).includes('Idle_1')
         ? 'Idle_1' : layout.animations?.[0];
       if (startAnim) spine.state.setAnimation(0, startAnim, true);
+      spine.visible = !sfwHasSkel || !isSfw;
 
-      const compose = (face: string, breast: string, parts: Record<string, boolean>) => {
-        const names = [
-          layout.skinGroups?.base,
-          face,
-          breast || undefined,
-          ...Object.entries(parts).filter(([, on]) => on).map(([n]) => n),
-        ].filter(Boolean) as string[];
-        const result = new Skin('viewer-skin');
-        for (const n of names) {
-          const s = skeletonData.findSkin(n);
-          if (s) result.addSkin(s);
-        }
-        // Stop the ticker for this frame so setSkin+setToSetupPose don't render
-        // a bare T-pose before the animation re-applies bone transforms.
-        const wasRunning = app.ticker.started;
-        if (wasRunning) app.ticker.stop();
-        spine.skeleton.setSkin(result);
-        spine.skeleton.setToSetupPose();
-        spine.skeleton.setSlotsToSetupPose();
-        spine.skeleton.updateWorldTransform(Physics.update);
-        // Force one animation update so bones are in the correct pose before
-        // the next paint, then resume.
-        spine.update(0);
-        if (wasRunning) app.ticker.start();
+      // sfw spine (only when skeleton differs)
+      let spineSfw: any = null;
+      if (sfwSkeletonData) {
+        spineSfw = new Spine({ skeletonData: sfwSkeletonData });
+        spineSfwRef.current = spineSfw;
+        if (startAnim) spineSfw.state.setAnimation(0, startAnim, true);
+        spineSfw.visible = isSfw;
+      } else {
+        spineSfwRef.current = null;
+      }
+
+      // Apply texture swap immediately if already in sfw mode (texture-only case)
+      if (!sfwHasSkel && isSfw) {
+        for (const { page, sfw } of spinePageTexRef.current) page.setTexture(sfw);
+      }
+
+      const makeCompose = (skel: any, sp: any) =>
+        (face: string, breast: string, parts: Record<string, boolean>) => {
+          const names = [
+            layout.skinGroups?.base,
+            face,
+            breast || undefined,
+            ...Object.entries(parts).filter(([, on]) => on).map(([n]) => n),
+          ].filter(Boolean) as string[];
+          const result = new Skin('viewer-skin');
+          for (const n of names) {
+            const s = skel.findSkin(n);
+            if (s) result.addSkin(s);
+          }
+          const wasRunning = app.ticker.started;
+          if (wasRunning) app.ticker.stop();
+          sp.skeleton.setSkin(result);
+          sp.skeleton.setToSetupPose();
+          sp.skeleton.setSlotsToSetupPose();
+          sp.skeleton.updateWorldTransform(Physics.update);
+          sp.update(0);
+          if (wasRunning) app.ticker.start();
+        };
+
+      const composeBase = makeCompose(skeletonData, spine);
+      const composeSfw  = spineSfw ? makeCompose(sfwSkeletonData, spineSfw) : null;
+
+      // composeSkinRef always targets the active skeleton
+      const activeSkeletonData = () => isSfw && sfwSkeletonData ? sfwSkeletonData : skeletonData;
+      composeSkinRef.current = (face, breast, parts) => {
+        composeBase(face, breast, parts);
+        composeSfw?.(face, breast, parts);
       };
-      composeSkinRef.current = compose;
-      compose(spineFaceRef.current, spineBreast, spinePartsRef.current);
+
+      // Expose available skins from the active skeleton for UI filtering
+      const availSkins = new Set<string>(
+        (activeSkeletonData().skins as any[]).map((s: any) => s.name as string)
+      );
+      setSpineAvailableSkins(availSkins);
+      // sfw skeleton may not have all breast groups — fall back to first available
+      let activeBreast = spineBreastRef.current;
+      if (activeBreast && !availSkins.has(activeBreast)) {
+        const parts = layout.skinGroups?.parts ?? [];
+        const fallback = parts.find((p) => p.startsWith('breast/') && availSkins.has(p));
+        activeBreast = fallback ?? '';
+        if (activeBreast !== spineBreastRef.current) setSpineBreast(activeBreast);
+      }
+      // sfw skeleton may not have all prop parts — turn off missing ones
+      const currentParts = spinePartsRef.current;
+      const fixedParts: Record<string, boolean> = {};
+      let partsChanged = false;
+      for (const [k, v] of Object.entries(currentParts)) {
+        if (v && !availSkins.has(k)) { fixedParts[k] = false; partsChanged = true; }
+        else fixedParts[k] = v;
+      }
+      if (partsChanged) setSpineParts(fixedParts);
+      composeSkinRef.current(spineFaceRef.current, activeBreast, partsChanged ? fixedParts : spinePartsRef.current);
 
       const root = new PIXI.Container();
       root.sortableChildren = true;
 
       const sk = W.skeleton ?? { x: 0, y: 0, scale: 1, dataScale: 1 };
       const u2px = 1 / ((sk.scale || 1) * (sk.dataScale ?? 1));
-      // Store atlas page width so handleSave can compute the correct export resolution.
-      // exportU2px = atlasPagePx / (localBounds at scale=1) — computed after spine.update(0).
-      u2pxRef.current = u2px; // temporary; overwritten below after fit()
+      u2pxRef.current = u2px;
 
-      if (bgTex && W.bg) {
-        const bg = new PIXI.Sprite(bgTex);
+      if (W.bg) {
+        const activeBgTex = isSfw ? (bgTexSfw ?? bgTexBase) : bgTexBase;
+        const bg = new PIXI.Sprite(activeBgTex);
         bg.anchor.set(0.5);
         bg.position.set(W.bg.x * u2px, -W.bg.y * u2px);
         bg.width = W.bg.w * u2px;
@@ -1140,6 +1278,13 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
       spine.position.set(sk.x * u2px, -sk.y * u2px);
       spine.zIndex = 0;
       root.addChild(spine);
+
+      if (spineSfw) {
+        spineSfw.scale.set(1);
+        spineSfw.position.set(sk.x * u2px, -sk.y * u2px);
+        spineSfw.zIndex = 0;
+        root.addChild(spineSfw);
+      }
       app.stage.addChild(root);
       rootRef.current = root;
 
@@ -1160,9 +1305,11 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
         const reaction = destState?.clip;
         if (!reaction || !animSet.has(reaction)) return;
         spineStateRef.current = destState.exit ?? destIdx;
-        const entry = spine.state.setAnimation(0, reaction, false);
+        // Target the currently visible spine (base or sfw)
+        const activeSpine = spineSfwRef.current?.visible ? spineSfwRef.current : spine;
+        const entry = activeSpine.state.setAnimation(0, reaction, false);
         entry.mixDuration = 0.2;
-        spine.state.addAnimation(0, idleFor(), true, 0);
+        activeSpine.state.addAnimation(0, idleFor(), true, 0);
       };
       reactThenRef.current = reactThen;
 
@@ -1247,7 +1394,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
       spine.update(0);
       fit();
       // After one update pass, local bounds are valid. Compute true pixel scale from atlas page size.
-      const atlasPage = textureAtlas.pages[0];
+      const atlasPage = baseAtlas.pages[0];
       const localB = root.getLocalBounds();
       if (localB.width && atlasPage?.width) {
         u2pxRef.current = atlasPage.width / localB.width;
@@ -1331,6 +1478,9 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
     return () => {
       destroyed = true;
       spineRef.current = null;
+      spineSfwRef.current = null;
+      spinePageTexRef.current = [];
+      spineBgTexRef.current = null;
       composeSkinRef.current = null;
       reactThenRef.current = null;
       spineStateRef.current = 0;
@@ -1345,8 +1495,10 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
     const spine = spineRef.current;
     // Spine-pixi v8 auto-updates via its own ticker listener; pause by setting timeScale.
     // For skinned-anim the playingRef is already checked in the ticker callback.
-    if (spine) spine.state.timeScale = playing ? 1 : 0;
-    else if (app) app.ticker.speed = playing ? 1 : 0;
+    if (spine) {
+      spine.state.timeScale = playing ? 1 : 0;
+      if (spineSfwRef.current) spineSfwRef.current.state.timeScale = playing ? 1 : 0;
+    } else if (app) app.ticker.speed = playing ? 1 : 0;
   }, [playing]);
 
   useEffect(() => {
@@ -1358,11 +1510,53 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
       if (idx != null) spineStateRef.current = Number(idx);
     }
     spine.state.setAnimation(0, spineAnim, true);
+    spineSfwRef.current?.state.setAnimation(0, spineAnim, true);
   }, [spineAnim, layout]);
 
   useEffect(() => {
     composeSkinRef.current?.(spineFace, spineBreast, spineParts);
   }, [spineFace, spineBreast, spineParts]);
+
+  // Instant sfw/base swap for spine — no rebuild
+  useEffect(() => {
+    if (!layout || layout.kind !== 'spine') return;
+    const isSfw = variant === 'sfw';
+    const spine = spineRef.current;
+    const spineSfw = spineSfwRef.current;
+    if (spineSfw) {
+      // Skel differs: just toggle visibility + mirror animation
+      if (spine) spine.visible = !isSfw;
+      spineSfw.visible = isSfw;
+      // Sync animation state to the now-visible spine
+      const active = isSfw ? spineSfw : spine;
+      const hidden  = isSfw ? spine : spineSfw;
+      if (active && hidden) {
+        const track = hidden.state.getCurrent(0);
+        if (track) {
+          const entry = active.state.setAnimation(0, track.animation.name, track.loop);
+          entry.trackTime = track.trackTime;
+        }
+      }
+    } else if (spinePageTexRef.current.length > 0) {
+      // Texture-only: swap page textures in-place
+      for (const { page, base, sfw } of spinePageTexRef.current) {
+        page.setTexture(isSfw ? sfw : base);
+      }
+    }
+    // BG sprite texture swap
+    const bg = bgSpriteRef.current;
+    const bgTex = spineBgTexRef.current;
+    if (bg && bgTex) bg.texture = isSfw ? bgTex.sfw : bgTex.base;
+    // Update available skins for UI (sfw skel may have different groups)
+    const activeSkelData = isSfw && spineSfw
+      ? (spineSfw as any).skeleton?.data
+      : spine ? (spine as any).skeleton?.data : null;
+    if (activeSkelData?.skins) {
+      setSpineAvailableSkins(new Set<string>(
+        (activeSkelData.skins as any[]).map((s: any) => s.name as string)
+      ));
+    }
+  }, [layout, variant]);
 
 
   useEffect(() => {
@@ -1529,49 +1723,35 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
           );
         })()}
 
-        {/* Top-right: variant toggle (platform/censor/R+) + save */}
+        {/* Top-right: breast variants (spine only) + save button */}
         {(() => {
-          if (!layout) return null;
-          const isSpine = layout.kind === 'spine';
-          const isFixed = layout.kind === 'fixed' || layout.kind === 'skinned' || layout.kind === 'skinned-anim';
-
-          // Spine: breast variants map to platform/censor options
-          const spineParts_ = layout.skinGroups?.parts ?? [];
-          const hasCensored = isSpine && spineParts_.includes('breast/Censorship');
-          const hasUnedited = isSpine && spineParts_.includes('breast/Unedited');
-          const hasRplusBreast = isSpine && spineParts_.includes('breast/RPlus');
-
-          const spineVariants = [
+          const isSpine = layout?.kind === 'spine';
+          const spineParts_ = layout?.skinGroups?.parts ?? [];
+          const skinAvail = (k: string) => !spineAvailableSkins || spineAvailableSkins.has(k);
+          const hasCensored = isSpine && spineParts_.includes('breast/Censorship') && skinAvail('breast/Censorship');
+          const hasUnedited = isSpine && spineParts_.includes('breast/Unedited') && skinAvail('breast/Unedited');
+          const hasRplusBreast = isSpine && spineParts_.includes('breast/RPlus') && skinAvail('breast/RPlus');
+          const breastVariants = [
             hasCensored && { key: 'breast/Censorship', icon: '/images/shop/icon-platform-google.png', label: 'Censored (Google)' },
             hasUnedited && { key: 'breast/Unedited', icon: '/images/shop/icon-platform-onestore.png', label: 'Unedited (OneStore)' },
             hasRplusBreast && { key: 'breast/RPlus', icon: '/images/shop/icon-secret-marks.png', label: 'R+' },
           ].filter(Boolean) as { key: string; icon: string; label: string }[];
-
-          // Fixed/skinned: R+ toggle
-          const fixedHasRplus = isFixed && layoutHasRplus(layout);
-          const fixedVariants = fixedHasRplus ? [
-            { key: 'base', icon: '/images/shop/icon-platform-onestore.png', label: 'Base (OneStore)' },
-            { key: 'rplus', icon: '/images/shop/icon-secret-marks.png', label: 'R+' },
-          ] : [];
-
-          const variants = isSpine ? spineVariants : fixedVariants;
-          if (variants.length === 0 && !layout) return null;
-
           return (
             <VStack position="absolute" top={2} right={2} spacing={1} align="flex-end"
               bg="blackAlpha.500" borderRadius="md" px={1} py={1}>
-              {variants.map((v) => {
-                const isActive = isSpine ? spineBreast === v.key : (v.key === 'rplus' ? rplus : !rplus);
-                return (
-                  <IconBtn key={v.key} src={v.icon} alt={v.label} label={v.label} active={isActive}
-                    placement="left"
-                    onClick={() => {
-                      if (isSpine) setSpineBreast(v.key);
-                      else setRplus(v.key === 'rplus');
-                    }} />
-                );
-              })}
-              {/* Save button */}
+              {breastVariants.map((v) => (
+                <IconBtn key={v.key} src={v.icon} alt={v.label} label={v.label}
+                  active={spineBreast === v.key} placement="left"
+                  onClick={() => setSpineBreast(v.key)} />
+              ))}
+              {isSpine && (
+                <Tooltip label="Reload skin" fontSize="xs" hasArrow placement="left">
+                  <Box as="button" onClick={() => setResetKey((k) => k + 1)} boxSize="36px" display="flex"
+                    alignItems="center" justifyContent="center" opacity={0.7} _hover={{ opacity: 1 }} transition="opacity 0.15s">
+                    <Text fontSize="lg" lineHeight="1">↺</Text>
+                  </Box>
+                </Tooltip>
+              )}
               <Tooltip label="Save visible area as PNG" fontSize="xs" hasArrow placement="left">
                 <Box as="button" onClick={handleSave} boxSize="36px" display="flex" alignItems="center"
                   justifyContent="center" opacity={0.8} _hover={{ opacity: 1 }} transition="opacity 0.15s">
@@ -1582,19 +1762,70 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
           );
         })()}
 
-        {/* Bottom-right: parts toggles + damaged/broken toggle */}
+        {/* Bottom-right: platform variant toggle + parts toggles + damaged/broken toggle */}
         {(() => {
           const fixedToggles = layout?.toggles ?? [];
-          const spinePropParts = layout?.kind === 'spine'
-            ? (layout.skinGroups?.parts ?? []).filter((p) => p !== 'default' && !p.startsWith('breast/'))
+          const isSpine = layout?.kind === 'spine';
+          const isFixed = layout?.kind === 'fixed' || layout?.kind === 'skinned' || layout?.kind === 'skinned-anim';
+          const spinePropParts = isSpine
+            ? (layout!.skinGroups?.parts ?? []).filter(
+                (p) => p !== 'default' && !p.startsWith('breast/')
+                && (!spineAvailableSkins || spineAvailableSkins.has(p))
+              )
             : [];
-          const showRightPanel = fixedToggles.length > 0 || spinePropParts.length > 0 || hasDam || hasKr;
+
+          // Platform/sfw variants only (breast handled top-right for spine)
+          const hasSpineSfw = isSpine && !!layout?.sfw;
+          const spineVariants = [
+            hasSpineSfw && { key: 'base', icon: '/images/shop/icon-platform-onestore.png', label: 'Global (OneStore)', isBreast: false },
+            hasSpineSfw && { key: 'sfw', icon: '/images/shop/icon-platform-google.png', label: 'SFW (Google Play)', isBreast: false },
+          ].filter(Boolean) as { key: string; icon: string; label: string; isBreast: boolean }[];
+          const fixedHasKr    = isFixed && layout ? layoutHasVariant(layout, 'kr') : false;
+          const fixedHasSfw   = isFixed && layout ? layoutHasVariant(layout, 'sfw') : false;
+          const fixedHasRplus = isFixed && layout ? layoutHasVariant(layout, 'rplus') : false;
+          const fixedVariants = (fixedHasKr || fixedHasSfw || fixedHasRplus) ? [
+            { key: 'base',  icon: '/images/shop/icon-platform-onestore.png',    label: 'Global (OneStore)', isBreast: false },
+            fixedHasKr    && { key: 'kr',    icon: '/images/shop/icon-platform-onestore-kr.png', label: 'KR version', isBreast: false },
+            fixedHasSfw   && { key: 'sfw',   icon: '/images/shop/icon-platform-google.png',      label: 'Uncensored (Google Play)', isBreast: false },
+            fixedHasRplus && { key: 'rplus', icon: '/images/shop/icon-secret-marks.png',         label: 'R+', isBreast: false },
+          ].filter(Boolean) as { key: string; icon: string; label: string; isBreast: boolean }[] : [];
+          const variants = isSpine ? spineVariants : fixedVariants;
+
+          const hasProps = fixedToggles.length > 0 || spinePropParts.length > 0 || hasDam || hasKr;
+          const showRightPanel = variants.length > 0 || hasProps;
           if (!showRightPanel) return null;
           const multiFixed = fixedToggles.length > 1;
           const multiSpine = spinePropParts.length > 1;
           return (
-            <VStack position="absolute" bottom={2} right={2} spacing={1} align="flex-end"
-              bg="blackAlpha.500" borderRadius="md" px={1} py={1}>
+            <HStack position="absolute" bottom={2} right={2} spacing={1} align="flex-end">
+              {variants.length > 0 && (
+                <HStack bg="blackAlpha.500" borderRadius="md" px={1} py={1} spacing={1}>
+                  {variants.map((v) => {
+                    const isActive = isSpine
+                      ? (v.isBreast ? spineBreast === v.key : variant === v.key)
+                      : variant === v.key;
+                    return (
+                      <Tooltip key={v.key} label={v.label} fontSize="xs" hasArrow placement="top">
+                        <Box as="button"
+                          onClick={() => {
+                            if (isSpine && v.isBreast) setSpineBreast(v.key);
+                            else setVariant(v.key as 'base' | 'kr' | 'sfw' | 'rplus');
+                          }}
+                          position="relative" boxSize="36px"
+                          opacity={isActive ? 1 : 0.4} transition="opacity 0.15s"
+                          _hover={{ opacity: isActive ? 0.8 : 0.65 }}
+                          outline={isActive ? '2px solid' : 'none'}
+                          outlineColor="yellow.400"
+                          borderRadius="sm">
+                          <Image src={v.icon} alt={v.label} boxSize="36px" objectFit="contain" />
+                        </Box>
+                      </Tooltip>
+                    );
+                  })}
+                </HStack>
+              )}
+              {hasProps && (
+              <VStack bg="blackAlpha.500" borderRadius="md" px={1} py={1} spacing={1}>
               {fixedToggles.map((t, i) => {
                 const on = toggles[t.key] ?? t.default;
                 const KEY_ICONS: Record<string, string> = {
@@ -1632,7 +1863,9 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
                   {viewRegion === 'kr' ? 'KR' : 'GL'}
                 </Box>
               )}
-            </VStack>
+              </VStack>
+              )}
+            </HStack>
           );
         })()}
 
