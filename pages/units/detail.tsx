@@ -863,8 +863,7 @@ function SkinTab({ unit }: { unit: FullUnitData }) {
   const skins = unit.skins || [];
   const [idx, setIdx] = useState(0);
   const [showDam, setShowDam] = useState(false);
-  const [viewRegion, setViewRegion] = useState<'global' | 'kr'>('global');
-  useEffect(() => { setShowDam(false); setViewRegion('global'); }, [idx]);
+  useEffect(() => { setShowDam(false); }, [idx]);
   const skin = skins[idx];
 
   if (skins.length === 0) {
@@ -875,11 +874,10 @@ function SkinTab({ unit }: { unit: FullUnitData }) {
   const baseAsset = (skin.model || '').toLowerCase();
   const damAsset = (skin.modelDam || '').toLowerCase();
   const asset = (showDam && hasDam ? damAsset : baseAsset);
-  const isDiverged = showDam && hasDam ? !!skin.modelDamDiverged : !!skin.modelDiverged;
-  // skinned base: Unity variant bundle handles kr/sfw/kr_sfw internally
-  // skinned dam / PixiJS: use archive; diverged = __global or __kr suffix
+  // skinned base: Unity variant bundle handles kr/sfw internally
+  // fixed/spine: variants embedded in single archive, no __global/__kr suffix needed
   const isSkinnedBase = skin.viewerKind === 'skinned' && !(showDam && hasDam);
-  const archiveKey = asset && isDiverged ? `${asset}__${viewRegion}` : asset;
+  const archiveKey = asset;
   const effectiveViewerKind = isSkinnedBase ? 'skinned' : skin.viewerKind === 'skinned' ? undefined : skin.viewerKind;
 
   return (
@@ -988,13 +986,10 @@ function SkinTab({ unit }: { unit: FullUnitData }) {
             parts={skin.parts}
             hasDam={hasDam}
             showDam={showDam}
-            onToggleDam={() => { setShowDam((v) => !v); setViewRegion('global'); }}
+            onToggleDam={() => setShowDam((v) => !v)}
             viewerKind={effectiveViewerKind}
             hasRplus={(skin as any).hasRplus}
             hasBg={(skin as any).bgUse}
-            hasKr={isDiverged}
-            viewRegion={viewRegion}
-            onToggleRegion={() => setViewRegion((r) => r === 'global' ? 'kr' : 'global')}
           />
         </Box>
       )}
