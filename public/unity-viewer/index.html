@@ -18,13 +18,17 @@
       <div id="unity-warning"> </div>
     </div>
     <script data-cfasync="false">
-      // Intercept /models/* fetches and redirect to R2 (Cloudflare Pages _redirects proxy not available here)
+      // Redirect /models/* and /rebuilt/* asset fetches to R2
       (function() {
         var R2_BASE = "https://pub-7a0fe80c39434a24b28a3cf9740e0d71.r2.dev";
-        var MODELS_RE = /(?:^\/models\/|(https?:\/\/[^\/]+)?\/models\/)(.+)/;
+        var ASSET_RE = /^\/(?:(models)|(rebuilt))\/(.+)/;
         function rewriteUrl(url) {
-          var m = MODELS_RE.exec(url);
-          if (m) return R2_BASE + "/models/" + m[2];
+          if (url.indexOf(R2_BASE) === 0) return null;
+          var m = ASSET_RE.exec(url);
+          if (m) {
+            var prefix = m[2] ? "rebuilt" : "models";
+            return R2_BASE + "/" + prefix + "/" + m[3];
+          }
           return null;
         }
         var _origFetch = window.fetch;
@@ -73,16 +77,16 @@
       }
 
       var buildUrl = "Build";
-      var loaderUrl = buildUrl + "/4b3f3812d6cb75e1b0892ccac401a187.loader.js";
+      var loaderUrl = buildUrl + "/916402df1dca5edf08ec1ee8dbe9e465.loader.js";
       var config = {
         arguments: [],
-        dataUrl: buildUrl + "/1dafff87ddfb4e98b25b954da0f43627.data.unityweb",
-        frameworkUrl: buildUrl + "/4ef3db9793bea33a2981cbb47790b47c.framework.js.unityweb",
-        codeUrl: buildUrl + "/03ddfc2ab721371f14d8cbca0182b32b.wasm.unityweb",
+        dataUrl: buildUrl + "/601f8eae054caf8457efc0578a3391a5.data.unityweb",
+        frameworkUrl: buildUrl + "/856ed9717504e29a66432ae4a045e258.framework.js.unityweb",
+        codeUrl: buildUrl + "/34ee5a03cd8357066c782aac5d366ee1.wasm.unityweb",
         streamingAssetsUrl: "StreamingAssets",
         companyName: "WolfgangKurz",
         productName: "Skin Viewer γ",
-        productVersion: "1.0.9",
+        productVersion: "1.0.5",
         showBanner: unityShowBanner,
       };
 
