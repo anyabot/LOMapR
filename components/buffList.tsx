@@ -246,7 +246,9 @@ function resolveApplyCondParts(c: CondData): { before: string; name: string; aft
     // resolve every entry and dedup by display name, not just the first.
     const names = c.vals.map((val, i) => {
       const nm2 = c.names[i] ?? "";
-      const fromDesc = buffName(tKr(`BuffDesc1_${val}`) || tKr(`BuffDesc2_${val}`) || "");
+      const fromDesc = nameToken === "[buff]"
+        ? buffName(tKr(`BuffDesc1_${val}`) || tKr(`BuffDesc2_${val}`) || "")
+        : "";
       const fromName = tKr(nm2) || tKr(`BuffName_${val}`);
       const resolved = fromDesc || fromName
         || val.replace(/^Effect_[^_]+_/, "").replace(/^Char_[^_]+_/, "").replace(/_/g, " ");
