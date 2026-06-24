@@ -47,6 +47,13 @@ export function loadSkinArchive(skin: string): Promise<Map<string, Blob>> {
   let p = archiveCache.get(skin);
   if (!p) {
     p = (async () => {
+      // Local dev override: if public/skin_test/<skin>/layout.json exists, load the
+      // unpacked dir instead of the R2 tar.br (lets you test an export before packing).
+      try {
+        const probe = await fetch(`/skin_test/${skin}/layout.json`, { method: 'HEAD' });
+        if (probe.ok) return await loadLocalSkinDir(skin);
+      } catch { /* fall through to archive */ }
+
       const [res, brotli] = await Promise.all([
         fetch(`${ARCHIVE_BASE}/${skin}.tar.br`),
         loadBrotli(),
@@ -109,6 +116,7 @@ export function loadLocalSkinDir(skin: string): Promise<Map<string, Blob>> {
         const walk = (n: any) => { if (n.sprite?.tex) names.add(n.sprite.tex); if (n.sprite?.rplus?.tex) names.add(n.sprite.rplus.tex); (n.children ?? []).forEach(walk); };
         (meta.nodes ?? []).forEach(walk);
         (meta.meshes ?? []).forEach((m: any) => { if (m.tex) names.add(m.tex); if (m.rplusTex) names.add(m.rplusTex); });
+        (meta.faces ?? []).forEach((f: any) => { if (f.tex) names.add(f.tex); });
       }
       // fetch all files in parallel
       await Promise.all(Array.from(names).map(async (name) => {

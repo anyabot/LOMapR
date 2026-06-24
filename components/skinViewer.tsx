@@ -64,7 +64,11 @@ type SkinNode = {
   active: boolean;
   sprite?: SpriteInfo;
   children: SkinNode[];
+  faceAnchor?: boolean; // empty face node — overlay the chosen face mesh here
+  faceOrder?: number;   // sorting order for the face overlay
 };
+// A fixed-model face expression overlay (mesh against its own face PNG).
+type FixedFace = { key: string; tex: string; verts: number[]; uvs: number[]; indices: number[] };
 // An in-game parts/costume toggle: shows/hides a set of nodes (ActorPartsView).
 // kind "swap": mutually exclusive — swapOn visible when ON, swapOff when OFF.
 type Toggle = { key: string; default: boolean } & (
@@ -109,6 +113,7 @@ type Layout = {
   kind: string; // "fixed" | "skinned" | "skinned-anim"
   ppu: number;
   nodes?: SkinNode[]; // fixed
+  faces?: FixedFace[]; // fixed: optional face-expression overlays (default = none)
   toggles?: Toggle[];
   meshes?: (SkinnedMesh | AnimMesh)[]; // skinned / skinned-anim
   bones?: Bone[]; // skinned-anim
@@ -447,7 +452,7 @@ function UnityViewer({ skin, height, parts, hasRplus, hasKr, hasBg, hasDam, show
       switch (e.data.type) {
         case 'facelist':
           setFaceList(e.data.data ?? []);
-          if (e.data.data?.length) setFace(e.data.data[0]);
+          setFace(''); // default: no face applied (its own option)
           break;
         case 'part': setHasParts(!!e.data.data); break;
         case 'variants': setAvailableVariants(e.data.data ?? []); break;
@@ -463,7 +468,7 @@ function UnityViewer({ skin, height, parts, hasRplus, hasKr, hasBg, hasDam, show
   }, [skin]);
 
   useEffect(() => { send({ type: 'bg', active: showBg }); }, [skin, showBg]);
-  useEffect(() => { if (face) send({ type: 'face', face }); }, [face]);
+  useEffect(() => { send({ type: 'face', face }); }, [face]);
   useEffect(() => { send({ type: 'part', active: showParts }); }, [showParts]);
   useEffect(() => { send({ type: 'collider', active: showZones }); }, [showZones]);
   useEffect(() => {
@@ -509,12 +514,13 @@ function UnityViewer({ skin, height, parts, hasRplus, hasKr, hasBg, hasDam, show
             <Box position="relative" display="inline-flex" alignItems="center" px={2} py={1} minW="120px">
               <Image src="/images/shop/UI_ICON_EditFace.png" alt="Face"
                 boxSize="22px" objectFit="contain" flexShrink={0} pointerEvents="none" mr={1} />
-              <Text fontSize="xs" color="gray.200" whiteSpace="nowrap" pointerEvents="none">{faceName}</Text>
+              <Text fontSize="xs" color="gray.200" whiteSpace="nowrap" pointerEvents="none">{face || '(none)'}</Text>
               <Select position="absolute" inset={0} w="100%" h="100%"
                 opacity={0} cursor="pointer" size="xs"
                 value={face}
                 onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setFace(e.target.value)}
                 sx={{ appearance: 'none', WebkitAppearance: 'none' }}>
+                <option value="">(none)</option>
                 {faceList.map((f) => (
                   <option key={f} value={f}>{f.replace(/^face\/.*_/, '')}</option>
                 ))}
@@ -529,17 +535,18 @@ function UnityViewer({ skin, height, parts, hasRplus, hasKr, hasBg, hasDam, show
           {availableVariants.length > 0 && (
             <HStack bg="blackAlpha.500" borderRadius="md" px={1} py={1} spacing={1}>
               {(['base', ...availableVariants] as string[]).map((v) => {
+                const hasKrVariant = availableVariants.includes('kr');
                 const icons: Record<string, string> = {
-                  base:  '/images/shop/icon-platform-onestore.png',
-                  kr:    '/images/shop/icon-platform-onestore-kr.png',
+                  base:  hasKrVariant ? '/images/shop/icon-platform-vfun.png' : '/images/shop/icon-platform-onestore.png',
+                  kr:    '/images/shop/icon-platform-onestore.png',
                   sfw:   '/images/shop/icon-platform-google.png',
                   rplus: '/images/shop/icon-secret-marks.png',
                 };
                 const tips: Record<string, string> = {
-                  base:  'Global (OneStore)',
-                  kr:    'KR version',
-                  sfw:   'Uncensored (Google Play)',
-                  rplus: 'R+',
+                  base:  'Uncensored',
+                  kr:    'KR (Uncensored)',
+                  sfw:   'Censored (Google Play)',
+                  rplus: 'R+ (Uncensored)',
                 };
                 const active = variant === v;
                 const icon = icons[v];
@@ -643,6 +650,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
   const [toggles, setToggles] = useState<Record<string, boolean>>({});
   const [spineAnim, setSpineAnim] = useState<string>('');
   const [spineFace, setSpineFace] = useState<string>('');
+  const [fixedFace, setFixedFace] = useState<string>(''); // '' = no face (default)
   const [spineParts, setSpineParts] = useState<Record<string, boolean>>({});
   const [spineBreast, setSpineBreast] = useState<string>('');
   const [spineAvailableSkins, setSpineAvailableSkins] = useState<Set<string> | null>(null);
@@ -680,6 +688,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
         setLoadState('ready');
         setVariant('base');
         setToggles(Object.fromEntries((l.toggles ?? []).map((t) => [t.key, t.default])));
+        setFixedFace(''); // fixed faces default to none
         if (l.kind === 'spine') {
           setSpineAnim((l.animations ?? []).includes('Idle_1') ? 'Idle_1' : (l.animations?.[0] ?? ''));
           setSpineFace(l.skinGroups?.defaultFace ?? '');
@@ -704,6 +713,9 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
 
   const nodesByIdRef = useRef<Record<string, any>>({});
   const meshByIdRef = useRef<Record<string, any>>({});
+  const fixedFaceRef = useRef<string>('');
+  fixedFaceRef.current = fixedFace;
+  const setFixedFaceRef = useRef<((key: string | null) => void) | null>(null);
   // fixed-kind leaf meshes, flattened out of the transform tree for global
   // draw-order sorting (see the comment above `flatMeshes` in the build
   // effect) — toggle visibility must therefore drive mesh.renderable
@@ -743,6 +755,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
         texNames.add(m.tex);
         if (m.rplusTex) texNames.add(m.rplusTex);
       });
+      (layout.faces ?? []).forEach((f) => texNames.add(f.tex));
 
       const textures: Record<string, any> = {};
       await Promise.all(
@@ -778,6 +791,11 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
       // world matrix so the mesh renders in the right place/scale/rotation),
       // the sort order, and the ancestor chain for visibility recompute.
       const flatMeshes: { mesh: any; wrapper: any; order: number; chain: string[]; sprite: SpriteInfo }[] = [];
+      // Captured during build: the empty face node's world matrix + ancestor chain,
+      // so we can overlay the chosen face-expression mesh at that exact spot.
+      let faceAnchorMat: any = null;
+      let faceAnchorChain: string[] = [];
+      let faceAnchorOrder = 0;
 
       // Build a container tree for visibility/toggle tracking, and compute each
       // node's world matrix explicitly (parentMat × nodeLocalMat) so we don't
@@ -824,6 +842,11 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
           wrapper.setFromMatrix(worldMat);
           wrapper.addChild(mesh);
           flatMeshes.push({ mesh, wrapper, order: n.sprite.order, chain, sprite: n.sprite });
+        }
+        if (n.faceAnchor) {
+          faceAnchorMat = worldMat.clone();
+          faceAnchorChain = chain;
+          faceAnchorOrder = n.faceOrder ?? n.sprite?.order ?? 0;
         }
         n.children.forEach((c) => node.addChild(build(c, chain, worldMat)));
         return node;
@@ -919,6 +942,36 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
           root.addChild(wrapper);
         }
         root.sortChildren();
+      }
+
+      // Fixed-model face overlay: render the chosen face-expression mesh at the
+      // empty face node. Default = none. applyFace(null) clears it.
+      if (faceAnchorMat && (layout.faces?.length ?? 0) > 0) {
+        const faceByKey: Record<string, FixedFace> = {};
+        for (const f of layout.faces!) faceByKey[f.key] = f;
+        let faceWrapper: any = null;
+        const applyFace = (key: string | null) => {
+          if (faceWrapper) { faceWrapper.destroy({ children: true }); faceWrapper = null; }
+          if (!key) return;
+          const f = faceByKey[key];
+          if (!f || !textures[f.tex]) return;
+          const mesh = new PIXI.MeshSimple({
+            texture: textures[f.tex],
+            vertices: new Float32Array(f.verts),
+            uvs: new Float32Array(f.uvs),
+            indices: new Uint32Array(f.indices),
+          });
+          const wrapper = new PIXI.Container();
+          wrapper.setFromMatrix(faceAnchorMat);
+          wrapper.zIndex = faceAnchorOrder;
+          wrapper.renderable = faceAnchorChain.every((id) => byId[id]?.visible ?? true);
+          wrapper.addChild(mesh);
+          root.addChild(wrapper);
+          root.sortChildren();
+          faceWrapper = wrapper;
+        };
+        setFixedFaceRef.current = applyFace;
+        applyFace(fixedFaceRef.current || null);
       }
 
       if (zoneLayer) app.stage.addChild(zoneLayer);
@@ -1517,6 +1570,11 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
     composeSkinRef.current?.(spineFace, spineBreast, spineParts);
   }, [spineFace, spineBreast, spineParts]);
 
+  // Fixed-model face overlay swap (instant — no rebuild). '' = no face.
+  useEffect(() => {
+    setFixedFaceRef.current?.(fixedFace || null);
+  }, [fixedFace]);
+
   // Instant sfw/base swap for spine — no rebuild
   useEffect(() => {
     if (!layout || layout.kind !== 'spine') return;
@@ -1723,6 +1781,31 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
           );
         })()}
 
+        {/* Top-left: face selector (fixed only) — default "(none)", its own entry */}
+        {layout?.kind === 'fixed' && (layout.faces?.length ?? 0) > 0 && (() => {
+          const faces = layout.faces!;
+          const faceName = fixedFace || '(none)';
+          return (
+            <Box position="absolute" top={2} left={2} bg="blackAlpha.700" borderRadius="md" display="inline-flex">
+              <Box position="relative" display="inline-flex" alignItems="center" px={2} py={1} minW="120px">
+                <Image src="/images/shop/UI_ICON_EditFace.png" alt="Face"
+                  boxSize="22px" objectFit="contain" flexShrink={0} pointerEvents="none" mr={1} />
+                <Text fontSize="xs" color="gray.200" whiteSpace="nowrap" pointerEvents="none">{faceName}</Text>
+                <Select position="absolute" inset={0} w="100%" h="100%"
+                  opacity={0} cursor="pointer" size="xs"
+                  value={fixedFace}
+                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setFixedFace(e.target.value)}
+                  sx={{ appearance: 'none', WebkitAppearance: 'none' }}>
+                  <option value="">(none)</option>
+                  {faces.map((f) => (
+                    <option key={f.key} value={f.key}>{f.key}</option>
+                  ))}
+                </Select>
+              </Box>
+            </Box>
+          );
+        })()}
+
         {/* Top-right: breast variants (spine only) + save button */}
         {(() => {
           const isSpine = layout?.kind === 'spine';
@@ -1732,8 +1815,8 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
           const hasUnedited = isSpine && spineParts_.includes('breast/Unedited') && skinAvail('breast/Unedited');
           const hasRplusBreast = isSpine && spineParts_.includes('breast/RPlus') && skinAvail('breast/RPlus');
           const breastVariants = [
-            hasCensored && { key: 'breast/Censorship', icon: '/images/shop/icon-platform-google.png', label: 'Censored (Google)' },
-            hasUnedited && { key: 'breast/Unedited', icon: '/images/shop/icon-platform-onestore.png', label: 'Unedited (OneStore)' },
+            hasCensored && { key: 'breast/Censorship', icon: '/images/shop/icon-platform-google.png', label: 'Censored' },
+            hasUnedited && { key: 'breast/Unedited', icon: hasKr ? '/images/shop/icon-platform-vfun.png' : '/images/shop/icon-platform-onestore.png', label: 'Unedited' },
             hasRplusBreast && { key: 'breast/RPlus', icon: '/images/shop/icon-secret-marks.png', label: 'R+' },
           ].filter(Boolean) as { key: string; icon: string; label: string }[];
           return (
@@ -1777,17 +1860,17 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
           // Platform/sfw variants only (breast handled top-right for spine)
           const hasSpineSfw = isSpine && !!layout?.sfw;
           const spineVariants = [
-            hasSpineSfw && { key: 'base', icon: '/images/shop/icon-platform-onestore.png', label: 'Global (OneStore)', isBreast: false },
-            hasSpineSfw && { key: 'sfw', icon: '/images/shop/icon-platform-google.png', label: 'SFW (Google Play)', isBreast: false },
+            hasSpineSfw && { key: 'base', icon: hasKr ? '/images/shop/icon-platform-vfun.png' : '/images/shop/icon-platform-onestore.png', label: 'Uncensored', isBreast: false },
+            hasSpineSfw && { key: 'sfw', icon: '/images/shop/icon-platform-google.png', label: 'Censored (Google Play)', isBreast: false },
           ].filter(Boolean) as { key: string; icon: string; label: string; isBreast: boolean }[];
           const fixedHasKr    = isFixed && layout ? layoutHasVariant(layout, 'kr') : false;
           const fixedHasSfw   = isFixed && layout ? layoutHasVariant(layout, 'sfw') : false;
           const fixedHasRplus = isFixed && layout ? layoutHasVariant(layout, 'rplus') : false;
           const fixedVariants = (fixedHasKr || fixedHasSfw || fixedHasRplus) ? [
-            { key: 'base',  icon: '/images/shop/icon-platform-onestore.png',    label: 'Global (OneStore)', isBreast: false },
-            fixedHasKr    && { key: 'kr',    icon: '/images/shop/icon-platform-onestore-kr.png', label: 'KR version', isBreast: false },
-            fixedHasSfw   && { key: 'sfw',   icon: '/images/shop/icon-platform-google.png',      label: 'Uncensored (Google Play)', isBreast: false },
-            fixedHasRplus && { key: 'rplus', icon: '/images/shop/icon-secret-marks.png',         label: 'R+', isBreast: false },
+            { key: 'base',  icon: fixedHasKr ? '/images/shop/icon-platform-vfun.png' : '/images/shop/icon-platform-onestore.png', label: 'Uncensored', isBreast: false },
+            fixedHasKr    && { key: 'kr',    icon: '/images/shop/icon-platform-onestore.png',    label: 'KR (Uncensored)', isBreast: false },
+            fixedHasSfw   && { key: 'sfw',   icon: '/images/shop/icon-platform-google.png',      label: 'Censored (Google Play)', isBreast: false },
+            fixedHasRplus && { key: 'rplus', icon: '/images/shop/icon-secret-marks.png',         label: 'R+ (Uncensored)', isBreast: false },
           ].filter(Boolean) as { key: string; icon: string; label: string; isBreast: boolean }[] : [];
           const variants = isSpine ? spineVariants : fixedVariants;
 

@@ -22,10 +22,15 @@
       (function() {
         var R2_BASE = "https://pub-7a0fe80c39434a24b28a3cf9740e0d71.r2.dev";
         var ASSET_RE = /^\/(?:(models)|(rebuilt))\/(.+)/;
+        // On localhost, serve any listed files from public/ instead of R2 (local
+        // testing). Empty in production — everything resolves to R2.
+        var LOCAL_ONLY = [];
         function rewriteUrl(url) {
           if (url.indexOf(R2_BASE) === 0) return null;
           var m = ASSET_RE.exec(url);
           if (m) {
+            for (var i = 0; i < LOCAL_ONLY.length; i++)
+              if (m[3] === LOCAL_ONLY[i]) return null; // leave as-is -> served locally
             var prefix = m[2] ? "rebuilt" : "models";
             return R2_BASE + "/" + prefix + "/" + m[3];
           }
@@ -77,12 +82,12 @@
       }
 
       var buildUrl = "Build";
-      var loaderUrl = buildUrl + "/a30f606fc06a05307614c61975b41df0.loader.js";
+      var loaderUrl = buildUrl + "/9b1f546e4d27cf12968fb14e2a2ae77e.loader.js";
       var config = {
         arguments: [],
-        dataUrl: buildUrl + "/5447d49e202b6939933fd2bc1bc33bd8.data.unityweb",
+        dataUrl: buildUrl + "/ac7e93fdf18a40d570ae9d67aa09aa38.data.unityweb",
         frameworkUrl: buildUrl + "/69e88038c907147467f61a1f70fbab13.framework.js.unityweb",
-        codeUrl: buildUrl + "/41924c5542dde1e122f14e82ef8ec5a1.wasm.unityweb",
+        codeUrl: buildUrl + "/ab8192ecc8980441ea38c0e2a18f86c1.wasm.unityweb",
         streamingAssetsUrl: "StreamingAssets",
         companyName: "WolfgangKurz",
         productName: "Skin Viewer γ",
