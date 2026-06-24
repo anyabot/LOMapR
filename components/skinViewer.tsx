@@ -529,17 +529,18 @@ function UnityViewer({ skin, height, parts, hasRplus, hasKr, hasBg, hasDam, show
           {availableVariants.length > 0 && (
             <HStack bg="blackAlpha.500" borderRadius="md" px={1} py={1} spacing={1}>
               {(['base', ...availableVariants] as string[]).map((v) => {
+                const hasKrVariant = availableVariants.includes('kr');
                 const icons: Record<string, string> = {
-                  base:  '/images/shop/icon-platform-onestore.png',
-                  kr:    '/images/shop/icon-platform-onestore-kr.png',
+                  base:  hasKrVariant ? '/images/shop/icon-platform-vfun.png' : '/images/shop/icon-platform-onestore.png',
+                  kr:    '/images/shop/icon-platform-onestore.png',
                   sfw:   '/images/shop/icon-platform-google.png',
                   rplus: '/images/shop/icon-secret-marks.png',
                 };
                 const tips: Record<string, string> = {
-                  base:  'Global (OneStore)',
-                  kr:    'KR version',
-                  sfw:   'Uncensored (Google Play)',
-                  rplus: 'R+',
+                  base:  'Uncensored',
+                  kr:    'KR (Uncensored)',
+                  sfw:   'Censored (Google Play)',
+                  rplus: 'R+ (Uncensored)',
                 };
                 const active = variant === v;
                 const icon = icons[v];
@@ -1732,8 +1733,8 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
           const hasUnedited = isSpine && spineParts_.includes('breast/Unedited') && skinAvail('breast/Unedited');
           const hasRplusBreast = isSpine && spineParts_.includes('breast/RPlus') && skinAvail('breast/RPlus');
           const breastVariants = [
-            hasCensored && { key: 'breast/Censorship', icon: '/images/shop/icon-platform-google.png', label: 'Censored (Google)' },
-            hasUnedited && { key: 'breast/Unedited', icon: '/images/shop/icon-platform-onestore.png', label: 'Unedited (OneStore)' },
+            hasCensored && { key: 'breast/Censorship', icon: '/images/shop/icon-platform-google.png', label: 'Censored' },
+            hasUnedited && { key: 'breast/Unedited', icon: hasKr ? '/images/shop/icon-platform-vfun.png' : '/images/shop/icon-platform-onestore.png', label: 'Unedited' },
             hasRplusBreast && { key: 'breast/RPlus', icon: '/images/shop/icon-secret-marks.png', label: 'R+' },
           ].filter(Boolean) as { key: string; icon: string; label: string }[];
           return (
@@ -1777,17 +1778,17 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
           // Platform/sfw variants only (breast handled top-right for spine)
           const hasSpineSfw = isSpine && !!layout?.sfw;
           const spineVariants = [
-            hasSpineSfw && { key: 'base', icon: '/images/shop/icon-platform-onestore.png', label: 'Global (OneStore)', isBreast: false },
-            hasSpineSfw && { key: 'sfw', icon: '/images/shop/icon-platform-google.png', label: 'SFW (Google Play)', isBreast: false },
+            hasSpineSfw && { key: 'base', icon: hasKr ? '/images/shop/icon-platform-vfun.png' : '/images/shop/icon-platform-onestore.png', label: 'Uncensored', isBreast: false },
+            hasSpineSfw && { key: 'sfw', icon: '/images/shop/icon-platform-google.png', label: 'Censored (Google Play)', isBreast: false },
           ].filter(Boolean) as { key: string; icon: string; label: string; isBreast: boolean }[];
           const fixedHasKr    = isFixed && layout ? layoutHasVariant(layout, 'kr') : false;
           const fixedHasSfw   = isFixed && layout ? layoutHasVariant(layout, 'sfw') : false;
           const fixedHasRplus = isFixed && layout ? layoutHasVariant(layout, 'rplus') : false;
           const fixedVariants = (fixedHasKr || fixedHasSfw || fixedHasRplus) ? [
-            { key: 'base',  icon: '/images/shop/icon-platform-onestore.png',    label: 'Global (OneStore)', isBreast: false },
-            fixedHasKr    && { key: 'kr',    icon: '/images/shop/icon-platform-onestore-kr.png', label: 'KR version', isBreast: false },
-            fixedHasSfw   && { key: 'sfw',   icon: '/images/shop/icon-platform-google.png',      label: 'Uncensored (Google Play)', isBreast: false },
-            fixedHasRplus && { key: 'rplus', icon: '/images/shop/icon-secret-marks.png',         label: 'R+', isBreast: false },
+            { key: 'base',  icon: fixedHasKr ? '/images/shop/icon-platform-vfun.png' : '/images/shop/icon-platform-onestore.png', label: 'Uncensored', isBreast: false },
+            fixedHasKr    && { key: 'kr',    icon: '/images/shop/icon-platform-onestore.png',    label: 'KR (Uncensored)', isBreast: false },
+            fixedHasSfw   && { key: 'sfw',   icon: '/images/shop/icon-platform-google.png',      label: 'Censored (Google Play)', isBreast: false },
+            fixedHasRplus && { key: 'rplus', icon: '/images/shop/icon-secret-marks.png',         label: 'R+ (Uncensored)', isBreast: false },
           ].filter(Boolean) as { key: string; icon: string; label: string; isBreast: boolean }[] : [];
           const variants = isSpine ? spineVariants : fixedVariants;
 
