@@ -1,7 +1,7 @@
 import { useAppSelector, useAppDispatch } from '@/hooks';
 import { selectWorld, selectWorldStageStatus, fetchWorldAsync, fetchWorldStageAsync } from '@/store/worldSlice';
 import { fetchItemsAsync } from '@/store/itemSlice';
-import { Stage, Zone } from '@/interfaces/world';
+import { Stage, Zone, STAGE_ICON_SRC } from '@/interfaces/world';
 import { t } from '@/lib/strings';
 import { useTranslationVersion } from '@/lib/translationVersion';
 import { useEffect, useState } from 'react';
@@ -12,7 +12,6 @@ import StageTabs from '@/components/stageTabs'
 import { ClearExp } from '@/components/rewardList'
 import Error from 'next/error';
 import Link from 'next/link';
-import styles from "@/styles/custom.module.css"
 import { Box, Image, VStack, HStack, Center, Text, Badge, Heading, Divider, Button, ButtonGroup, Spinner } from '@chakra-ui/react';
 import { ArrowBackIcon } from '@chakra-ui/icons';
 import Head from 'next/head';
@@ -134,15 +133,9 @@ export default function Home() {
               {realCurrStage.title ? (
                 (() => {
                   const isBattle = !!realCurrStage.waves.length;
-                  const SUBTYPE_ICON: Record<string, string> = {
-                    Side: '/images/SideStage.png',
-                    Main: '/images/Main_Stage.png',
-                    Ex: '/images/EX_Stage.png',
-                    Story: '/images/StoryStage.png',
-                  };
                   const icon = isBattle
-                    ? (SUBTYPE_ICON[realCurrStage.subtype] ?? SUBTYPE_ICON.Main)
-                    : SUBTYPE_ICON.Story;
+                    ? (STAGE_ICON_SRC[realCurrStage.subtype] ?? STAGE_ICON_SRC.Main)
+                    : STAGE_ICON_SRC.Story;
                   const hasName = realCurrStage.name && t(realCurrStage.name) !== realCurrStage.title;
                   const shareLink = (
                     <CopyLink

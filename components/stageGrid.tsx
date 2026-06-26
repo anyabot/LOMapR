@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Stage, StageSubType } from '@/interfaces/world';
+import { Stage, StageSubType, STAGE_ICON_SRC } from '@/interfaces/world';
 import { t } from '@/lib/strings';
 import { useTranslationVersion } from '@/lib/translationVersion';
 
@@ -24,14 +24,6 @@ const ROWS: StageSubType[][] = [["Side"], ["Main", "Story"], ["Ex"]];
 // Main stages rather than directly above/below them.
 const ROW_X_OFFSET = [CELL_W / 2, 0, CELL_W / 2];
 
-// Stage-map icon art per subtype (the art from the old version).
-const ICON_SRC: Record<StageSubType, string> = {
-  Side: "/images/SideStage.png",
-  Main: "/images/Main_Stage.png",
-  Ex: "/images/EX_Stage.png",
-  Story: "/images/StoryStage.png",
-};
-
 interface Placed {
   stage: Stage;
   x: number;   // tile top-left
@@ -53,7 +45,7 @@ export default function StageGrid({ stages, selected, onSelect }: Props) {
 
   // preload the subtype icons once
   useEffect(() => {
-    Object.values(ICON_SRC).forEach((src) => {
+    Object.values(STAGE_ICON_SRC).forEach((src) => {
       if (imagesRef.current[src]) return;
       const img = new window.Image();
       img.src = src;
@@ -178,7 +170,7 @@ export default function StageGrid({ stages, selected, onSelect }: Props) {
 
       // stage-map icon art: story (no-battle) stages always get the Story icon,
       // otherwise use the subtype's art
-      const iconSrc = stage.waves.length ? (ICON_SRC[stage.subtype] ?? ICON_SRC.Main) : ICON_SRC.Story;
+      const iconSrc = stage.waves.length ? (STAGE_ICON_SRC[stage.subtype] ?? STAGE_ICON_SRC.Main) : STAGE_ICON_SRC.Story;
       const img = imagesRef.current[iconSrc];
       if (img && img.complete && img.naturalWidth) {
         ctx.drawImage(img, x, y, ICON, ICON);
@@ -229,7 +221,7 @@ export default function StageGrid({ stages, selected, onSelect }: Props) {
   return (
     <canvas
       ref={canvasRef}
-      style={{ cursor: hover ? "pointer" : "default", maxWidth: "100%" }}
+      style={{ cursor: hover ? "pointer" : "default", display: "block" }}
       onClick={(e) => {
         const hit = hitTest(...toLocal(e));
         if (hit) onSelect(hit);

@@ -8,7 +8,7 @@ import {
 } from '@chakra-ui/react';
 import { CloseIcon, SearchIcon } from '@chakra-ui/icons';
 import { useRouter } from 'next/router';
-import { rankTag, rankColor, roleRankIcon, typeIcon, roleIcon, unitDisplayName } from '@/lib/rank';
+import { rankTag, rankColor, roleRankIcon, typeIcon, roleIcon, bodyIcon, filterActiveProps, unitDisplayName } from '@/lib/rank';
 import Head from 'next/head';
 
 // One table per class type (rows of the page); columns = role; rows = grade.
@@ -87,33 +87,34 @@ export default function Units() {
         {/* Toolbar: type / role / body / grade filters + search */}
         <Flex gap={3} wrap="wrap" align="center"
           bg="surface.elevated" borderWidth="1px" borderColor="surface.border" borderRadius="xl" p={3}>
-          <ButtonGroup isAttached size="sm">
+          <ButtonGroup isAttached size="sm" variant="outline" colorScheme="green">
             {TYPES.map((ty) => (
-              <Button key={ty} colorScheme="green" variant={types[ty] ? 'solid' : 'outline'}
+              <Button key={ty} {...filterActiveProps('green', types[ty])}
                 leftIcon={typeIcon(ty) ? <Image src={typeIcon(ty)!} alt={ty} boxSize="16px" /> : undefined}
                 onClick={() => setTypes({ ...types, [ty]: !types[ty] })}>{ty}</Button>
             ))}
           </ButtonGroup>
-          <ButtonGroup isAttached size="sm">
+          <ButtonGroup isAttached size="sm" variant="outline" colorScheme="red">
             {ROLES.map((r) => (
-              <Button key={r} colorScheme="red" variant={roles[r] ? 'solid' : 'outline'}
+              <Button key={r} {...filterActiveProps('red', roles[r])}
                 leftIcon={roleIcon(r) ? <Image src={roleIcon(r)!} alt={r} boxSize="16px" /> : undefined}
                 onClick={() => setRoles({ ...roles, [r]: !roles[r] })}>{r}</Button>
             ))}
           </ButtonGroup>
-          <ButtonGroup isAttached size="sm">
+          <ButtonGroup isAttached size="sm" variant="outline" colorScheme="teal">
             {BODIES.map((b) => (
-              <Button key={b} colorScheme="teal" variant={bodies[b] ? 'solid' : 'outline'}
+              <Button key={b} {...filterActiveProps('teal', bodies[b])}
+                leftIcon={bodyIcon(b) ? <Image src={bodyIcon(b)!} alt={b} boxSize="16px" /> : undefined}
                 onClick={() => setBodies({ ...bodies, [b]: !bodies[b] })}>{b}</Button>
             ))}
           </ButtonGroup>
-          <ButtonGroup isAttached size="sm">
+          <ButtonGroup isAttached size="sm" variant="outline">
             {GRADES.map((g) => (
-              <Button key={g} variant={grades[g] ? 'solid' : 'outline'}
-                bg={grades[g] ? rankColor(g) : undefined}
-                color={grades[g] ? 'blackAlpha.800' : rankColor(g)}
+              <Button key={g}
+                bg={grades[g] ? `${rankColor(g)}33` : undefined}
+                color={rankColor(g)}
                 borderColor={rankColor(g)}
-                _hover={{ bg: grades[g] ? rankColor(g) : 'whiteAlpha.100' }}
+                _hover={{ bg: grades[g] ? `${rankColor(g)}44` : 'whiteAlpha.100' }}
                 onClick={() => setGrades({ ...grades, [g]: !grades[g] })}>{rankTag(g)}</Button>
             ))}
           </ButtonGroup>
