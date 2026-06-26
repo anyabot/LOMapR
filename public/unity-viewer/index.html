@@ -82,12 +82,12 @@
       }
 
       var buildUrl = "Build";
-      var loaderUrl = buildUrl + "/9b1f546e4d27cf12968fb14e2a2ae77e.loader.js";
+      var loaderUrl = buildUrl + "/6b5338f70b0cfd4bb0f83eba4d1362a6.loader.js";
       var config = {
         arguments: [],
-        dataUrl: buildUrl + "/ac7e93fdf18a40d570ae9d67aa09aa38.data.unityweb",
-        frameworkUrl: buildUrl + "/69e88038c907147467f61a1f70fbab13.framework.js.unityweb",
-        codeUrl: buildUrl + "/ab8192ecc8980441ea38c0e2a18f86c1.wasm.unityweb",
+        dataUrl: buildUrl + "/9d8507b617b5c66a2b41ea7cd74c6e94.data.unityweb",
+        frameworkUrl: buildUrl + "/df5e99273a2cb4b7b3dc66371959a2b3.framework.js.unityweb",
+        codeUrl: buildUrl + "/130f836d86d4d925fb638c01ffdfaa83.wasm.unityweb",
         streamingAssetsUrl: "StreamingAssets",
         companyName: "WolfgangKurz",
         productName: "Skin Viewer γ",
@@ -127,6 +127,12 @@
               break;
             case "variant":
               unity_instance.SendMessage("MainScript", "SetVariant", msg.variant || "base");
+              break;
+            case "pause":
+              unity_instance.SendMessage("MainScript", "SetPause", msg.active ? 1 : 0);
+              break;
+            case "screenshot":
+              unity_instance.SendMessage("MainScript", "CaptureScreenshot");
               break;
           }
         }

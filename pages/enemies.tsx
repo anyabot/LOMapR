@@ -12,7 +12,7 @@ import { useRouter } from 'next/router';
 import SimpleCard from '@/components/simpleCard';
 import { t } from '@/lib/strings';
 import { useTranslationVersion } from '@/lib/translationVersion';
-import { typeIcon, roleIcon } from '@/lib/rank';
+import { typeIcon, roleIcon, filterActiveProps } from '@/lib/rank';
 import { Image } from '@chakra-ui/react';
 import Head from 'next/head';
 
@@ -117,21 +117,21 @@ export default function Home() {
           borderRadius="xl"
           p={3}
         >
-          <ButtonGroup isAttached size="sm">
+          <ButtonGroup isAttached size="sm" variant="outline" colorScheme="red">
             {ROLES.map((r) => (
-              <Button key={r} colorScheme="red" variant={filterGroup[r] ? 'solid' : 'outline'}
+              <Button key={r} {...filterActiveProps('red', filterGroup[r])}
                 leftIcon={roleIcon(r) ? <Image src={roleIcon(r)!} alt={r} boxSize="16px" /> : undefined}
                 onClick={() => handleSwitch(r)}>{r}</Button>
             ))}
           </ButtonGroup>
-          <ButtonGroup isAttached size="sm">
+          <ButtonGroup isAttached size="sm" variant="outline" colorScheme="green">
             {TYPES.map((ty) => (
-              <Button key={ty} colorScheme="green" variant={filterGroup[ty] ? 'solid' : 'outline'}
+              <Button key={ty} {...filterActiveProps('green', filterGroup[ty])}
                 leftIcon={typeIcon(ty) ? <Image src={typeIcon(ty)!} alt={ty} boxSize="16px" /> : undefined}
                 onClick={() => handleSwitch(ty)}>{ty}</Button>
             ))}
           </ButtonGroup>
-          <Button size="sm" colorScheme="yellow" variant={showUnused ? 'solid' : 'outline'}
+          <Button size="sm" variant="outline" colorScheme="yellow" {...filterActiveProps('yellow', showUnused)}
             onClick={() => setShowUnused(!showUnused)}>
             {showUnused ? 'All enemies' : 'Used only'}
           </Button>

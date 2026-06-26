@@ -45,6 +45,24 @@ export const typeIcon = (type: string): string | null =>
 export const roleIcon = (role: string): string | null =>
   ROLE_FILE[role] ? `/images/common/${ROLE_FILE[role]}.png` : null;
 
+// Body type (ActorBodyType) icon: Bioroid / AGS.
+const BODY_FILE: Record<string, string> = {
+  Bioroid: 'UI_Lobby_Main_HUD_WORLD_BTN_combatant_Iocon',
+  AGS: 'Icon_UI_Mechanic',
+};
+export const bodyIcon = (body: string): string | null =>
+  BODY_FILE[body] ? `/images/${BODY_FILE[body]}.png` : null;
+
+// Active-state overrides for a toolbar filter <Button>. The ButtonGroup carries
+// `variant="outline"` + `colorScheme` (so the border + isAttached dividers stay
+// visible on every button). Both states stay outline-only (no fill) to keep the
+// dark theme calm: ACTIVE = full-opacity colored outline; INACTIVE = faded/dimmed
+// so it reads as deselected without a glaring fill. Spread over a <Button>.
+export const filterActiveProps = (colorScheme: string, active: boolean) =>
+  active
+    ? { opacity: 1 }
+    : { opacity: 0.4, color: 'gray.400', borderColor: 'whiteAlpha.300' };
+
 // Equipment-slot type icons in public/images/common/ (Chip / OS / Item).
 const EQUIP_FILE: Record<string, string> = { Chip: 'Equip_Chip', OS: 'Equip_OS', Item: 'Equip_Item' };
 export const equipIcon = (kind: string): string | null =>

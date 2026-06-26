@@ -13,6 +13,14 @@ export interface Wave {
 // From the game's STAGE_SUB_TYPE enum: NORMAL / SIDE / EX / STORYONLY.
 export type StageSubType = "Main" | "Side" | "Ex" | "Story";
 
+// Stage-map icon art per subtype (shared by the stage grid and stage detail).
+export const STAGE_ICON_SRC: Record<StageSubType, string> = {
+  Side: "/images/SideStage.png",
+  Main: "/images/Main_Stage.png",
+  Ex: "/images/EX_Stage.png",
+  Story: "/images/StoryStage.png",
+};
+
 // One reward entry — a flat object keyed by what it grants:
 //   currency: { cash: 2 } / { metal: 500 } / { exp, accountExp, skillExp, ... }
 //   item:     { item: "ResourcePack_500", count?: 1 }

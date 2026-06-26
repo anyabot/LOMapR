@@ -1,419 +1,25 @@
 /**
  * Skin viewer: loads a packed skin archive (<skin>.tar.br, see tools/skin_test/
- * pack.py) and composes it with PixiJS. Three layout kinds:
- *   - "fixed"        (export_skin.py): a Unity transform tree of sprite parts;
- *                     rebuilt as a Container tree so parent offsets compose.
- *                     Supports the R+ variant and ActorPartsView part toggles.
- *   - "spine"         (export_spine.py): a Spine 4.x runtime skeleton.
- *   - "skinned-anim"  (export_skin_anim.py): old self-rigged bones + per-vertex
- *                     skinning + clips, CPU-skinned each frame.
+ * pack.py) and composes it with PixiJS. Two PixiJS layout kinds:
+ *   - "fixed"  (export_skin.py): a Unity transform tree of sprite parts;
+ *              rebuilt as a Container tree so parent offsets compose.
+ *              Supports the R+ variant and ActorPartsView part toggles.
+ *   - "spine"  (export_spine.py): a Spine 4.x runtime skeleton.
+ *
+ * The third kind, old self-rigged "skinned" rigs, is handled separately by the
+ * Unity WebGL iframe (UnityViewer below), not PixiJS.
  *
  * Shared by pages/skin-viewer.tsx (standalone dev page) and the unit-detail
  * Skin tab (components/enemyTab-style per-unit embed).
  */
 import { useEffect, useRef, useState } from 'react';
-import { Box, Center, HStack, Image, Select, Spinner, Switch, Text, Tooltip, VStack } from '@chakra-ui/react';
+import { Box, Center, HStack, Image, Spinner, Text, Tooltip, VStack } from '@chakra-ui/react';
 import { loadSkinArchive, revokeSkinUrls, readText, loadTexture, urlFor } from '../lib/skinArchive';
-
-// Icon-button used in the canvas overlay panel (top-right / bottom-right).
-// `active` = highlighted/full-opacity; `inactive` = dimmed with slash.
-function IconBtn({ src, alt, label, active, onClick, placement = 'left' }: {
-  src: string; alt: string; label: string; active: boolean;
-  onClick: () => void; placement?: 'left' | 'top';
-}) {
-  return (
-    <Tooltip label={label} fontSize="xs" hasArrow placement={placement}>
-      <Box as="button" onClick={onClick} position="relative" boxSize="36px"
-        opacity={active ? 1 : 0.4} transition="opacity 0.15s"
-        _hover={{ opacity: active ? 0.8 : 0.65 }}>
-        <Image src={src} alt={alt} boxSize="36px" objectFit="contain" />
-        {!active && (
-          <Box position="absolute" inset={0} display="flex" alignItems="center" justifyContent="center" pointerEvents="none">
-            <Box w="80%" h="2px" bg="red.400" transform="rotate(-45deg)" borderRadius="full" />
-          </Box>
-        )}
-      </Box>
-    </Tooltip>
-  );
-}
-
-// A sprite's tight mesh drawn against a shared atlas texture.
-type Mesh = {
-  tex: string; // atlas PNG filename
-  verts: number[]; // pixel-local, pivot at origin (+y down)
-  uvs: number[]; // top-left-origin normalized
-  indices: number[];
-};
-type SpriteInfo = Mesh & {
-  order: number;
-  enabled: boolean;
-  flipX: boolean;
-  flipY: boolean;
-  color?: [number, number, number, number]; // m_Color [r,g,b,a] when non-white
-  shader?: 'multiply' | 'add' | 'screen' | 'mask'; // non-default Unity material
-  rplus?: Mesh; // R+ twin
-  kr?: Mesh;    // KR-censored variant
-  sfw?: Mesh;   // Google Play SFW variant
-};
-type SkinNode = {
-  id: string; // stable GameObject id (toggles reference these)
-  name: string;
-  pos: [number, number];
-  scale: [number, number];
-  rot: [number, number, number, number]; // quaternion xyzw
-  active: boolean;
-  sprite?: SpriteInfo;
-  children: SkinNode[];
-  faceAnchor?: boolean; // empty face node — overlay the chosen face mesh here
-  faceOrder?: number;   // sorting order for the face overlay
-};
-// A fixed-model face expression overlay (mesh against its own face PNG).
-type FixedFace = { key: string; tex: string; verts: number[]; uvs: number[]; indices: number[] };
-// An in-game parts/costume toggle: shows/hides a set of nodes (ActorPartsView).
-// kind "swap": mutually exclusive — swapOn visible when ON, swapOff when OFF.
-type Toggle = { key: string; default: boolean } & (
-  | { kind?: undefined; members: string[] }
-  | { kind: 'swap'; swapOn: string[]; swapOff: string[] }
-);
-// Skinned-mesh case: a flat list of meshes drawn against shared atlases, in
-// sorting order. (Bind pose — no skeleton transforms needed at rest.)
-type SkinnedMesh = Mesh & { id: string; name: string; order: number; rplusTex?: string };
-// Skinned-ANIM case (export_skin_anim.py): bones + per-vertex skinning + a clip.
-type Bone = {
-  name: string;
-  parent: number; // index into bones, -1 = root
-  t: [number, number, number];
-  r: [number, number, number, number]; // quaternion xyzw
-  s: [number, number, number];
-};
-type AnimMesh = {
-  id: string; name: string; tex: string; order: number; rplusTex?: string;
-  active?: boolean; // initial visibility (clips can toggle via active tracks)
-  verts3: number[]; // mesh-local x,y,z per vertex
-  uvs: number[];
-  indices: number[];
-  skin: number[]; // [w0,i0,w1,i1,w2,i2,w3,i3] per vertex (4 influences); i -> `bones`
-  bones: number[]; // mesh blend-index -> skeleton bone index
-  bindposes: number[][]; // inverse bind matrix (row-major 16) per mesh bone
-  shapes?: Record<string, [number, number, number, number][]>; // chanIdx -> [vertIdx,dx,dy,dz][]
-  shapeNames?: string[];
-  shapeWeights?: number[]; // default weight per channel
-  smrPath?: string;
-};
-type Clip = {
-  name: string; fps: number; frameCount: number; loop?: boolean;
-  tracks: { bone: number; attr: 't' | 'r' | 's'; frames: number[][] }[];
-  blend?: Record<string, Record<string, number[]>>;
-  active?: Record<string, number[]>;
-};
-// A clickable touch zone: rect [cx,cy,w,h] in px -> clip key to play.
-type Zone = { name: string; rect: [number, number, number, number]; clip: string };
-type Layout = {
-  skin: string;
-  kind: string; // "fixed" | "skinned" | "skinned-anim"
-  ppu: number;
-  nodes?: SkinNode[]; // fixed
-  faces?: FixedFace[]; // fixed: optional face-expression overlays (default = none)
-  toggles?: Toggle[];
-  meshes?: (SkinnedMesh | AnimMesh)[]; // skinned / skinned-anim
-  bones?: Bone[]; // skinned-anim
-  clip?: Clip | null; // skinned-anim default (idle)
-  clips?: Record<string, Clip>; // skinned-anim: idle + touch reactions
-  zones?: Zone[]; // skinned-anim touch zones
-  splines?: { ctrls: number[]; bones: number[] }[];
-  // spine case (export_spine.py): Spine runtime assets + metadata.
-  skel?: string; atlas?: string; animations?: string[]; skins?: string[];
-  skinGroups?: { base?: string; faces?: string[]; parts?: string[]; defaultFace?: string };
-  sfw?: { textures?: Record<string, string>; atlas?: string; skel?: string };
-  animator?: {
-    states: Record<string, { name: string; clip: string | null; loop: boolean; exit: number | null }>;
-    default: number;
-    triggers: Record<string, Record<string, number>>;
-  };
-  world?: {
-    skeleton?: { x: number; y: number; scale: number; dataScale?: number };
-    bg?: { tex: string; x: number; y: number; w: number; h: number };
-    zones?: { key: string; x: number; y: number; w: number; h: number; rot?: number; anims: string[] }[];
-  };
-};
-
-// region-diverged skins are packed as two archives (<key>__global / <key>__kr,
-// see tools/skin_test/pack.py) but layout.json's embedded `skin` field always
-// carries the bare, un-suffixed key (the exporter doesn't know about regions) —
-// strip the suffix before comparing so the stale-layout guard below doesn't
-// always reject a freshly loaded diverged skin.
-function baseSkinKey(skin: string): string {
-  return skin.replace(/__(global|kr)$/, '');
-}
-
-// whether any fixed-skin node has a given variant key (rplus / kr / sfw)
-function layoutHasVariant(layout: Layout, key: 'rplus' | 'kr' | 'sfw'): boolean {
-  if (layout.kind === 'fixed') {
-    const walk = (n: SkinNode): boolean =>
-      !!n.sprite?.[key] || n.children.some(walk);
-    return (layout.nodes ?? []).some(walk);
-  }
-  if (key === 'rplus' && (layout.kind === 'skinned' || layout.kind === 'skinned-anim')) {
-    return (layout.meshes ?? []).some((m) => !!(m as SkinnedMesh | AnimMesh).rplusTex);
-  }
-  return false;
-}
-
-function layoutHasRplus(layout: Layout): boolean {
-  return layoutHasVariant(layout, 'rplus');
-}
-
-// --- 4x4 matrix math (row-major, column vectors) for skeletal skinning ------
-type M16 = Float64Array;
-function matMul(a: M16, b: M16): M16 {
-  const r = new Float64Array(16);
-  for (let i = 0; i < 4; i++)
-    for (let j = 0; j < 4; j++)
-      r[i * 4 + j] = a[i * 4] * b[j] + a[i * 4 + 1] * b[4 + j] + a[i * 4 + 2] * b[8 + j] + a[i * 4 + 3] * b[12 + j];
-  return r;
-}
-function matTRS(t: number[], q: number[], s: number[]): M16 {
-  const [x, y, z, w] = q;
-  const sx = s[0] || 1e-6, sy = s[1] || 1e-6, sz = s[2] || 1;
-  const xx = x * x, yy = y * y, zz = z * z, xy = x * y, xz = x * z, yz = y * z, wx = w * x, wy = w * y, wz = w * z;
-  return new Float64Array([
-    (1 - 2 * (yy + zz)) * sx, 2 * (xy - wz) * sy, 2 * (xz + wy) * sz, t[0],
-    2 * (xy + wz) * sx, (1 - 2 * (xx + zz)) * sy, 2 * (yz - wx) * sz, t[1],
-    2 * (xz - wy) * sx, 2 * (yz + wx) * sy, (1 - 2 * (xx + yy)) * sz, t[2],
-    0, 0, 0, 1,
-  ]);
-}
-function catmull(p0: number[], p1: number[], p2: number[], p3: number[], t: number): number[] {
-  const t2 = t * t, t3 = t2 * t;
-  const out = [0, 0, 0];
-  for (let i = 0; i < 3; i++) {
-    out[i] = 0.5 * (
-      2 * p1[i] +
-      (-p0[i] + p2[i]) * t +
-      (2 * p0[i] - 5 * p1[i] + 4 * p2[i] - p3[i]) * t2 +
-      (-p0[i] + 3 * p1[i] - 3 * p2[i] + p3[i]) * t3);
-  }
-  return out;
-}
-function catmullSample(pts: number[][], count: number): number[][] {
-  const n = pts.length;
-  if (n < 2) return pts.slice();
-  const segs = n - 1;
-  const res: number[][] = [];
-  for (let i = 0; i < count; i++) {
-    const u = count > 1 ? (i / (count - 1)) * segs : 0;
-    const seg = Math.min(Math.floor(u), segs - 1);
-    const t = u - seg;
-    const p0 = pts[Math.max(seg - 1, 0)];
-    const p1 = pts[seg];
-    const p2 = pts[seg + 1];
-    const p3 = pts[Math.min(seg + 2, n - 1)];
-    res.push(catmull(p0, p1, p2, p3, t));
-  }
-  return res;
-}
-function slerp(a: number[], b: number[], f: number): number[] {
-  let d = a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3];
-  const bb = d < 0 ? b.map((v) => -v) : b;
-  d = Math.abs(d);
-  if (d > 0.9995) return a.map((v, i) => v + (bb[i] - v) * f);
-  const th = Math.acos(d), s = Math.sin(th);
-  const wa = Math.sin((1 - f) * th) / s, wb = Math.sin(f * th) / s;
-  return a.map((v, i) => v * wa + bb[i] * wb);
-}
-function zAngle(q: [number, number, number, number]): number {
-  const [x, y, z, w] = q;
-  return Math.atan2(2 * (w * z + x * y), 1 - 2 * (y * y + z * z));
-}
-
-function buildSkinnedAnim(
-  PIXI: any, layout: Layout, root: any, textures: Record<string, any>,
-  rplus: boolean, meshById: Record<string, any>,
-  setTick: (fn: (t: number) => void) => void, _isPlaying: () => boolean, ppu: number,
-  setPlayClip: (fn: (key: string) => void) => void,
-) {
-  const bones = layout.bones ?? [];
-  const clips = layout.clips ?? (layout.clip ? { idle: layout.clip } : {});
-  const meshes = (layout.meshes ?? []) as AnimMesh[];
-  const splines = layout.splines ?? [];
-  const restT = bones.map((b) => b.t);
-  const restR = bones.map((b) => b.r);
-  const restS = bones.map((b) => b.s);
-
-  type Prepared = {
-    clip: Clip;
-    byBone: Record<number, { t?: number[][]; r?: number[][]; s?: number[][] }>;
-    loopLen: number;
-  };
-  const prepared: Record<string, Prepared> = {};
-  for (const [key, c] of Object.entries(clips)) {
-    if (!c) continue;
-    const byBone: Prepared['byBone'] = {};
-    for (const tr of c.tracks) (byBone[tr.bone] ??= {})[tr.attr] = tr.frames;
-    prepared[key] = { clip: c, byBone, loopLen: c.loop ? Math.max(1, c.frameCount - 1) : c.frameCount };
-  }
-
-  const order = bones.map((_, i) => i);
-  order.sort((a, b) => depth(bones, a) - depth(bones, b));
-
-  const parts = meshes.map((m) => {
-    const tex = rplus && m.rplusTex ? m.rplusTex : m.tex;
-    const nv = m.verts3.length / 3;
-    const verts = new Float32Array(nv * 2);
-    const mesh = new PIXI.MeshSimple({
-      texture: textures[tex],
-      vertices: verts,
-      uvs: new Float32Array(m.uvs),
-      indices: new Uint32Array(m.indices),
-    });
-    mesh.zIndex = m.order;
-    meshById[m.id] = mesh;
-    root.addChild(mesh);
-    const morphed = new Float32Array(m.verts3.length);
-    const nInf = m.skin.length / nv / 2;
-    return { m, mesh, verts, morphed, nInf };
-  });
-
-  const world: M16[] = new Array(bones.length);
-
-  let activeKey = 'idle' in prepared ? 'idle' : Object.keys(prepared)[0];
-  let startT = 0;
-  let lastT = 0;
-  const FADE = 0.3;
-  let fadeStart = -1;
-  const snapT = bones.map((b) => b.t.slice());
-  const snapR = bones.map((b) => b.r.slice());
-  const snapS = bones.map((b) => b.s.slice());
-  const startFade = () => { fadeStart = lastT; };
-  setPlayClip((key: string) => {
-    if (prepared[key] && key !== activeKey) { activeKey = key; startT = lastT; startFade(); }
-  });
-
-  const tick = (time: number) => {
-    lastT = time;
-    let p = prepared[activeKey];
-    if (!p) return;
-    let local = (time - startT) * p.clip.fps;
-    if (p.clip.loop) {
-      local %= p.loopLen;
-    } else if (local >= p.clip.frameCount - 1) {
-      const idle = 'idle' in prepared ? 'idle' : activeKey;
-      if (idle !== activeKey) startFade();
-      activeKey = idle;
-      startT = time;
-      p = prepared[activeKey];
-      local = 0;
-    }
-    const fc = p.clip.frameCount;
-    const f0 = Math.min(Math.floor(local), fc - 1);
-    const f1 = p.clip.loop ? (f0 + 1) % fc : Math.min(f0 + 1, fc - 1);
-    const lf = local - Math.floor(local);
-    const byBone = p.byBone;
-
-    let fade = fadeStart >= 0 ? (time - fadeStart) / FADE : 1;
-    if (fade >= 1) { fade = 1; fadeStart = -1; }
-    fade = fade * fade * (3 - 2 * fade);
-
-    for (const i of order) {
-      const tk = byBone[i];
-      let t: number[] = restT[i], r: number[] = restR[i], s: number[] = restS[i];
-      if (tk?.t) t = lerp3(tk.t[f0], tk.t[f1], lf);
-      if (tk?.r) r = slerp(tk.r[f0], tk.r[f1], lf);
-      if (tk?.s) s = lerp3(tk.s[f0], tk.s[f1], lf);
-      if (fade < 1) {
-        t = lerp3(snapT[i], t, fade);
-        r = slerp(snapR[i], r, fade);
-        s = lerp3(snapS[i], s, fade);
-      }
-      snapT[i] = t; snapR[i] = r; snapS[i] = s;
-      const local2 = matTRS(t, r, s);
-      const par = bones[i].parent;
-      world[i] = par >= 0 && world[par] ? matMul(world[par], local2) : local2;
-    }
-
-    for (const sp of splines) {
-      const pts = sp.ctrls.map((bi) => {
-        const m = world[bi] || IDENTITY;
-        return [m[3], m[7], m[11]];
-      });
-      const sampled = catmullSample(pts, sp.bones.length);
-      for (let k = 0; k < sp.bones.length; k++) {
-        const bi = sp.bones[k];
-        const m = world[bi];
-        if (!m) continue;
-        m[3] = sampled[k][0]; m[7] = sampled[k][1]; m[11] = sampled[k][2];
-      }
-    }
-
-    const blendByPath = p.clip.blend;
-    const activeByMesh = p.clip.active;
-
-    for (const { m, mesh, verts, morphed, nInf } of parts) {
-      const act = activeByMesh?.[m.id];
-      mesh.visible = act ? act[f0] !== 0 : (m.active ?? true);
-      if (!mesh.visible) continue;
-      const skin = m.skin, mb = m.bones, bp = m.bindposes;
-      const sm: M16[] = mb.map((skelIdx, k) => {
-        const bw = skelIdx >= 0 && world[skelIdx] ? world[skelIdx] : IDENTITY;
-        return bp[k] ? matMul(bw, Float64Array.from(bp[k])) : bw;
-      });
-      const n = m.verts3.length / 3;
-
-      morphed.set(m.verts3);
-      if (m.shapes && m.shapeNames) {
-        const animShapes = m.smrPath ? blendByPath?.[m.smrPath] : undefined;
-        for (let ci = 0; ci < m.shapeNames.length; ci++) {
-          const deltas = m.shapes[ci];
-          if (!deltas) continue;
-          const name = m.shapeNames[ci];
-          const wframes = animShapes?.[name];
-          const w = wframes
-            ? wframes[f0] + (wframes[f1] - wframes[f0]) * lf
-            : (m.shapeWeights?.[ci] ?? 0);
-          if (Math.abs(w) < 1e-3) continue;
-          const f = w / 100;
-          for (const [vi, dx, dy, dz] of deltas) {
-            morphed[vi * 3] += dx * f;
-            morphed[vi * 3 + 1] += dy * f;
-            morphed[vi * 3 + 2] += dz * f;
-          }
-        }
-      }
-
-      const stride = nInf * 2;
-      for (let vi = 0; vi < n; vi++) {
-        const x = morphed[vi * 3], y = morphed[vi * 3 + 1], z = morphed[vi * 3 + 2];
-        let ax = 0, ay = 0;
-        for (let k = 0; k < nInf; k++) {
-          const w = skin[vi * stride + k * 2];
-          if (w <= 0) continue;
-          const bi = skin[vi * stride + k * 2 + 1];
-          const M = sm[bi];
-          if (!M) continue;
-          const px = M[0] * x + M[1] * y + M[2] * z + M[3];
-          const py = M[4] * x + M[5] * y + M[6] * z + M[7];
-          ax += px * w; ay += py * w;
-        }
-        verts[vi * 2] = ax * ppu;
-        verts[vi * 2 + 1] = -ay * ppu;
-      }
-      const buf = mesh.geometry.getBuffer('aPosition');
-      buf.data = verts;
-      buf.update();
-    }
-  };
-  setTick(tick);
-}
-
-const IDENTITY: M16 = new Float64Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
-function depth(bones: Bone[], i: number): number {
-  let d = 0, p = bones[i].parent;
-  while (p >= 0) { d++; p = bones[p].parent; }
-  return d;
-}
-function lerp3(a: number[], b: number[], f: number): number[] {
-  return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f];
-}
+import {
+  IconBtn, FaceSelect, SaveButton, ReloadButton, PlayPauseButton, ZonesButton, variantMeta, VariantStrip,
+} from './skinViewer/chrome';
+import type { SpriteInfo, SkinNode, FixedFace, Layout } from './skinViewer/types';
+import { baseSkinKey, layoutHasVariant, zAngle, attachPanZoom } from './skinViewer/types';
 
 // Unity WebGL iframe viewer for the old skinned-mesh animation rig (the 144
 // skipped skins). The iframe loads /unity-viewer/?model=<skin> and communicates
@@ -438,6 +44,10 @@ function UnityViewer({ skin, height, parts, hasRplus, hasKr, hasBg, hasDam, show
   const [showZones, setShowZones] = useState(false);
   const [variant, setVariant] = useState<string>('base');
   const [availableVariants, setAvailableVariants] = useState<string[]>([]);
+  const [playing, setPlaying] = useState(true);
+  const [saving, setSaving] = useState(false);
+  // bumping this remounts the iframe, reloading the model from scratch (reset).
+  const [resetKey, setResetKey] = useState(0);
 
   // base skin name without region suffix
   const baseSkin = skin.replace(/__kr$/, '');
@@ -456,27 +66,53 @@ function UnityViewer({ skin, height, parts, hasRplus, hasKr, hasBg, hasDam, show
           break;
         case 'part': setHasParts(!!e.data.data); break;
         case 'variants': setAvailableVariants(e.data.data ?? []); break;
+        case 'screenshot': {
+          setSaving(false);
+          const b64 = e.data.data as string;
+          if (!b64) return; // capture failed Unity-side
+          const a = document.createElement('a');
+          a.href = `data:image/png;base64,${b64}`;
+          a.download = `${skin}.png`;
+          a.click();
+          break;
+        }
       }
     };
     window.addEventListener('message', handler);
     return () => window.removeEventListener('message', handler);
-  }, []);
+  }, [skin]);
 
+  // A remounted iframe (skin change or reset) starts fresh: reset per-model UI
+  // state so it matches the new instance. `playing` is deliberately preserved —
+  // a reload while paused stays paused (the pause postMessage effect re-sends the
+  // current state to the new iframe). Matches the spine viewer's reload behavior.
   useEffect(() => {
     setFaceList([]); setHasParts(false); setAvailableVariants([]);
     setFace(''); setShowParts(true); setShowBg(true); setShowZones(false); setVariant('base');
-  }, [skin]);
+  }, [skin, resetKey]);
 
   useEffect(() => { send({ type: 'bg', active: showBg }); }, [skin, showBg]);
   useEffect(() => { send({ type: 'face', face }); }, [face]);
   useEffect(() => { send({ type: 'part', active: showParts }); }, [showParts]);
   useEffect(() => { send({ type: 'collider', active: showZones }); }, [showZones]);
+  // re-send on skin/reset too so a remounted iframe inherits the pause state.
+  useEffect(() => { send({ type: 'pause', active: !playing }); }, [skin, resetKey, playing]);
   useEffect(() => {
     send({ type: 'variant', variant: variant === 'base' ? '' : variant });
   }, [variant]);
 
+  // Ask Unity to render + crop the current model; the PNG comes back via the
+  // 'screenshot' message above and downloads there. Guard against double-clicks.
+  const handleSave = () => {
+    if (saving) return;
+    setSaving(true);
+    send({ type: 'screenshot' });
+    // Safety: clear the spinner if Unity never answers (e.g. old build).
+    setTimeout(() => setSaving(false), 8000);
+  };
+
+  // key forces a full iframe remount on reset so the Unity model reloads.
   const iframeSrc = `${UNITY_VIEWER_BASE}/index.html?model=${encodeURIComponent(baseSkin)}`;
-  const faceName = face.replace(/^face\/.*_/, '');
 
   return (
     <Box>
@@ -484,6 +120,7 @@ function UnityViewer({ skin, height, parts, hasRplus, hasKr, hasBg, hasDam, show
         border="1px solid" borderColor="whiteAlpha.200">
         <Box
           as="iframe"
+          key={resetKey}
           ref={iframeRef}
           src={iframeSrc}
           position="absolute" inset={0} w="100%" h="100%"
@@ -491,6 +128,15 @@ function UnityViewer({ skin, height, parts, hasRplus, hasKr, hasBg, hasDam, show
           allow="autoplay"
           sx={{ colorScheme: 'none' }}
         />
+
+        {/* Top-right: play/pause + zones + reload + save */}
+        <VStack position="absolute" top={2} right={2} spacing={1} align="flex-end"
+          bg="blackAlpha.500" borderRadius="md" px={1} py={1}>
+          <PlayPauseButton playing={playing} onToggle={() => setPlaying((v) => !v)} />
+          <ZonesButton shown={showZones} onToggle={() => setShowZones((v) => !v)} />
+          <ReloadButton onClick={() => setResetKey((k) => k + 1)} />
+          <SaveButton onClick={handleSave} saving={saving} />
+        </VStack>
 
         {/* Bottom-left: PARTS_META info icons */}
         {parts.length > 0 && (
@@ -510,62 +156,19 @@ function UnityViewer({ skin, height, parts, hasRplus, hasKr, hasBg, hasDam, show
 
         {/* Top-left: face selector */}
         {faceList.length > 0 && (
-          <Box position="absolute" top={2} left={2} bg="blackAlpha.700" borderRadius="md" display="inline-flex">
-            <Box position="relative" display="inline-flex" alignItems="center" px={2} py={1} minW="120px">
-              <Image src="/images/shop/UI_ICON_EditFace.png" alt="Face"
-                boxSize="22px" objectFit="contain" flexShrink={0} pointerEvents="none" mr={1} />
-              <Text fontSize="xs" color="gray.200" whiteSpace="nowrap" pointerEvents="none">{face || '(none)'}</Text>
-              <Select position="absolute" inset={0} w="100%" h="100%"
-                opacity={0} cursor="pointer" size="xs"
-                value={face}
-                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setFace(e.target.value)}
-                sx={{ appearance: 'none', WebkitAppearance: 'none' }}>
-                <option value="">(none)</option>
-                {faceList.map((f) => (
-                  <option key={f} value={f}>{f.replace(/^face\/.*_/, '')}</option>
-                ))}
-              </Select>
-            </Box>
-          </Box>
+          <FaceSelect value={face} onChange={setFace}
+            options={[{ value: '', label: '(none)' },
+              ...faceList.map((f) => ({ value: f, label: f.replace(/^face\/.*_/, '') }))]} />
         )}
 
         {/* Bottom-right: props/bg group + variant radio group + dam toggle */}
         <HStack position="absolute" bottom={2} right={2} spacing={1} align="flex-end">
           {/* Variant radio: base / kr / sfw / kr_sfw / rplus */}
-          {availableVariants.length > 0 && (
-            <HStack bg="blackAlpha.500" borderRadius="md" px={1} py={1} spacing={1}>
-              {(['base', ...availableVariants] as string[]).map((v) => {
-                const hasKrVariant = availableVariants.includes('kr');
-                const icons: Record<string, string> = {
-                  base:  hasKrVariant ? '/images/shop/icon-platform-vfun.png' : '/images/shop/icon-platform-onestore.png',
-                  kr:    '/images/shop/icon-platform-onestore.png',
-                  sfw:   '/images/shop/icon-platform-google.png',
-                  rplus: '/images/shop/icon-secret-marks.png',
-                };
-                const tips: Record<string, string> = {
-                  base:  'Uncensored',
-                  kr:    'KR (Uncensored)',
-                  sfw:   'Censored (Google Play)',
-                  rplus: 'R+ (Uncensored)',
-                };
-                const active = variant === v;
-                const icon = icons[v];
-                return (
-                  <Tooltip key={v} label={tips[v] ?? v} fontSize="xs" hasArrow placement="top">
-                    <Box as="button" onClick={() => { if (!active) setVariant(v); }}
-                      position="relative" boxSize="36px"
-                      opacity={active ? 1 : 0.4} transition="opacity 0.15s"
-                      _hover={{ opacity: active ? 0.8 : 0.65 }}
-                      outline={active ? '2px solid' : 'none'}
-                      outlineColor="yellow.400"
-                      borderRadius="sm">
-                      <Image src={icon} alt={tips[v] ?? v} boxSize="36px" objectFit="contain" />
-                    </Box>
-                  </Tooltip>
-                );
-              })}
-            </HStack>
-          )}
+          <VariantStrip active={variant} onSelect={setVariant}
+            variants={(['base', ...availableVariants]).map((v) => {
+              const meta = variantMeta(v, availableVariants.includes('kr'));
+              return { key: v, icon: meta.icon, label: meta.label };
+            })} />
           {/* Props/bg/dam group */}
           {(hasParts || hasBg || hasDam) && (
             <VStack bg="blackAlpha.500" borderRadius="md" px={1} py={1} spacing={1}>
@@ -589,15 +192,8 @@ function UnityViewer({ skin, height, parts, hasRplus, hasKr, hasBg, hasDam, show
         </HStack>
       </Box>
 
-      {/* Control bar below canvas — zones toggle, matching PixiJS spine viewer */}
-      <HStack mt={2} spacing={3} px={1} justify="space-between">
-        <HStack spacing={2}>
-          <Switch id="uv-zones" isChecked={showZones} size="sm"
-            onChange={(e) => setShowZones(e.target.checked)} />
-          <Text as="label" htmlFor="uv-zones" fontSize="xs" color="gray.300" cursor="pointer">
-            Zones
-          </Text>
-        </HStack>
+      {/* Credit below canvas (controls are in the top-right overlay group) */}
+      <HStack mt={2} spacing={3} px={1} justify="flex-end">
         <Text fontSize="xs" color="whiteAlpha.400">
           Viewer by{' '}
           <Box as="a" href="https://lo.swaytwig.com" target="_blank" rel="noopener noreferrer"
@@ -660,7 +256,6 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
 
   const [playing, setPlaying] = useState(true);
   const [loadState, setLoadState] = useState<'fetching' | 'unpacking' | 'ready' | 'error'>('fetching');
-  const [canvasReady, setCanvasReady] = useState(false);
   const [resetKey, setResetKey] = useState(0);
   const filesRef = useRef<Map<string, Blob> | null>(null);
 
@@ -671,7 +266,6 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
     setLayout(null);
     filesRef.current = null;
     setLoadState('fetching');
-    setCanvasReady(false);
     (async () => {
       const files = await loadSkinArchive(skin);
       if (cancelled) throw new Error('cancelled');
@@ -712,7 +306,11 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
   }, [skin, resetKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const nodesByIdRef = useRef<Record<string, any>>({});
-  const meshByIdRef = useRef<Record<string, any>>({});
+  // mirror of `playing` so the async spine build can apply the current pause
+  // state to a freshly built spine (e.g. after a reload while paused) — the
+  // [playing]-only pause effect won't re-fire when only resetKey changed.
+  const playingRef = useRef(playing);
+  playingRef.current = playing;
   const fixedFaceRef = useRef<string>('');
   fixedFaceRef.current = fixedFace;
   const setFixedFaceRef = useRef<((key: string | null) => void) | null>(null);
@@ -724,10 +322,6 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
   const texturesRef = useRef<Record<string, any>>({});
   const togglesRef = useRef<Record<string, boolean>>({});
   togglesRef.current = toggles;
-  const animTickRef = useRef<((t: number) => void) | null>(null);
-  const playClipRef = useRef<((key: string) => void) | null>(null);
-  const playingRef = useRef(true);
-  playingRef.current = playing;
   useEffect(() => {
     if (!layout || layout.kind === 'spine' || layout.skin !== baseSkinKey(skin)) return;
     let destroyed = false;
@@ -751,10 +345,6 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
         n.children.forEach(collect);
       };
       (layout.nodes ?? []).forEach(collect);
-      (layout.meshes ?? []).forEach((m) => {
-        texNames.add(m.tex);
-        if (m.rplusTex) texNames.add(m.rplusTex);
-      });
       (layout.faces ?? []).forEach((f) => texNames.add(f.tex));
 
       const textures: Record<string, any> = {};
@@ -853,61 +443,14 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
       };
 
       const root = new PIXI.Container();
-      const meshById: Record<string, any> = {};
-      let zoneLayer: any = null;
-      if (layout.kind === 'skinned-anim') {
-        buildSkinnedAnim(PIXI, layout, root, textures, variant === 'rplus', meshById,
-                         (fn) => { animTickRef.current = fn; },
-                         () => playingRef.current, ppu,
-                         (fn) => { playClipRef.current = fn; });
-        zoneLayer = new PIXI.Container();
-        const zones = layout.zones ?? [];
-        if (zones.length) {
-          let minx = Infinity, miny = Infinity, maxx = -Infinity, maxy = -Infinity;
-          for (const z of zones) {
-            const [cx, cy, w, h] = z.rect;
-            minx = Math.min(minx, cx - w / 2); maxx = Math.max(maxx, cx + w / 2);
-            miny = Math.min(miny, cy - h / 2); maxy = Math.max(maxy, cy + h / 2);
-          }
-          const hit = new PIXI.Graphics()
-            .rect(minx, miny, maxx - minx, maxy - miny)
-            .fill({ color: 0xffffff, alpha: 0.001 });
-          hit.eventMode = 'static';
-          hit.cursor = 'pointer';
-          const ranked = [...zones].sort(
-            (a, b) => a.rect[2] * a.rect[3] - b.rect[2] * b.rect[3]);
-          hit.on('pointertap', (e: any) => {
-            const p = zoneLayer.toLocal(e.global);
-            const z = ranked.find(({ rect: [cx, cy, w, h] }) =>
-              Math.abs(p.x - cx) <= w / 2 && Math.abs(p.y - cy) <= h / 2);
-            if (z) playClipRef.current?.(z.clip);
-          });
-          zoneLayer.addChild(hit);
-        }
-      } else if (layout.kind === 'skinned') {
-        for (const m of (layout.meshes ?? []) as SkinnedMesh[]) {
-          const tex = variant === 'rplus' && m.rplusTex ? m.rplusTex : m.tex;
-          const mesh = new PIXI.MeshSimple({
-            texture: textures[tex],
-            vertices: new Float32Array(m.verts),
-            uvs: new Float32Array(m.uvs),
-            indices: new Uint32Array(m.indices),
-          });
-          mesh.zIndex = m.order;
-          meshById[m.id] = mesh;
-          root.addChild(mesh);
-        }
-      } else {
-        const identity = new PIXI.Matrix();
-        (layout.nodes ?? []).forEach((n) => root.addChild(build(n, [], identity)));
-      }
+      const identity = new PIXI.Matrix();
+      (layout.nodes ?? []).forEach((n) => root.addChild(build(n, [], identity)));
       app.stage.addChild(root);
       rootRef.current = root;
       // _root node applies the Unity global scale-down (~0.13); invert it to get atlas-pixel scale.
       const rootNode = Object.values(byId).find((c: any) => c.label?.endsWith('_root')) as any;
       u2pxRef.current = rootNode ? 1 / Math.abs(rootNode.scale.x) : 1;
       nodesByIdRef.current = byId;
-      meshByIdRef.current = meshById;
       flatMeshesRef.current = flatMeshes;
 
       // Add every wrapper (holding a leaf mesh at its correct world-space
@@ -974,7 +517,6 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
         applyFace(fixedFaceRef.current || null);
       }
 
-      if (zoneLayer) app.stage.addChild(zoneLayer);
       const fit = () => {
         const b = root.getLocalBounds();
         if (!b.width || !b.height) return;
@@ -985,106 +527,18 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
           app.screen.width / 2 - (b.x + b.width / 2) * s,
           app.screen.height / 2 - (b.y + b.height / 2) * s,
         );
-        if (zoneLayer) {
-          zoneLayer.scale.set(s);
-          zoneLayer.position.copyFrom(root.position);
-        }
       };
-      let elapsed = 0;
-      if (animTickRef.current) {
-        animTickRef.current(0);
-        fit();
-        app.ticker.add((tk: any) => {
-          if (!playingRef.current) return;
-          elapsed += tk.deltaMS / 1000;
-          animTickRef.current!(elapsed);
-        });
-      } else {
-        fit();
-      }
+      fit();
       app.renderer.on('resize', fit);
 
-      const canvas = app.canvas as HTMLCanvasElement;
-      const pointers = new Map<number, { x: number; y: number }>();
-      let dragging = false;
-      let dragStart = { x: 0, y: 0 };
-      let rootStart = { x: 0, y: 0 };
-      let pinchDist0 = 0;
-      let pinchScale0 = 1;
-      let pinchMid = { x: 0, y: 0 };
-      const applyScale = (factor: number, mx: number, my: number) => {
-        const s = root.scale.x * factor;
-        root.position.set(mx + (root.position.x - mx) * factor, my + (root.position.y - my) * factor);
-        root.scale.set(s);
-        if (zoneLayer) { zoneLayer.scale.set(s); zoneLayer.position.copyFrom(root.position); }
-      };
-      const onWheel = (e: WheelEvent) => {
-        e.preventDefault();
-        const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
-        const rect = canvas.getBoundingClientRect();
-        applyScale(factor, e.clientX - rect.left, e.clientY - rect.top);
-      };
-      const onPointerDown = (e: PointerEvent) => {
-        canvas.setPointerCapture(e.pointerId);
-        pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-        if (pointers.size === 2) {
-          const pts = Array.from(pointers.values());
-          pinchDist0 = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
-          pinchScale0 = root.scale.x;
-          const rect = canvas.getBoundingClientRect();
-          pinchMid = { x: (pts[0].x + pts[1].x) / 2 - rect.left, y: (pts[0].y + pts[1].y) / 2 - rect.top };
-          dragging = false;
-        } else if (pointers.size === 1) {
-          dragging = false;
-          dragStart = { x: e.clientX, y: e.clientY };
-          rootStart = { x: root.position.x, y: root.position.y };
-        }
-      };
-      const onPointerMove = (e: PointerEvent) => {
-        pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-        if (pointers.size === 2) {
-          const pts = Array.from(pointers.values());
-          const dist = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
-          if (pinchDist0 > 0) {
-            const s = (pinchScale0 * dist) / pinchDist0;
-            const factor = s / root.scale.x;
-            applyScale(factor, pinchMid.x, pinchMid.y);
-          }
-          return;
-        }
-        if (e.buttons === 0) return;
-        const dx = e.clientX - dragStart.x;
-        const dy = e.clientY - dragStart.y;
-        if (!dragging && Math.hypot(dx, dy) < 4) return;
-        dragging = true;
-        root.position.set(rootStart.x + dx, rootStart.y + dy);
-        if (zoneLayer) zoneLayer.position.copyFrom(root.position);
-      };
-      const onPointerUp = (e: PointerEvent) => {
-        pointers.delete(e.pointerId);
-        if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
-        if (pointers.size < 2) { pinchDist0 = 0; dragging = false; }
-        if (pointers.size === 1) {
-          const pt = pointers.values().next().value as { x: number; y: number };
-          dragStart = { x: pt.x, y: pt.y };
-          rootStart = { x: root.position.x, y: root.position.y };
-        }
-      };
-      canvas.addEventListener('wheel', onWheel, { passive: false });
-      canvas.addEventListener('pointerdown', onPointerDown);
-      canvas.addEventListener('pointermove', onPointerMove);
-      canvas.addEventListener('pointerup', onPointerUp);
-      canvas.addEventListener('pointercancel', onPointerUp);
+      attachPanZoom(app.canvas as HTMLCanvasElement, root);
     })().catch((e) => !destroyed && setError(String(e)));
 
     return () => {
       destroyed = true;
       nodesByIdRef.current = {};
-      meshByIdRef.current = {};
       flatMeshesRef.current = [];
       texturesRef.current = {};
-      animTickRef.current = null;
-      playClipRef.current = null;
       appRef.current = null;
       if (app && appReady) app.destroy(true);
     };
@@ -1244,6 +698,13 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
         spineSfw.visible = isSfw;
       } else {
         spineSfwRef.current = null;
+      }
+
+      // Honor the current pause state on the freshly built spine(s) — a reload
+      // while paused must stay paused (the [playing]-only effect won't re-fire).
+      if (!playingRef.current) {
+        spine.state.timeScale = 0;
+        if (spineSfw) spineSfw.state.timeScale = 0;
       }
 
       // Apply texture swap immediately if already in sfw mode (texture-only case)
@@ -1454,78 +915,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
       }
       app.renderer.on('resize', fit);
 
-      // Zoom (wheel + pinch) and drag (pointer) on the canvas.
-      const canvas = app.canvas as HTMLCanvasElement;
-      const pointers = new Map<number, { x: number; y: number }>();
-      let dragging = false;
-      let dragStart = { x: 0, y: 0 };
-      let rootStart = { x: 0, y: 0 };
-      let pinchDist0 = 0;
-      let pinchScale0 = 1;
-      let pinchMid = { x: 0, y: 0 };
-      const applyScale = (factor: number, mx: number, my: number) => {
-        const s = root.scale.x * factor;
-        root.position.set(mx + (root.position.x - mx) * factor, my + (root.position.y - my) * factor);
-        root.scale.set(s);
-        if (zoneLayer) { zoneLayer.scale.set(s); zoneLayer.position.copyFrom(root.position); }
-      };
-      const onWheel = (e: WheelEvent) => {
-        e.preventDefault();
-        const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
-        const rect = canvas.getBoundingClientRect();
-        applyScale(factor, e.clientX - rect.left, e.clientY - rect.top);
-      };
-      const onPointerDown = (e: PointerEvent) => {
-        canvas.setPointerCapture(e.pointerId);
-        pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-        if (pointers.size === 2) {
-          const pts = Array.from(pointers.values());
-          pinchDist0 = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
-          pinchScale0 = root.scale.x;
-          const rect = canvas.getBoundingClientRect();
-          pinchMid = { x: (pts[0].x + pts[1].x) / 2 - rect.left, y: (pts[0].y + pts[1].y) / 2 - rect.top };
-          dragging = false;
-        } else if (pointers.size === 1) {
-          dragging = false;
-          dragStart = { x: e.clientX, y: e.clientY };
-          rootStart = { x: root.position.x, y: root.position.y };
-        }
-      };
-      const onPointerMove = (e: PointerEvent) => {
-        pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-        if (pointers.size === 2) {
-          const pts = Array.from(pointers.values());
-          const dist = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
-          if (pinchDist0 > 0) {
-            const s = (pinchScale0 * dist) / pinchDist0;
-            const factor = s / root.scale.x;
-            applyScale(factor, pinchMid.x, pinchMid.y);
-          }
-          return;
-        }
-        if (e.buttons === 0) return;
-        const dx = e.clientX - dragStart.x;
-        const dy = e.clientY - dragStart.y;
-        if (!dragging && Math.hypot(dx, dy) < 4) return;
-        dragging = true;
-        root.position.set(rootStart.x + dx, rootStart.y + dy);
-        if (zoneLayer) zoneLayer.position.copyFrom(root.position);
-      };
-      const onPointerUp = (e: PointerEvent) => {
-        pointers.delete(e.pointerId);
-        if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
-        if (pointers.size < 2) { pinchDist0 = 0; dragging = false; }
-        if (pointers.size === 1) {
-          const pt = pointers.values().next().value as { x: number; y: number };
-          dragStart = { x: pt.x, y: pt.y };
-          rootStart = { x: root.position.x, y: root.position.y };
-        }
-      };
-      canvas.addEventListener('wheel', onWheel, { passive: false });
-      canvas.addEventListener('pointerdown', onPointerDown);
-      canvas.addEventListener('pointermove', onPointerMove);
-      canvas.addEventListener('pointerup', onPointerUp);
-      canvas.addEventListener('pointercancel', onPointerUp);
+      attachPanZoom(app.canvas as HTMLCanvasElement, root, zoneLayer);
     })().catch((e) => !destroyed && setError(String(e)));
 
     return () => {
@@ -1544,14 +934,12 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
   }, [layout, skin]);
 
   useEffect(() => {
-    const app = appRef.current;
     const spine = spineRef.current;
     // Spine-pixi v8 auto-updates via its own ticker listener; pause by setting timeScale.
-    // For skinned-anim the playingRef is already checked in the ticker callback.
     if (spine) {
       spine.state.timeScale = playing ? 1 : 0;
       if (spineSfwRef.current) spineSfwRef.current.state.timeScale = playing ? 1 : 0;
-    } else if (app) app.ticker.speed = playing ? 1 : 0;
+    }
   }, [playing]);
 
   useEffect(() => {
@@ -1640,26 +1028,19 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
       }
     }
 
-    if (layout.kind === 'skinned' || layout.kind === 'skinned-anim') {
-      const byMeshId = meshByIdRef.current;
-      for (const [id, mesh] of Object.entries(byMeshId)) {
-        mesh.visible = !hidden.has(id);
-      }
-    } else {
-      const apply = (n: SkinNode) => {
-        const node = byId[n.id];
-        if (node) node.visible = (forced.has(n.id) || n.active) && !hidden.has(n.id);
-        n.children.forEach(apply);
-      };
-      (layout.nodes ?? []).forEach(apply);
-      // leaf meshes were flattened out of the transform tree for global
-      // draw-order sorting (see the build effect) — their anchor's `visible`
-      // no longer cascades to them since they're no longer its child, so
-      // recompute renderable directly from each ancestor's visibility
-      // (just set above by `apply`, which already folds in n.active + hidden).
-      for (const { wrapper, chain } of flatMeshesRef.current) {
-        wrapper.renderable = chain.every((id) => byId[id]?.visible);
-      }
+    const apply = (n: SkinNode) => {
+      const node = byId[n.id];
+      if (node) node.visible = (forced.has(n.id) || n.active) && !hidden.has(n.id);
+      n.children.forEach(apply);
+    };
+    (layout.nodes ?? []).forEach(apply);
+    // leaf meshes were flattened out of the transform tree for global
+    // draw-order sorting (see the build effect) — their anchor's `visible`
+    // no longer cascades to them since they're no longer its child, so
+    // recompute renderable directly from each ancestor's visibility
+    // (just set above by `apply`, which already folds in n.active + hidden).
+    for (const { wrapper, chain } of flatMeshesRef.current) {
+      wrapper.renderable = chain.every((id) => byId[id]?.visible);
     }
     if (bgSpriteRef.current) {
       bgSpriteRef.current.visible = toggles['bg'] ?? true;
@@ -1757,54 +1138,18 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
           </HStack>
         )}
 
-        {/* Top-left: face selector (spine only) */}
-        {layout?.kind === 'spine' && (layout.skinGroups?.faces?.length ?? 0) > 0 && (() => {
-          const faces = layout.skinGroups!.faces!;
-          const faceName = (spineFace || faces[0] || '').replace(/^face\/.*_/, '');
-          return (
-            <Box position="absolute" top={2} left={2} bg="blackAlpha.700" borderRadius="md" display="inline-flex">
-              <Box position="relative" display="inline-flex" alignItems="center" px={2} py={1} minW="120px">
-                <Image src="/images/shop/UI_ICON_EditFace.png" alt="Face"
-                  boxSize="22px" objectFit="contain" flexShrink={0} pointerEvents="none" mr={1} />
-                <Text fontSize="xs" color="gray.200" whiteSpace="nowrap" pointerEvents="none">{faceName}</Text>
-                <Select position="absolute" inset={0} w="100%" h="100%"
-                  opacity={0} cursor="pointer" size="xs"
-                  value={spineFace}
-                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSpineFace(e.target.value)}
-                  sx={{ appearance: 'none', WebkitAppearance: 'none' }}>
-                  {faces.map((f) => (
-                    <option key={f} value={f}>{f.replace(/^face\/.*_/, '')}</option>
-                  ))}
-                </Select>
-              </Box>
-            </Box>
-          );
-        })()}
+        {/* Top-left: face selector (spine only) — always a face, no (none) */}
+        {layout?.kind === 'spine' && (layout.skinGroups?.faces?.length ?? 0) > 0 && (
+          <FaceSelect value={spineFace} onChange={setSpineFace}
+            options={layout.skinGroups!.faces!.map((f) => ({ value: f, label: f.replace(/^face\/.*_/, '') }))} />
+        )}
 
         {/* Top-left: face selector (fixed only) — default "(none)", its own entry */}
-        {layout?.kind === 'fixed' && (layout.faces?.length ?? 0) > 0 && (() => {
-          const faces = layout.faces!;
-          const faceName = fixedFace || '(none)';
-          return (
-            <Box position="absolute" top={2} left={2} bg="blackAlpha.700" borderRadius="md" display="inline-flex">
-              <Box position="relative" display="inline-flex" alignItems="center" px={2} py={1} minW="120px">
-                <Image src="/images/shop/UI_ICON_EditFace.png" alt="Face"
-                  boxSize="22px" objectFit="contain" flexShrink={0} pointerEvents="none" mr={1} />
-                <Text fontSize="xs" color="gray.200" whiteSpace="nowrap" pointerEvents="none">{faceName}</Text>
-                <Select position="absolute" inset={0} w="100%" h="100%"
-                  opacity={0} cursor="pointer" size="xs"
-                  value={fixedFace}
-                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setFixedFace(e.target.value)}
-                  sx={{ appearance: 'none', WebkitAppearance: 'none' }}>
-                  <option value="">(none)</option>
-                  {faces.map((f) => (
-                    <option key={f.key} value={f.key}>{f.key}</option>
-                  ))}
-                </Select>
-              </Box>
-            </Box>
-          );
-        })()}
+        {layout?.kind === 'fixed' && (layout.faces?.length ?? 0) > 0 && (
+          <FaceSelect value={fixedFace} onChange={setFixedFace}
+            options={[{ value: '', label: '(none)' },
+              ...layout.faces!.map((f) => ({ value: f.key, label: f.key }))]} />
+        )}
 
         {/* Top-right: breast variants (spine only) + save button */}
         {(() => {
@@ -1819,6 +1164,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
             hasUnedited && { key: 'breast/Unedited', icon: hasKr ? '/images/shop/icon-platform-vfun.png' : '/images/shop/icon-platform-onestore.png', label: 'Unedited' },
             hasRplusBreast && { key: 'breast/RPlus', icon: '/images/shop/icon-secret-marks.png', label: 'R+' },
           ].filter(Boolean) as { key: string; icon: string; label: string }[];
+          const hasZones = isSpine && (layout?.world?.zones?.length ?? 0) > 0;
           return (
             <VStack position="absolute" top={2} right={2} spacing={1} align="flex-end"
               bg="blackAlpha.500" borderRadius="md" px={1} py={1}>
@@ -1827,20 +1173,11 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
                   active={spineBreast === v.key} placement="left"
                   onClick={() => setSpineBreast(v.key)} />
               ))}
-              {isSpine && (
-                <Tooltip label="Reload skin" fontSize="xs" hasArrow placement="left">
-                  <Box as="button" onClick={() => setResetKey((k) => k + 1)} boxSize="36px" display="flex"
-                    alignItems="center" justifyContent="center" opacity={0.7} _hover={{ opacity: 1 }} transition="opacity 0.15s">
-                    <Text fontSize="lg" lineHeight="1">↺</Text>
-                  </Box>
-                </Tooltip>
-              )}
-              <Tooltip label="Save visible area as PNG" fontSize="xs" hasArrow placement="left">
-                <Box as="button" onClick={handleSave} boxSize="36px" display="flex" alignItems="center"
-                  justifyContent="center" opacity={0.8} _hover={{ opacity: 1 }} transition="opacity 0.15s">
-                  <Image src="/images/shop/UI_Common_Icon_Save_1.png" alt="Save" boxSize="24px" objectFit="contain" />
-                </Box>
-              </Tooltip>
+              {/* spine animates (play/pause) and may have touch zones */}
+              {isSpine && <PlayPauseButton playing={playing} onToggle={() => setPlaying((v) => !v)} />}
+              {hasZones && <ZonesButton shown={showZones} onToggle={() => setShowZones((v) => !v)} />}
+              {isSpine && <ReloadButton onClick={() => setResetKey((k) => k + 1)} />}
+              <SaveButton onClick={handleSave} />
             </VStack>
           );
         })()}
@@ -1849,7 +1186,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
         {(() => {
           const fixedToggles = layout?.toggles ?? [];
           const isSpine = layout?.kind === 'spine';
-          const isFixed = layout?.kind === 'fixed' || layout?.kind === 'skinned' || layout?.kind === 'skinned-anim';
+          const isFixed = layout?.kind === 'fixed';
           const spinePropParts = isSpine
             ? (layout!.skinGroups?.parts ?? []).filter(
                 (p) => p !== 'default' && !p.startsWith('breast/')
@@ -1857,22 +1194,23 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
               )
             : [];
 
-          // Platform/sfw variants only (breast handled top-right for spine)
+          // Platform/sfw variant keys only (breast handled top-right for spine).
           const hasSpineSfw = isSpine && !!layout?.sfw;
-          const spineVariants = [
-            hasSpineSfw && { key: 'base', icon: hasKr ? '/images/shop/icon-platform-vfun.png' : '/images/shop/icon-platform-onestore.png', label: 'Uncensored', isBreast: false },
-            hasSpineSfw && { key: 'sfw', icon: '/images/shop/icon-platform-google.png', label: 'Censored (Google Play)', isBreast: false },
-          ].filter(Boolean) as { key: string; icon: string; label: string; isBreast: boolean }[];
           const fixedHasKr    = isFixed && layout ? layoutHasVariant(layout, 'kr') : false;
           const fixedHasSfw   = isFixed && layout ? layoutHasVariant(layout, 'sfw') : false;
           const fixedHasRplus = isFixed && layout ? layoutHasVariant(layout, 'rplus') : false;
-          const fixedVariants = (fixedHasKr || fixedHasSfw || fixedHasRplus) ? [
-            { key: 'base',  icon: fixedHasKr ? '/images/shop/icon-platform-vfun.png' : '/images/shop/icon-platform-onestore.png', label: 'Uncensored', isBreast: false },
-            fixedHasKr    && { key: 'kr',    icon: '/images/shop/icon-platform-onestore.png',    label: 'KR (Uncensored)', isBreast: false },
-            fixedHasSfw   && { key: 'sfw',   icon: '/images/shop/icon-platform-google.png',      label: 'Censored (Google Play)', isBreast: false },
-            fixedHasRplus && { key: 'rplus', icon: '/images/shop/icon-secret-marks.png',         label: 'R+ (Uncensored)', isBreast: false },
-          ].filter(Boolean) as { key: string; icon: string; label: string; isBreast: boolean }[] : [];
-          const variants = isSpine ? spineVariants : fixedVariants;
+          const variantKeys = isSpine
+            ? (hasSpineSfw ? ['base', 'sfw'] : [])
+            : (fixedHasKr || fixedHasSfw || fixedHasRplus)
+              ? ['base', fixedHasKr && 'kr', fixedHasSfw && 'sfw', fixedHasRplus && 'rplus'].filter(Boolean) as string[]
+              : [];
+          // `base` icon depends on whether a KR build exists: spine reads the hasKr
+          // prop; fixed reads its own kr-variant presence.
+          const baseHasKr = isSpine ? !!hasKr : fixedHasKr;
+          const variants = variantKeys.map((k) => {
+            const meta = variantMeta(k, baseHasKr);
+            return { key: k, icon: meta.icon, label: meta.label };
+          });
 
           const hasProps = fixedToggles.length > 0 || spinePropParts.length > 0 || hasDam || hasKr;
           const showRightPanel = variants.length > 0 || hasProps;
@@ -1881,32 +1219,8 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
           const multiSpine = spinePropParts.length > 1;
           return (
             <HStack position="absolute" bottom={2} right={2} spacing={1} align="flex-end">
-              {variants.length > 0 && (
-                <HStack bg="blackAlpha.500" borderRadius="md" px={1} py={1} spacing={1}>
-                  {variants.map((v) => {
-                    const isActive = isSpine
-                      ? (v.isBreast ? spineBreast === v.key : variant === v.key)
-                      : variant === v.key;
-                    return (
-                      <Tooltip key={v.key} label={v.label} fontSize="xs" hasArrow placement="top">
-                        <Box as="button"
-                          onClick={() => {
-                            if (isSpine && v.isBreast) setSpineBreast(v.key);
-                            else setVariant(v.key as 'base' | 'kr' | 'sfw' | 'rplus');
-                          }}
-                          position="relative" boxSize="36px"
-                          opacity={isActive ? 1 : 0.4} transition="opacity 0.15s"
-                          _hover={{ opacity: isActive ? 0.8 : 0.65 }}
-                          outline={isActive ? '2px solid' : 'none'}
-                          outlineColor="yellow.400"
-                          borderRadius="sm">
-                          <Image src={v.icon} alt={v.label} boxSize="36px" objectFit="contain" />
-                        </Box>
-                      </Tooltip>
-                    );
-                  })}
-                </HStack>
-              )}
+              <VariantStrip variants={variants} active={variant}
+                onSelect={(k) => setVariant(k as 'base' | 'kr' | 'sfw' | 'rplus')} />
               {hasProps && (
               <VStack bg="blackAlpha.500" borderRadius="md" px={1} py={1} spacing={1}>
               {fixedToggles.map((t, i) => {
@@ -1959,36 +1273,6 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
           </Box>
         )}
       </Box>
-
-      {/* Control bar below canvas */}
-      {layout && (() => {
-        const isSpine = layout.kind === 'spine';
-        const isAnim = layout.kind === 'skinned-anim' || isSpine;
-        const hasZones = isSpine && (layout.world?.zones?.length ?? 0) > 0;
-        if (!isAnim && !hasZones) return null;
-        return (
-          <HStack mt={2} spacing={3} px={1}>
-            {isAnim && (
-              <HStack spacing={2}>
-                <Switch id="sv-play" isChecked={playing} size="sm"
-                  onChange={(e) => setPlaying(e.target.checked)} />
-                <Text as="label" htmlFor="sv-play" fontSize="xs" color="gray.300" cursor="pointer">
-                  {playing ? 'Playing' : 'Paused'}
-                </Text>
-              </HStack>
-            )}
-            {hasZones && (
-              <HStack spacing={2}>
-                <Switch id="sv-zones" isChecked={showZones} size="sm"
-                  onChange={(e) => setShowZones(e.target.checked)} />
-                <Text as="label" htmlFor="sv-zones" fontSize="xs" color="gray.300" cursor="pointer">
-                  Zones
-                </Text>
-              </HStack>
-            )}
-          </HStack>
-        );
-      })()}
     </Box>
   );
 }

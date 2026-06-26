@@ -32,7 +32,7 @@ import SkillTab from '@/components/enemyTab/skillTab';
 import SkinViewer from '@/components/skinViewer';
 import CopyLink from '@/components/copyLink';
 import { StatRow, StatPair, StatSection } from '@/components/statBlock';
-import { rankTag, rankColor, roleRankIcon, typeIcon, roleIcon, equipIcon, factionIcon, unitDisplayName } from '@/lib/rank';
+import { rankTag, rankColor, roleRankIcon, typeIcon, roleIcon, bodyIcon, equipIcon, factionIcon, unitDisplayName } from '@/lib/rank';
 
 // Units cap at level 100 before the lv-limit unlocks; HP/ATK/DEF grow linearly
 // from stat[grade].X[0] (lv1) to X[1] (lv100). The other stats are flat per grade.
@@ -276,7 +276,14 @@ export default function UnitDetail() {
                     {unit.type}
                   </Tag>
                 </WrapItem>
-                {unit.body ? <WrapItem><Tag colorScheme="gray">{unit.body}</Tag></WrapItem> : null}
+                {unit.body ? (
+                  <WrapItem>
+                    <Tag colorScheme="gray" gap={1}>
+                      {bodyIcon(unit.body) ? <Image src={bodyIcon(unit.body)!} alt={unit.body} boxSize="14px" /> : null}
+                      {unit.body}
+                    </Tag>
+                  </WrapItem>
+                ) : null}
                 {unit.faction ? (
                   <WrapItem>
                     <Tag colorScheme="blue" gap={1}>

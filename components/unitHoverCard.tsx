@@ -8,7 +8,7 @@ import { useAppSelector, useAppDispatch } from '@/hooks';
 import { selectUnit, fetchUnitsAsync } from '@/store/unitSlice';
 import { t } from '@/lib/strings';
 import { useTranslationVersion } from '@/lib/translationVersion';
-import { rankTag, rankColor, roleRankIcon, typeIcon, roleIcon, factionIcon, unitDisplayName } from '@/lib/rank';
+import { rankTag, rankColor, roleRankIcon, typeIcon, roleIcon, bodyIcon, factionIcon, unitDisplayName } from '@/lib/rank';
 
 /**
  * Reusable unit hover-card. Wrap any trigger (a reward chip, a name, an icon) and
@@ -89,7 +89,14 @@ export default function UnitHoverCard({
                       {unit.type}
                     </Tag>
                   </WrapItem>
-                  {unit.body ? <WrapItem><Tag size="sm" colorScheme="gray">{unit.body}</Tag></WrapItem> : null}
+                  {unit.body ? (
+                    <WrapItem>
+                      <Tag size="sm" colorScheme="gray" gap={1}>
+                        {bodyIcon(unit.body) ? <Image src={bodyIcon(unit.body)!} alt={unit.body} boxSize="12px" /> : null}
+                        {unit.body}
+                      </Tag>
+                    </WrapItem>
+                  ) : null}
                 </Wrap>
                 {unit.faction ? (
                   <HStack spacing={1}>
