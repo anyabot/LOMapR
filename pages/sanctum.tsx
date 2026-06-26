@@ -30,12 +30,17 @@ import {
 } from "@chakra-ui/react";
 import { ArrowLeftIcon, ArrowRightIcon } from "@chakra-ui/icons";
 import {
-  Table, Thead, Tbody, Tr, Th, Td, TableContainer, Tag, Wrap, WrapItem,
+  Table, Thead, Tbody, Tr, Th, Td, TableContainer, Wrap, WrapItem,
+  Popover, PopoverTrigger, PopoverContent, PopoverBody,
 } from "@chakra-ui/react";
-import { Floor, Wave } from "@/interfaces/sanctum";
+import { Floor, Wave, Prohibition, Suitability, SquadGroup } from "@/interfaces/sanctum";
 import EnemyGrid from "@/components/enemyGrid";
 import GameText from "@/components/gameText";
 import CopyLink from "@/components/copyLink";
+import BuffList from "@/components/buffList";
+import UnitHoverCard from "@/components/unitHoverCard";
+import { fetchUnitsAsync, selectUnits } from "@/store/unitSlice";
+import { factionIcon, unitDisplayName } from "@/lib/rank";
 import { t } from "@/lib/strings";
 import { useTranslationVersion } from "@/lib/translationVersion";
 import styles from "@/styles/custom.module.css";
@@ -48,6 +53,7 @@ export default function Home() {
   const activeDiff = useAppSelector(selectActiveDiff);
   const activeArea = useAppSelector(selectActiveArea);
   const floorData = useAppSelector(selectFloorData);
+  const units = useAppSelector(selectUnits);
   const [wave, setWave] = useState(0);
   const [waveData, setWaveData] = useState<Wave | null>(null);
 
@@ -56,6 +62,7 @@ export default function Home() {
 
   useEffect(() => {
     dispatch(fetchSanctumAsync());
+    dispatch(fetchUnitsAsync());   // suitable/banned unit names + icons via the unit list
   }, [dispatch]);
 
   // Deep link: ?area=EW01&floor=<idx>&diff=<0-2> selects that floor once data is
@@ -100,6 +107,103 @@ export default function Home() {
   }
 
   const DIFF_LABEL = ["Easy", "Normal", "Extreme"];
+
+  // A single suitable-unit name badge — icon + name, sized to its content (no
+  // rank tag, no fixed width), wrapped in the unit hover card. Name resolves via
+  // the unit list (unitDisplayName) — NOT the item map, whose item-grant name id
+  // often lacks EN and would show Korean.
+  function unitBadge(id: string) {
+    const u = units[id];
+    return (
+      <UnitHoverCard key={id} unitId={id}>
+        <HStack spacing={1.5} px={2} py={1} borderWidth="1px" borderColor="surface.border"
+          borderRadius="lg" bg="blackAlpha.300" cursor="pointer"
+          _hover={{ borderColor: "yellow.400", bg: "whiteAlpha.100" }}>
+          {u?.icon ? (
+            <Image src={`/images/icons/${u.icon}.png`} alt={id} boxSize="22px"
+              borderRadius="md" objectFit="cover" flexShrink={0} />
+          ) : null}
+          <Text fontSize="sm" color="gray.100" whiteSpace="nowrap">
+            {u ? unitDisplayName(u) : id.replace(/^Char_/, "")}
+          </Text>
+        </HStack>
+      </UnitHoverCard>
+    );
+  }
+
+  // A banned squad chip: squad icon + name; hovering reveals its member units
+  // (resolved at build time, max 5). Tolerates stale data where a squad ban is
+  // still a raw key string (no units) — then it just shows the key, no popover.
+  function bannedSquadChip(sq: SquadGroup | string) {
+    if (typeof sq === "string" || !Array.isArray(sq.units)) {
+      const key = typeof sq === "string" ? sq : sq.key;
+      const name = typeof sq === "string" ? sq : sq.name;
+      return <Text key={key} fontSize="sm" color="red.100">{t(name)}</Text>;
+    }
+    return (
+      <Popover key={sq.key} trigger="hover" placement="top" isLazy>
+        <PopoverTrigger>
+          <HStack spacing={1} cursor="pointer" _hover={{ textDecoration: "underline" }}>
+            {factionIcon(sq.icon) ? (
+              <Image src={factionIcon(sq.icon)!} alt={t(sq.name)} boxSize="16px" />
+            ) : null}
+            <Text fontSize="sm" color="red.100">{t(sq.name)}</Text>
+          </HStack>
+        </PopoverTrigger>
+        <PopoverContent w="auto" bg="surface.elevated" borderColor="surface.border">
+          <PopoverBody>
+            <Wrap spacing={2}>
+              {sq.units.map((id) => (
+                <WrapItem key={id}>{unitBadge(id)}</WrapItem>
+              ))}
+            </Wrap>
+          </PopoverBody>
+        </PopoverContent>
+      </Popover>
+    );
+  }
+
+  // One banned-unit rule: attribute parts ("AGS · Air · Supporter") stay
+  // descriptive; squad bans render as a hover-to-list chip.
+  function prohibitionRow(p: Prohibition, i: number) {
+    const attrs = [p.filter.body, p.filter.type, p.filter.role].filter(Boolean) as string[];
+    const squads = Array.isArray(p.filter.squads) ? p.filter.squads : [];
+    return (
+      <WrapItem key={i}>
+        <HStack spacing={1} bg="red.900" borderColor="red.500" borderWidth="1px"
+          borderRadius="md" px={2} py={1}>
+          {attrs.map((x, j) => (
+            <Text key={j} fontSize="sm" color="red.100">
+              {x}{j < attrs.length - 1 ? " ·" : ""}
+            </Text>
+          ))}
+          {squads.map((sq) => bannedSquadChip(sq))}
+        </HStack>
+      </WrapItem>
+    );
+  }
+
+  // One suitable group: optional squad header(s) + content-sized unit badges
+  // that wrap freely. Buffs render separately.
+  function suitabilityRow(s: Suitability, i: number) {
+    return (
+      <Box key={i} w="100%">
+        {s.squads.map((sq) => (
+          <HStack key={sq.key} spacing={2} mb={1}>
+            {factionIcon(sq.icon) ? (
+              <Image src={factionIcon(sq.icon)!} alt={t(sq.name)} boxSize="18px" />
+            ) : null}
+            <Text fontWeight="bold" fontSize="sm" color="green.200">{t(sq.name)}</Text>
+          </HStack>
+        ))}
+        <Wrap spacing={2}>
+          {s.units.map((id) => (
+            <WrapItem key={id}>{unitBadge(id)}</WrapItem>
+          ))}
+        </Wrap>
+      </Box>
+    );
+  }
 
   // Resource gain for the CURRENT floor, one row per difficulty variant, plus a
   // total across the floor's difficulties.
@@ -264,50 +368,56 @@ export default function Home() {
           {floorData ? (
             <Box w="100%">
               <Text as="b" fontSize="xl">Restrictions</Text>
-              <TableContainer>
-                <Table size="sm" variant="simple">
-                  <Tbody>
-                    <Tr>
-                      <Th color="red.300">Banned Groups</Th>
-                      <Td>
-                        {floorData.prohibition?.length ? (
-                          <Wrap>
-                            {floorData.prohibition.map((g) => (
-                              <WrapItem key={g}>
-                                <Tag colorScheme="red">{g}</Tag>
-                              </WrapItem>
-                            ))}
-                          </Wrap>
-                        ) : (
-                          <Text color="gray.500">None</Text>
-                        )}
-                      </Td>
-                    </Tr>
-                    <Tr>
-                      <Th color="green.300">Suitable Groups</Th>
-                      <Td>
-                        {floorData.suitability?.length ? (
-                          <Wrap>
-                            {floorData.suitability.map((g) => (
-                              <WrapItem key={g}>
-                                <Tag colorScheme="green">{g}</Tag>
-                              </WrapItem>
-                            ))}
-                          </Wrap>
-                        ) : (
-                          <Text color="gray.500">None</Text>
-                        )}
-                      </Td>
-                    </Tr>
-                    {floorData.suitabilityDesc ? (
-                      <Tr>
-                        <Th>Note</Th>
-                        <Td whiteSpace="normal"><GameText>{t(floorData.suitabilityDesc)}</GameText></Td>
-                      </Tr>
-                    ) : null}
-                  </Tbody>
-                </Table>
-              </TableContainer>
+              {/* Stacked full-width sections (not a 2-col table) so the unit grid
+                  and buff list get the whole panel width and don't clip. */}
+              <VStack align="stretch" spacing={3} mt={2}>
+                <Box>
+                  <Text fontSize="sm" fontWeight="bold" color="red.300" textTransform="uppercase" mb={1}>
+                    Banned Units
+                  </Text>
+                  {floorData.prohibition?.length ? (
+                    <Wrap>
+                      {floorData.prohibition.map((p, i) => prohibitionRow(p, i))}
+                    </Wrap>
+                  ) : (
+                    <Text color="gray.500">None</Text>
+                  )}
+                </Box>
+
+                <Box>
+                  <Text fontSize="sm" fontWeight="bold" color="green.300" textTransform="uppercase" mb={1}>
+                    Suitable Units
+                  </Text>
+                  {floorData.suitability?.length ? (
+                    <VStack align="stretch" spacing={2}>
+                      {floorData.suitability.map((s, i) => suitabilityRow(s, i))}
+                    </VStack>
+                  ) : (
+                    <Text color="gray.500">None</Text>
+                  )}
+                </Box>
+
+                {(() => {
+                  const buffs = (floorData.suitability ?? []).flatMap((s) => s.buffs);
+                  return buffs.length ? (
+                    <Box>
+                      <Text fontSize="sm" fontWeight="bold" color="green.300" textTransform="uppercase" mb={1}>
+                        Suitability Buff
+                      </Text>
+                      <BuffList buffs={buffs} />
+                    </Box>
+                  ) : null;
+                })()}
+
+                {floorData.suitabilityDesc ? (
+                  <Box>
+                    <Text fontSize="sm" fontWeight="bold" color="gray.400" textTransform="uppercase" mb={1}>
+                      Note
+                    </Text>
+                    <GameText>{t(floorData.suitabilityDesc)}</GameText>
+                  </Box>
+                ) : null}
+              </VStack>
             </Box>
           ) : null}
 
