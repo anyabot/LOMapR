@@ -126,3 +126,10 @@ export function t(value: string | undefined | null, lang: Lang = 'en'): string {
 // Both collapse to t() — the single resolution rule covers all cases.
 export const tKr  = t;
 export const tAny = t;
+
+/** Like t() but returns "" when the key has no entry (t() returns the key itself on miss). */
+export function tOrEmpty(key: string | undefined | null, lang: Lang = 'en'): string {
+  if (!key) return '';
+  const r = t(key, lang);
+  return r === key ? '' : r;
+}

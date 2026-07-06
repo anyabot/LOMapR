@@ -10,7 +10,7 @@
 import { Box, Flex, HStack, Image, Text, VStack } from "@chakra-ui/react";
 import React from "react";
 import { SkillBuff } from "@/interfaces/skill";
-import { t, tKr } from "@/lib/strings";
+import { t, tKr, tOrEmpty } from "@/lib/strings";
 import { useTranslationVersion } from "@/lib/translationVersion";
 import UnitHoverCard from "./unitHoverCard";
 
@@ -73,7 +73,7 @@ const APPLY_COND_LABELS: Record<number, string> = {
   52: "If self DEF < target DEF", 53: "If self EVD > target EVD",
   54: "If self EVD < target EVD", 55: "If self SPD > target SPD",
   56: "If self SPD < target SPD", 57: "If self missing [buff type]",
-  58: "If target missing [buff type]", 59: "If ally nearby",
+  58: "If target missing [buff type]", 59: "If ≥ {0} ally nearby",
   60: "If no ally nearby", 61: "If target has ≥ {0} [buff]",
   62: "If target missing [buff] (joint)", 64: "Random: if target has [buff]",
   65: "If ≥ {0} of [char] in battle", 66: "If enemy has [buff]",
@@ -247,7 +247,7 @@ function resolveApplyCondParts(c: CondData): { before: string; name: string; aft
     const names = c.vals.map((val, i) => {
       const nm2 = c.names[i] ?? "";
       const fromDesc = nameToken === "[buff]"
-        ? buffName(tKr(`BuffDesc1_${val}`) || tKr(`BuffDesc2_${val}`) || "")
+        ? buffName(tOrEmpty(`BuffDesc1_${val}`) || tOrEmpty(`BuffDesc2_${val}`) || "")
         : "";
       const fromName = tKr(nm2) || tKr(`BuffName_${val}`);
       const resolved = fromDesc || fromName
