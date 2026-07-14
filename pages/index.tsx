@@ -49,17 +49,17 @@ export default function Home() {
   return (
     <>
       <Head>
-        <title>Last Origin Map</title>
+        <title>LOMapR — Last Origin Information &amp; Resources</title>
       </Head>
 
       <VStack spacing={8} align="stretch" py={4}>
         {/* Hero */}
         <VStack spacing={3} textAlign="center">
           <Heading size="2xl" lineHeight={1.3}>
-            Last Origin Map
+            LOMapR
           </Heading>
           <Text fontSize={['md', 'lg']} color="gray.400" maxW="2xl">
-            An enemy &amp; stage information site for the mobile game{' '}
+            Information &amp; resources for the mobile game{' '}
             <Text as="span" color="yellow.300" fontWeight="bold">Last Origin</Text>.
           </Text>
         </VStack>

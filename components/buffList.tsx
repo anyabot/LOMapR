@@ -16,12 +16,12 @@ import UnitHoverCard from "./unitHoverCard";
 
 // ─── lookup tables (kept local; import from a shared constants file if preferred) ────
 
-const TARGET_LABELS: Record<number, string> = {
+export const TARGET_LABELS: Record<number, string> = {
   1: "→ ally", 2: "→ ally (grid)", 3: "→ enemy", 4: "→ enemy (grid)",
   5: "→ all units", 6: "→ all (grid)", 8: "→ all allies", 9: "→ all enemies",
 };
 
-const TRIGGER_LABELS: Record<number, string> = {
+export const TRIGGER_LABELS: Record<number, string> = {
   0: "On skill use", 1: "When hit", 2: "On hit", 3: "When target is buffed",
   4: "Based on grid position", 5: "HP ≤ {0}%", 6: "HP ≥ {0}%",
   7: "If {key} in allied squad", 8: "If {key} in enemy squad", 9: "On ally death",
@@ -376,10 +376,12 @@ function fmtPct(v: number): string {
 }
 
 // a buff's value string + sign/color, by its type/fmt.
-function buffValue(buff: SkillBuff): { str: string; color: string } {
+export function buffValue(buff: SkillBuff): { str: string; color: string } {
   let valStr = "", valPositive = true;
   const t = buff.type;
-  const v = buff.val;
+  // Use max-level value when per-level values are stored non-linearly.
+  const v = buff.vals ? buff.vals[buff.vals.length - 1] : buff.val;
+  const vMin = buff.vals ? buff.vals[0] : v;
   const isPct = buff.fmt === "pct" || RATIO_TYPES.has(t);
   if (t === 33 && v !== 0) valStr = `×${v}`;
   else if ((t === 34 || t === 35) && v !== 0) valStr = `< ${v}`;
@@ -391,6 +393,8 @@ function buffValue(buff: SkillBuff): { str: string; color: string } {
   else if (t === 142 && v !== 0) { valStr = `${parseFloat((v * 100).toPrecision(4))}% of DEF`; valPositive = v > 0; }
   // Type 143: Flat ATK increase equal to X% of DEF — val is a fraction, ×100 → %
   else if (t === 143 && v !== 0) { valStr = `${parseFloat((v * 100).toPrecision(4))}% of DEF`; valPositive = v > 0; }
+  // Types 150/151: Buff/Effect Prevention (specific) — val is a buff type ID to resolve
+  else if ((t === 150 || t === 151) && v !== 0) { valStr = BUFF_TYPE_NAMES[v] ?? String(v); }
   // Types 144–147: DMG proportional to HP — val is already a ratio but show without + prefix (it's always damage)
   else if ((t === 144 || t === 145 || t === 146 || t === 147) && v !== 0) {
     valStr = `${parseFloat((v * 100).toPrecision(4))}%`; valPositive = false;
@@ -401,8 +405,13 @@ function buffValue(buff: SkillBuff): { str: string; color: string } {
   else if (buff.fmt === "flat" && v !== 0) {
     valStr = `${v > 0 ? "+" : ""}${v}`; valPositive = v > 0;
   } else if (buff.fmt === "tid" && v !== 0) valStr = BUFF_TYPE_NAMES[v] ?? String(v);
-  const color = buff.fmt === "tid" || [21, 33, 34, 35, 141].includes(t)
+  const color = buff.fmt === "tid" || [21, 33, 34, 35, 141, 150, 151].includes(t)
     ? "gray.200" : valPositive ? "green.300" : "red.300";
+  // Append "→ <maxVal>" when per-level values are non-linear and min ≠ max.
+  if (valStr && buff.vals && vMin !== v) {
+    const fmtV = (n: number) => buff.fmt === "pct" || RATIO_TYPES.has(t) ? fmtPct(n) : `${n > 0 ? "+" : ""}${n}`;
+    valStr = `${fmtV(vMin)} → ${fmtV(v)}`;
+  }
   return { str: valStr, color };
 }
 
@@ -425,7 +434,7 @@ function resolveRemoveTargets(buff: SkillBuff): string {
 }
 
 // duration/stack/note column. Used by both the normal groups and the 65 tier table.
-function BuffEffectRow({ buff, topBorder = false, extraCondNode }: { buff: SkillBuff; topBorder?: boolean; extraCondNode?: React.ReactNode }) {
+export function BuffEffectRow({ buff, topBorder = false, extraCondNode }: { buff: SkillBuff; topBorder?: boolean; extraCondNode?: React.ReactNode }) {
   if (!buff.icon && !BUFF_TYPE_NAMES[buff.type]) return null;
   const { str: valStr, color: valColor } = buffValue(buff);
   const descFill = valStr.replace(/^[+×<]\s?/, "").replace(/%$/, "");
@@ -466,8 +475,10 @@ function BuffEffectRow({ buff, topBorder = false, extraCondNode }: { buff: Skill
   return (
     <Box borderTopWidth={topBorder ? "1px" : "0"} borderTopColor="whiteAlpha.100">
       {extraCondNode ? <Box px={2} pt={1.5} pb={0}>{extraCondNode}</Box> : null}
-      <Flex px={2} py={1.5} gap={2} align="flex-start">
-      <Box flex={1} minW={0}>
+      {/* wrap so the badge row drops below the text instead of crushing it when
+          the row is narrow (e.g. the /misc Effect column) */}
+      <Flex px={2} py={1.5} gap={2} align="flex-start" wrap="wrap">
+      <Box flex={1} minW="150px">
         {name}
         {descResolved ? <Text fontSize="xs" color="gray.500" mt="2px" lineHeight="short">{filledDesc}</Text> : null}
       </Box>
@@ -500,7 +511,7 @@ function BuffEffectRow({ buff, topBorder = false, extraCondNode }: { buff: Skill
 // The trigger / target / apply-condition / filter pill row for a buff. `skipCond65`
 // drops the 65 ("count of <char set>") pill, used inside the 65 tier table where the
 // count is already the row label. Returns null if there are no tags to show.
-function BuffCondTags({ rep, skipCond65 = false }: { rep: SkillBuff; skipCond65?: boolean }) {
+export function BuffCondTags({ rep, skipCond65 = false }: { rep: SkillBuff; skipCond65?: boolean }) {
   const tr  = (id: string) => { const r = t(id); return r !== id ? r : ""; };
   const trg = (id: string) => { const r = tr(id); return r ? buffName(r) : ""; };
 

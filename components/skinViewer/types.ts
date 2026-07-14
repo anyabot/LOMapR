@@ -39,6 +39,19 @@ export type Toggle = { key: string; default: boolean } & (
   | { kind?: undefined; members: string[] }
   | { kind: 'swap'; swapOn: string[]; swapOff: string[] }
 );
+export type SpineActor = {
+  id: string;
+  name: string;
+  active: boolean;
+  skel: string;
+  atlas: string;
+  spine?: string;
+  animations?: string[];
+  skins?: string[];
+  skinGroups?: { base?: string; faces?: string[]; parts?: string[]; defaultFace?: string };
+  animator?: Layout['animator'];
+  world: { x: number; y: number; scale: number; dataScale?: number };
+};
 export type Layout = {
   skin: string;
   kind: string; // "fixed" | "spine"
@@ -48,6 +61,7 @@ export type Layout = {
   toggles?: Toggle[];
   // spine case (export_spine.py): Spine runtime assets + metadata.
   skel?: string; atlas?: string; animations?: string[]; skins?: string[];
+  actors?: SpineActor[]; // multi-SkeletonMecanim bundles; absent for the common single-actor case
   skinGroups?: { base?: string; faces?: string[]; parts?: string[]; defaultFace?: string };
   sfw?: { textures?: Record<string, string>; atlas?: string; skel?: string };
   animator?: {

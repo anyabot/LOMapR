@@ -158,6 +158,7 @@ function NavContent({ isOpen }: { isOpen: boolean }) {
           <NavLink to="/enemies">Enemies</NavLink>
           <NavLink to="/iw">Infinite War</NavLink>
           <NavLink to="/gacha">Gacha Sim</NavLink>
+          <NavLink to="/misc">Misc</NavLink>
         </HStack>
 
         <HStack spacing={2} flexWrap="wrap" justify="center" align="center">

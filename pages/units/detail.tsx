@@ -155,9 +155,12 @@ function scaleSkill(skill: Skill, skillLv: number, spAdd: number, buffLv: number
   // buff value at effective level = skillLv + buffLv (buff/debuff level adds gain
   // steps just like skill level). Only the VALUE scales — turns/AoE unaffected.
   const effLv = lv + buffLv;
-  const buffs = skill.buffs.map((b) => ({
-    ...b, val: Math.round((b.val + b.gain * (effLv - 1)) * 10000) / 10000,
-  }));
+  const buffs = skill.buffs.map((b) => {
+    const val = b.vals
+      ? b.vals[Math.min(lv - 1, b.vals.length - 1)]
+      : Math.round((b.val + b.gain * (effLv - 1)) * 10000) / 10000;
+    return { ...b, val, vals: undefined };
+  });
 
   return { ...skill, rate: Math.round(rate * 10000) / 10000, AP, area, center, buffs };
 }

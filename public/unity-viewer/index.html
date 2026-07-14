@@ -17,45 +17,9 @@
       </div>
       <div id="unity-warning"> </div>
     </div>
-    <script data-cfasync="false">
-      // Redirect /models/* and /rebuilt/* asset fetches to R2
-      (function() {
-        var R2_BASE = "https://pub-7a0fe80c39434a24b28a3cf9740e0d71.r2.dev";
-        var ASSET_RE = /^\/(?:(models)|(rebuilt))\/(.+)/;
-        // On localhost, serve any listed files from public/ instead of R2 (local
-        // testing). Empty in production — everything resolves to R2.
-        var LOCAL_ONLY = [];
-        function rewriteUrl(url) {
-          if (url.indexOf(R2_BASE) === 0) return null;
-          var m = ASSET_RE.exec(url);
-          if (m) {
-            for (var i = 0; i < LOCAL_ONLY.length; i++)
-              if (m[3] === LOCAL_ONLY[i]) return null; // leave as-is -> served locally
-            var prefix = m[2] ? "rebuilt" : "models";
-            return R2_BASE + "/" + prefix + "/" + m[3];
-          }
-          return null;
-        }
-        var _origFetch = window.fetch;
-        window.fetch = function(input, init) {
-          var url = (input instanceof Request) ? input.url : String(input);
-          var rewritten = rewriteUrl(url);
-          if (rewritten) {
-            if (input instanceof Request) input = new Request(rewritten, input);
-            else input = rewritten;
-          }
-          return _origFetch.call(this, input, init);
-        };
-        var _origXHROpen = XMLHttpRequest.prototype.open;
-        XMLHttpRequest.prototype.open = function(method, url) {
-          if (typeof url === 'string') {
-            var rewritten = rewriteUrl(url);
-            if (rewritten) url = rewritten;
-          }
-          return _origXHROpen.apply(this, [method, url].concat(Array.prototype.slice.call(arguments, 2)));
-        };
-      })();
-    </script>
+    <!-- Model/rebuilt bundle fetches go to /models/* and /rebuilt/* relative to
+         this origin; the Next server rewrites (next.config.js) proxy them to the
+         asset domain. No client-side URL rewriting needed. -->
     <script data-cfasync="false">
       var container = document.querySelector("#unity-container");
       var canvas = document.querySelector("#unity-canvas");

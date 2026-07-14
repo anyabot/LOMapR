@@ -12,6 +12,10 @@
 /.next/
 /out/
 
+# opennext / wrangler build + local state
+/.open-next/
+/.wrangler/
+
 # production
 /build
 

@@ -1,0 +1,13 @@
+diff --git a/node_modules/react-dom/server.edge.js b/node_modules/react-dom/server.edge.js
+new file mode 100644
+index 0000000..0eec390
+--- /dev/null
++++ b/node_modules/react-dom/server.edge.js
+@@ -0,0 +1,7 @@
++'use strict';
++
++// Shim for React 18: react-dom/server.edge only exists in React 19+.
++// Next's pages runtime prefers server.edge and falls back to server.browser,
++// but the bundled worker can't express that fallback — so provide the edge
++// entry directly as an alias of the browser (Web Streams) renderer.
++module.exports = require('./server.browser.js');

@@ -29,6 +29,7 @@ export interface SkillBuff {
   rate: number;    // 0..1 application chance
   val: number;     // effect value at skill level 1 — interpret per fmt
   gain: number;    // per-(skill/buff-debuff)-level increment of val; value@L = val + gain*(L-1)
+  vals?: number[]; // per-level values when non-linear (gain alone can't reproduce them); index 0 = lv1
   fmt: string;     // "pct" (val*100%), "flat" (raw num), "tid" (val=target type ID), "none"
   desc: string;    // loc ID for per-effect description (resolve with t())
   type: number;    // BUFFEFFECT_TYPE ordinal

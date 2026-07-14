@@ -12,11 +12,11 @@ export function StatRow({ icon, label, value }: { icon?: string; label: React.Re
       _odd={{ bg: 'whiteAlpha.50' }}>
       <HStack spacing={1.5} color="gray.400" minW={0}>
         {icon ? <Image alt={typeof label === 'string' ? label : ''} src={icon} boxSize="0.95rem" /> : null}
-        <Text fontSize="sm" fontWeight="600">{label}</Text>
+        <Box fontSize="sm" fontWeight="600">{label}</Box>
       </HStack>
-      <Text fontSize="sm" fontWeight="600" sx={{ fontVariantNumeric: 'tabular-nums' }} color="gray.100">
+      <Box fontSize="sm" fontWeight="600" sx={{ fontVariantNumeric: 'tabular-nums' }} color="gray.100">
         {value}
-      </Text>
+      </Box>
     </Flex>
   );
 }
@@ -30,11 +30,11 @@ export function StatPair({ left, right }: {
     <Flex align="center" justify="space-between" flex={1} minW={0}>
       <HStack spacing={1.5} color="gray.400" minW={0}>
         {icon ? <Image alt={label} src={icon} boxSize="0.95rem" /> : null}
-        <Text fontSize="sm" fontWeight="600">{label}</Text>
+        <Box fontSize="sm" fontWeight="600">{label}</Box>
       </HStack>
-      <Text fontSize="sm" fontWeight="600" sx={{ fontVariantNumeric: 'tabular-nums' }} color="gray.100">
+      <Box fontSize="sm" fontWeight="600" sx={{ fontVariantNumeric: 'tabular-nums' }} color="gray.100">
         {value}
-      </Text>
+      </Box>
     </Flex>
   );
   return (
