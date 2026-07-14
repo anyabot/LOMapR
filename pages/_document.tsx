@@ -9,7 +9,9 @@ export default function Document() {
     // data-theme/color-scheme are baked into the static HTML so the FIRST paint is
     // dark on every host — no storage/system flip, no light flash on F5/deploy.
     <Html lang="en" data-theme="dark" style={{ colorScheme: 'dark' }}>
-      <Head />
+      <Head>
+        <link rel="icon" type="image/png" href="/images/icons/Ev_Consumable_BADKSticker.png" />
+      </Head>
       <body className="chakra-ui-dark">
         <ColorModeScript initialColorMode="dark" />
         <Main />

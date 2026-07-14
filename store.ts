@@ -12,6 +12,7 @@ import stringsReducer from './store/stringsSlice';
 import aiReducer from './store/aiSlice';
 import unitReducer from './store/unitSlice';
 import equipReducer from './store/equipSlice';
+import miscReducer from './store/miscSlice';
 
 export const store = configureStore({
   reducer: {
@@ -27,6 +28,7 @@ export const store = configureStore({
     skill: skillReducer,
     unit: unitReducer,
     equip: equipReducer,
+    misc: miscReducer,
     world: worldReducer
   },
 });

@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import NextLink from 'next/link';
 import { CloseIcon, HamburgerIcon } from '@chakra-ui/icons'
-import { Box, Flex, Heading, Link, IconButton } from "@chakra-ui/react";
+import { Flex, Heading, HStack, Image, Link, IconButton } from "@chakra-ui/react";
 import NavContent from './navcontent';
 
 function CommonNavbar() {
@@ -26,9 +26,17 @@ function CommonNavbar() {
       zIndex={10}
     >
       <Link as={NextLink} href="/" _hover={{ textDecoration: 'none' }}>
-        <Heading size="md" color="yellow.300" whiteSpace="nowrap">
-          LO Map
-        </Heading>
+        <HStack spacing={2} title="LOMapR — Last Origin Information & Resources">
+          <Image
+            src="/images/icons/Ev_Consumable_BADKSticker.png"
+            alt="LOMapR"
+            boxSize="28px"
+            draggable={false}
+          />
+          <Heading size="md" color="yellow.300" whiteSpace="nowrap">
+            LOMapR
+          </Heading>
+        </HStack>
       </Link>
 
       <IconButton

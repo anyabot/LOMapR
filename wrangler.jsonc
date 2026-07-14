@@ -1,0 +1,34 @@
+// Cloudflare Workers config for the OpenNext deployment (see DEPLOY.md).
+// Built artifacts land in .open-next/ via `opennextjs-cloudflare build`.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "lomapr",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-06-01",
+  // nodejs_compat: required by the OpenNext runtime.
+  // global_fetch_strictly_public: the Worker proxies /models/* and /rebuilt/*
+  // to lo-assets.altterisk.cc (an R2 custom domain on the SAME zone as the
+  // Worker's own domain). Without this flag, same-zone subrequests are routed
+  // to the zone's "origin server", which an R2 custom domain doesn't have —
+  // the flag forces them onto the public path so the R2 route handles them.
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS",
+    // IMPORTANT: keep asset-first routing. Any request matching a file in
+    // .open-next/assets (all _next/static, public/ files, AND every
+    // prerendered page's HTML) is served directly by Cloudflare — the Worker
+    // is never invoked and the request is free/unmetered. The Worker only
+    // runs for non-asset paths: the /models|/rebuilt|/skins rewrites, 404s,
+    // and future API routes. Never set this to true / a catch-all pattern.
+    "run_worker_first": false
+  },
+  // Production domain. Attach after detaching lo.altterisk.cc from the old
+  // Pages project (DEPLOY.md, one-time step).
+  "routes": [
+    { "pattern": "lo.altterisk.cc", "custom_domain": true }
+  ],
+  "observability": {
+    "enabled": true
+  }
+}

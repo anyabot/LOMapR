@@ -50,7 +50,7 @@ export default function Units() {
     if (!grades[u.rarity]) return false;
     if (searchTerm) {
       const q = searchTerm.toLowerCase();
-      if (!unitName(u).toLowerCase().includes(q) && !(u.id || '').toLowerCase().includes(q)) return false;
+      if (!unitName(u).toLowerCase().includes(q) && !(u.id || '').replace(/^Char_[^_]+_/, '').toLowerCase().includes(q)) return false;
     }
     return true;
   }

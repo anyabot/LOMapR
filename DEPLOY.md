@@ -1,92 +1,116 @@
-# Deploying lomapr to Cloudflare Pages
+# Deploying lomapr to Cloudflare Workers (OpenNext)
 
-The app is a **pure static SPA** built with Next's `output: 'export'`. There is
-no backend and **no `_worker.js`**: every data read happens in the browser from
-R2's public URL, and route params are read from `?id=`/`&zone=`/`&stage=` query
-strings (no dynamic routes). Because there is no worker, requests are served
-straight from the CDN and **never count against the Workers/Functions request
-quota** — the whole site runs free.
+The app deploys as a **Cloudflare Worker** via the
+[OpenNext Cloudflare adapter](https://opennext.js.org/cloudflare)
+(`@opennextjs/cloudflare`). It is still, functionally, a client-rendered SPA:
+every page is prerendered at build time, all game data is fetched in the
+browser from the asset domain, and route params come from `?id=`/`&zone=`/
+`&stage=` query strings.
+
+**Request accounting** (the thing that matters for the free tier): the Worker
+uses **asset-first routing** (`run_worker_first: false` in `wrangler.jsonc`).
+Anything matching a file in `.open-next/assets` — all `_next/static/*`, every
+`public/` file, and **every prerendered page's HTML** — is served directly by
+Cloudflare as a static asset: the Worker is never invoked and the request is
+free and unmetered. The Worker only runs for paths that are *not* assets:
 
 ```
-browser ──▶ *.pages.dev  (static HTML/JS, Pages CDN, unlimited bandwidth, no quota)
-browser ──▶ pub-….r2.dev (JSON data + images, browser-cached 1h, free egress)
+browser ──▶ lo.altterisk.cc         static assets (HTML/JS/images/wasm) — free, no Worker
+browser ──▶ lo.altterisk.cc/models/*, /rebuilt/*
+                                    Worker rewrite ──▶ lo-assets.altterisk.cc (R2)
+browser ──▶ lo-assets.altterisk.cc  JSON data + skin .tar.br — direct, free egress
 ```
+
+So Worker invocations ≈ Unity skinned-model loads (a few requests each), 404s,
+and any future API routes. Everything else is static.
+
+## Domains
+
+| Domain | What | Where configured |
+|---|---|---|
+| `lo.altterisk.cc` | the site (Worker custom domain) | `wrangler.jsonc` `routes` |
+| `lo-assets.altterisk.cc` | R2 bucket `lomapr-data` custom domain | R2 → bucket → Settings → Custom Domains |
+
+The old `pub-….r2.dev` URL still works as a fallback but nothing references it
+anymore. The Unity viewer's client-side fetch/XHR rewrite hack and the Pages
+`_redirects` file are **gone** — `/models/*` and `/rebuilt/*` are proxied by
+Next server rewrites (`next.config.js`), which work in production now that
+there is a real server.
 
 ## One-time Cloudflare setup
 
-1. **R2 public access** — R2 → `lomapr-data` bucket → Settings → Public access →
-   enable the **r2.dev** subdomain. Copy the `https://pub-….r2.dev` URL.
-   Also add a CORS policy allowing GET from your Pages origin (or `*`).
-2. **Push data to R2** — from your machine (Python tooling, not the app):
-   ```
-   python tools/admin/push_r2.py --region all
-   ```
-3. **Create the Pages project** — two options below.
+1. **R2 custom domain** — R2 → `lomapr-data` → Settings → Custom Domains →
+   add `lo-assets.altterisk.cc` (done).
+2. **Bucket CORS** — the browser on `lo.altterisk.cc` fetches JSON/archives
+   cross-origin from `lo-assets.altterisk.cc`, so the bucket CORS policy must
+   allow GET from `https://lo.altterisk.cc` (or `*`). The same policy covers
+   both r2.dev and the custom domain.
+3. **Move the site domain to the Worker** — if `lo.altterisk.cc` is still
+   attached to the old Pages project, detach it there first
+   (Pages project → Custom domains → remove). The first `npm run cf:deploy`
+   then attaches it to the Worker (declared in `wrangler.jsonc`).
+4. `wrangler login` on first use.
 
-## Deploy option A — direct from your machine (Wrangler)
+## Deploy
 
 ```
-npm run pages:deploy   # next build (output: export) → wrangler pages deploy out
+npm run cf:build     # sync-local-data --clean → next build (prebuild regenerates
+                     # lib/publicImages.json) → OpenNext transform → .open-next/
+                     # → scripts/copy-prerendered-assets.js
+npm run cf:preview   # cf:build + run the real Worker locally (workerd)
+npm run cf:deploy    # cf:build + wrangler deploy
 ```
 
-(First run will prompt `wrangler login`.)
+`scripts/copy-prerendered-assets.js` is the step that makes asset-first serving
+actually cover pages: stock OpenNext keeps prerendered HTML inside the server
+function (every page view would invoke the Worker), so the script copies each
+prerendered page into `.open-next/assets/<route>/index.html` and prunes
+local-only dirs (`local-data*`, `skin_test`) from the deploy. SSR/API routes
+added later emit no prerendered HTML and are naturally left to the Worker.
 
-## Deploy option B — Git integration (cloud build, recommended)
+`NEXT_PUBLIC_*` values are baked in at build time from `.env.local`
+(gitignored; see `.env.example`):
 
-Connect the repo in the Cloudflare dashboard (Workers & Pages → Create →
-Pages → Connect to Git) with these **build settings**:
-
-| Setting | Value |
+| Var | Value |
 |---|---|
-| Framework preset | Next.js (or None) |
-| Build command | `npm run pages:build` |
-| Build output directory | `out` |
-| Root directory | *(blank)* |
-| Production branch | `main` (push other branches → preview deploys) |
+| `NEXT_PUBLIC_R2_PUBLIC_URL` | `https://lo-assets.altterisk.cc` |
+| `NEXT_PUBLIC_SKIN_ARCHIVE_BASE` | `https://lo-assets.altterisk.cc/skins` |
 
-`pages:build` runs `next build`, whose `prebuild` hook regenerates
-`lib/publicImages.json` — no manual step needed. Plain `next build` runs on any
-OS (no Windows adapter quirk).
-
-## Environment variables
-
-Set in **both** the Production and Preview scopes (Pages → Settings →
-Environment variables). Missing this builds fine but shows NO data — the #1
-gotcha.
-
-| Var | Value | Notes |
-|---|---|---|
-| `NEXT_PUBLIC_R2_PUBLIC_URL` | `https://pub-….r2.dev` | The browser reads data from here. Baked in at build time. **Public** value. |
-
-Locally these live in `.env.local` (gitignored). See `.env.example`. No secrets
-are needed in Cloudflare — the old backend (firebase-admin, R2 S3 keys) is gone;
-the R2 push runs on your machine via `tools/admin/push_r2.py`.
-
-## Preview vs production
-
-- Push to a non-production branch (e.g. `cloudflare`) → preview at
-  `<branch>.lomapr.pages.dev`. Test there.
-- Merge to `main` → production at `lomapr.pages.dev`.
-- Both read the SAME R2 bucket, so data is identical across them.
+No secrets are needed in Cloudflare — data pushes run locally via
+`tools/admin/push_r2.py` / `push_skins_r2.py`.
 
 ## Updating data
 
-Re-run the Python push whenever data changes — no redeploy of the app needed,
-since data is fetched at runtime:
+Unchanged: re-run the Python push when data changes — no redeploy needed,
+data is fetched at runtime:
 
 ```
 python tools/admin/push_r2.py --region all
 ```
 
-Regenerate the bundled-image manifest if you add/remove files under
-`public/images/` (the app rewrites image URLs to these when present):
+Regenerate the bundled-image manifest when files under `public/images/`
+change (also runs automatically as `prebuild`):
 
 ```
-npm run gen:images   # rewrites lib/publicImages.json
+npm run gen:images
 ```
 
-## Later: custom domain (optional)
+## Gotchas
 
-r2.dev has a soft rate limit and no configurable edge cache. If you ever buy a
-domain, connect it to the R2 bucket and change one value —
-`NEXT_PUBLIC_R2_PUBLIC_URL` → `https://data.yourdomain.com`. No code changes.
+- **Never** set `run_worker_first` to `true`/a catch-all in `wrangler.jsonc` —
+  that routes every static asset through the Worker and burns the request
+  quota for nothing (the failure mode of the old backend setup).
+- `global_fetch_strictly_public` compatibility flag is required: the Worker's
+  rewrite proxy fetches `lo-assets.altterisk.cc`, which is on the **same zone**
+  as the Worker's domain; without the flag same-zone subrequests try to hit a
+  nonexistent "origin server" instead of the R2 route.
+- Missing `NEXT_PUBLIC_R2_PUBLIC_URL` at build time builds fine but shows NO
+  data — still the #1 gotcha.
+- `patches/react-dom+18.3.1.patch` (applied by patch-package on install) adds
+  a `react-dom/server.edge` shim (alias of `server.browser`). React 18 has no
+  `server.edge` entry (React 19 only) and the bundled Worker can't express
+  Next's normal fallback, so Worker-side renders (the 404 page) 500 without
+  it. Keep the patch until React is bumped to 19.
+- OpenNext warns it isn't fully supported on Windows (recommends WSL); build,
+  preview, and deploy all worked from this Windows machine (verified
+  2026-07-14). If a future version misbehaves, build from WSL.

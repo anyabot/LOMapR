@@ -329,6 +329,21 @@ export async function fetchGachaPools(region: Region): Promise<GachaPools | null
   return null;
 }
 
+// ── misc categorization (/misc page) ──────────────────────────────────────────
+
+// Light index: buff-type counts + AoE + damage-type lists. misc.json.
+export async function fetchMisc(region: Region) {
+  return getWithFallback(region, 'misc.json');
+}
+
+// All (unit, skill, buff) entries for ONE buff-type ordinal, fetched when the
+// type is selected. split/misc/buff_<type>.json.
+export async function fetchMiscBuff(type: number, region: Region) {
+  const data = await get(`${region}/split/misc/buff_${type}.json`);
+  if (data || region === 'global') return data;
+  return get(`global/split/misc/buff_${type}.json`);
+}
+
 // ── equipment ─────────────────────────────────────────────────────────────────
 
 // Light equip LIST (per-family meta). split/equip/<id>.json holds the full data.

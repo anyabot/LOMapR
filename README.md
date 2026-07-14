@@ -1,10 +1,12 @@
-# LO:MA Player Resource (lomapr)
+# LOMapR — Last Origin Information & Resources
 
 A community database / reference site for the game, built with
 [Next.js](https://nextjs.org/) (pages router) + [Chakra UI](https://chakra-ui.com/)
-+ Redux Toolkit. It's a static-export SPA (`output: 'export'`) that fetches all
-game data as JSON at runtime — units, enemies, skills, equipment, worlds/stages,
-Sanctum, and Infinite War.
++ Redux Toolkit, deployed to Cloudflare Workers via
+[OpenNext](https://opennext.js.org/cloudflare). All pages are prerendered and
+served as static assets; game data (units, enemies, skills, equipment,
+worlds/stages, Sanctum, Infinite War) is fetched as JSON at runtime from
+`lo-assets.altterisk.cc`. Live at [lo.altterisk.cc](https://lo.altterisk.cc).
 
 ## Getting started
 
@@ -21,7 +23,8 @@ Open [http://localhost:3000](http://localhost:3000).
 | `dev` / `dev:bucket` | dev server; reads game data from the remote R2 bucket |
 | `dev:local` | syncs `data/` → `public/local-data/`, then serves it statically |
 | `sync:local-data` | copy `data/` → `public/local-data/` only |
-| `build` / `pages:build` | static export (the latter also slices icons + cleans local data) |
+| `build` | plain `next build` (prebuild regenerates `lib/publicImages.json`) |
+| `cf:build` / `cf:preview` / `cf:deploy` | OpenNext Cloudflare build / local Worker preview / deploy (see `DEPLOY.md`) |
 
 ## Pages
 
@@ -35,6 +38,15 @@ Open [http://localhost:3000](http://localhost:3000).
 - **Enemies** (`/enemies`) — list + modal (`?enemy=<id>`) with stats, skills, AI.
 - **World / Stages** (`/world`, `/world/stage`), **Sanctum** (`/sanctum`),
   **Infinite War** (`/iw`).
+- **Skins** (`/skins`) — skin browser + viewer (PixiJS for fixed/spine skins,
+  Unity WebGL iframe for skinned models).
+- **Gacha Sim** (`/gacha`) — gacha simulator.
+- **Misc** (`/misc`) — cross-unit categorization: AoE skills, damage types,
+  buff/debuff reverse lookup.
+
+Architecture and structure docs live in [`docs/`](docs/) —
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) (system overview) and
+[`docs/WEB.md`](docs/WEB.md) (frontend structure).
 
 Equipment and enemy modals are mounted globally (`components/layout.tsx`), so a
 drop chip or exclusive-gear tile anywhere can open them in place; unit references

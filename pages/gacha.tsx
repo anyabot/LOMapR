@@ -474,7 +474,7 @@ export default function GachaPage() {
 
   return (
     <>
-      <Head><title>Gacha Simulator | LoMapR</title></Head>
+      <Head><title>Gacha Simulator | LOMapR</title></Head>
       <Box maxW="1100px" mx="auto" px={4} py={6}>
         <Heading size="lg" mb={1}>Gacha Simulator</Heading>
         <Text fontSize="sm" color="whiteAlpha.600" mb={5}>
