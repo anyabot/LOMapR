@@ -58,7 +58,7 @@ export function makeSlot(unit: UnitData): TeamSlot {
     unitId: unit.id,
     level: LV_DEFAULT,
     gradeIdx: Math.max(0, (unit.maxGrade ?? unit.rarity) - unit.rarity),
-    links: 0,
+    links: 5,
     fullLink: -1,
     points: [0, 0, 0, 0, 0, 0],
     equips: [null, null, null, null],

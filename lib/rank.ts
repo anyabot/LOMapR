@@ -63,6 +63,23 @@ export const filterActiveProps = (colorScheme: string, active: boolean) =>
     ? { opacity: 1 }
     : { opacity: 0.4, color: 'gray.400', borderColor: 'whiteAlpha.300' };
 
+// Three-state list filters: neutral -> include -> exclude -> neutral.
+export type FilterMode = 0 | 1 | -1;
+export const nextFilterMode = (mode: FilterMode): FilterMode =>
+  mode === 0 ? 1 : mode === 1 ? -1 : 0;
+export const filterModeProps = (_colorScheme: string, mode: FilterMode) =>
+  mode === 1
+    ? { opacity: 1 }
+    : mode === -1
+      ? { opacity: 1, color: 'red.300', borderColor: 'red.500', bg: 'red.900', textDecoration: 'line-through' }
+      : { opacity: 0.5, color: 'gray.400', borderColor: 'whiteAlpha.300' };
+export function filterValueAllowed(
+  value: PropertyKey, modes: Readonly<Partial<Record<PropertyKey, FilterMode>>>,
+): boolean {
+  if (modes[value] === -1) return false;
+  return !Object.values(modes).some((mode) => mode === 1) || modes[value] === 1;
+}
+
 // Equipment-slot type icons in public/images/common/ (Chip / OS / Item).
 const EQUIP_FILE: Record<string, string> = { Chip: 'Equip_Chip', OS: 'Equip_OS', Item: 'Equip_Item' };
 export const equipIcon = (kind: string): string | null =>

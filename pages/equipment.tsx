@@ -9,7 +9,8 @@ import { selectEquip, selectEquipStatus, fetchEquipAsync, setActiveEquip } from 
 import { EquipData } from '@/interfaces/equip';
 import { t } from '@/lib/strings';
 import { useTranslationVersion } from '@/lib/translationVersion';
-import { rankTag, rankColor, equipIcon, EXCHANGE_META } from '@/lib/rank';
+import { rankTag, rankColor, equipIcon, EXCHANGE_META, filterModeProps,
+  filterValueAllowed, nextFilterMode, FilterMode } from '@/lib/rank';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 
@@ -45,16 +46,21 @@ export default function Equipment() {
   }, [router.isReady, router.query.equip, equip, dispatch]);
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [grades, setGrades] = useState<Record<number, boolean>>(
-    Object.fromEntries(GRADES.map((g) => [g, true])),
+  const [grades, setGrades] = useState<Record<number, FilterMode>>(
+    Object.fromEntries(GRADES.map((g) => [g, 0])) as Record<number, FilterMode>,
   );
-  const [exchange, setExchange] = useState<'Sanctum' | 'IW' | null>(null);
-  const [type, setType] = useState<TypeFilter | null>(null);
+  const [exchanges, setExchanges] = useState<Record<typeof EXCHANGES[number], FilterMode>>({ Sanctum: 0, IW: 0 });
+  const [types, setTypes] = useState<Record<TypeFilter, FilterMode>>({ Chip: 0, OS: 0, Item: 0, Exclusive: 0 });
 
   function matches(e: EquipData) {
-    if (!grades[e.grade]) return false;
-    if (exchange && e.exchange !== exchange) return false;
-    if (type === 'Exclusive' ? !isExclusive(e) : type ? e.slot !== type : false) return false;
+    if (!filterValueAllowed(e.grade, grades)) return false;
+    const exchangeIncludes = EXCHANGES.some((x) => exchanges[x] === 1);
+    if (e.exchange && exchanges[e.exchange] === -1) return false;
+    if (exchangeIncludes && (!e.exchange || exchanges[e.exchange] !== 1)) return false;
+    const typeMatch = (ty: TypeFilter) => ty === 'Exclusive' ? isExclusive(e) : e.slot === ty;
+    if (TYPES.some((ty) => types[ty] === -1 && typeMatch(ty))) return false;
+    const typeIncludes = TYPES.filter((ty) => types[ty] === 1);
+    if (typeIncludes.length && !typeIncludes.some(typeMatch)) return false;
     if (searchTerm) {
       const q = searchTerm.toLowerCase();
       if (!t(e.name).toLowerCase().includes(q) && !(e.id || '').toLowerCase().includes(q)) return false;
@@ -84,29 +90,30 @@ export default function Equipment() {
           bg="surface.elevated" borderWidth="1px" borderColor="surface.border" borderRadius="xl" p={3}>
           <ButtonGroup isAttached size="sm">
             {TYPES.map((ty) => (
-              <Button key={ty} variant={type === ty ? 'solid' : 'outline'}
-                colorScheme={type === ty ? 'yellow' : 'gray'}
-                borderColor="surface.border"
-                onClick={() => setType(type === ty ? null : ty)}>
+              <Button key={ty} variant="outline" colorScheme="yellow"
+                {...filterModeProps('yellow', types[ty])}
+                onClick={() => setTypes({ ...types, [ty]: nextFilterMode(types[ty]) })}>
                 {ty}
               </Button>
             ))}
           </ButtonGroup>
           <ButtonGroup isAttached size="sm">
             {GRADES.map((g) => (
-              <Button key={g} variant={grades[g] ? 'solid' : 'outline'}
-                bg={grades[g] ? rankColor(g) : undefined}
-                color={grades[g] ? 'blackAlpha.800' : rankColor(g)}
-                borderColor={rankColor(g)}
-                _hover={{ bg: grades[g] ? rankColor(g) : 'whiteAlpha.100' }}
-                onClick={() => setGrades({ ...grades, [g]: !grades[g] })}>{rankTag(g)}</Button>
+              <Button key={g} variant="outline"
+                bg={grades[g] === 1 ? rankColor(g) : grades[g] === -1 ? 'red.900' : undefined}
+                color={grades[g] === 1 ? 'blackAlpha.800' : rankColor(g)}
+                borderColor={grades[g] === -1 ? 'red.500' : rankColor(g)}
+                opacity={grades[g] === 0 ? 0.5 : 1}
+                textDecoration={grades[g] === -1 ? 'line-through' : undefined}
+                _hover={{ bg: grades[g] === 1 ? rankColor(g) : 'whiteAlpha.100' }}
+                onClick={() => setGrades({ ...grades, [g]: nextFilterMode(grades[g]) })}>{rankTag(g)}</Button>
             ))}
           </ButtonGroup>
           <ButtonGroup isAttached size="sm">
             {EXCHANGES.map((x) => (
-              <Button key={x} variant={exchange === x ? 'solid' : 'outline'}
+              <Button key={x} variant="outline" {...filterModeProps(EXCHANGE_META[x].color, exchanges[x])}
                 colorScheme={EXCHANGE_META[x].color}
-                onClick={() => setExchange(exchange === x ? null : x)}>
+                onClick={() => setExchanges({ ...exchanges, [x]: nextFilterMode(exchanges[x]) })}>
                 {EXCHANGE_META[x].label}
               </Button>
             ))}

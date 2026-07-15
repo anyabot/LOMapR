@@ -8,7 +8,8 @@ import {
 } from '@chakra-ui/react';
 import { CloseIcon, SearchIcon } from '@chakra-ui/icons';
 import { useRouter } from 'next/router';
-import { rankTag, rankColor, roleRankIcon, typeIcon, roleIcon, bodyIcon, filterActiveProps, unitDisplayName } from '@/lib/rank';
+import { rankTag, rankColor, roleRankIcon, typeIcon, roleIcon, bodyIcon, filterModeProps,
+  filterValueAllowed, nextFilterMode, FilterMode, unitDisplayName } from '@/lib/rank';
 import Head from 'next/head';
 
 // One table per class type (rows of the page); columns = role; rows = grade.
@@ -36,18 +37,18 @@ export default function Units() {
   }, [dispatch]);
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [types, setTypes] = useState<Record<TypeKey, boolean>>({ Light: true, Air: true, Heavy: true });
-  const [roles, setRoles] = useState<Record<RoleKey, boolean>>({ Attacker: true, Defender: true, Supporter: true });
-  const [bodies, setBodies] = useState<Record<BodyKey, boolean>>({ Bioroid: true, AGS: true });
-  const [grades, setGrades] = useState<Record<number, boolean>>(
-    Object.fromEntries(GRADES.map((g) => [g, true])),
+  const [types, setTypes] = useState<Record<TypeKey, FilterMode>>({ Light: 0, Air: 0, Heavy: 0 });
+  const [roles, setRoles] = useState<Record<RoleKey, FilterMode>>({ Attacker: 0, Defender: 0, Supporter: 0 });
+  const [bodies, setBodies] = useState<Record<BodyKey, FilterMode>>({ Bioroid: 0, AGS: 0 });
+  const [grades, setGrades] = useState<Record<number, FilterMode>>(
+    Object.fromEntries(GRADES.map((g) => [g, 0])) as Record<number, FilterMode>,
   );
 
   function matches(u: UnitData) {
-    if (!types[u.type as TypeKey]) return false;
-    if (!roles[u.role as RoleKey]) return false;
-    if (!bodies[u.body as BodyKey]) return false;
-    if (!grades[u.rarity]) return false;
+    if (!filterValueAllowed(u.type as TypeKey, types)) return false;
+    if (!filterValueAllowed(u.role as RoleKey, roles)) return false;
+    if (!filterValueAllowed(u.body as BodyKey, bodies)) return false;
+    if (!filterValueAllowed(u.rarity, grades)) return false;
     if (searchTerm) {
       const q = searchTerm.toLowerCase();
       if (!unitName(u).toLowerCase().includes(q) && !(u.id || '').replace(/^Char_[^_]+_/, '').toLowerCase().includes(q)) return false;
@@ -65,8 +66,8 @@ export default function Units() {
   const shown = Object.values(units).filter(matches);
   // active rows/cols follow the toggles, so a filtered-out type/role/grade drops
   // its whole table / column / row from the grid.
-  const activeRoles = ROLES.filter((r) => roles[r]);
-  const activeGrades = [...GRADES].filter((g) => grades[g]).reverse();  // SS at top
+  const activeRoles = ROLES.filter((r) => filterValueAllowed(r, roles));
+  const activeGrades = [...GRADES].filter((g) => filterValueAllowed(g, grades)).reverse();  // SS at top
 
   // cell lookup: type -> role -> grade -> units (name-sorted)
   function cell(type: TypeKey, role: RoleKey, grade: number) {
@@ -89,33 +90,35 @@ export default function Units() {
           bg="surface.elevated" borderWidth="1px" borderColor="surface.border" borderRadius="xl" p={3}>
           <ButtonGroup isAttached size="sm" variant="outline" colorScheme="green">
             {TYPES.map((ty) => (
-              <Button key={ty} {...filterActiveProps('green', types[ty])}
+              <Button key={ty} {...filterModeProps('green', types[ty])}
                 leftIcon={typeIcon(ty) ? <Image src={typeIcon(ty)!} alt={ty} boxSize="16px" /> : undefined}
-                onClick={() => setTypes({ ...types, [ty]: !types[ty] })}>{ty}</Button>
+                onClick={() => setTypes({ ...types, [ty]: nextFilterMode(types[ty]) })}>{ty}</Button>
             ))}
           </ButtonGroup>
           <ButtonGroup isAttached size="sm" variant="outline" colorScheme="red">
             {ROLES.map((r) => (
-              <Button key={r} {...filterActiveProps('red', roles[r])}
+              <Button key={r} {...filterModeProps('red', roles[r])}
                 leftIcon={roleIcon(r) ? <Image src={roleIcon(r)!} alt={r} boxSize="16px" /> : undefined}
-                onClick={() => setRoles({ ...roles, [r]: !roles[r] })}>{r}</Button>
+                onClick={() => setRoles({ ...roles, [r]: nextFilterMode(roles[r]) })}>{r}</Button>
             ))}
           </ButtonGroup>
           <ButtonGroup isAttached size="sm" variant="outline" colorScheme="teal">
             {BODIES.map((b) => (
-              <Button key={b} {...filterActiveProps('teal', bodies[b])}
+              <Button key={b} {...filterModeProps('teal', bodies[b])}
                 leftIcon={bodyIcon(b) ? <Image src={bodyIcon(b)!} alt={b} boxSize="16px" /> : undefined}
-                onClick={() => setBodies({ ...bodies, [b]: !bodies[b] })}>{b}</Button>
+                onClick={() => setBodies({ ...bodies, [b]: nextFilterMode(bodies[b]) })}>{b}</Button>
             ))}
           </ButtonGroup>
           <ButtonGroup isAttached size="sm" variant="outline">
             {GRADES.map((g) => (
               <Button key={g}
-                bg={grades[g] ? `${rankColor(g)}33` : undefined}
+                bg={grades[g] === 1 ? `${rankColor(g)}33` : grades[g] === -1 ? 'red.900' : undefined}
                 color={rankColor(g)}
-                borderColor={rankColor(g)}
-                _hover={{ bg: grades[g] ? `${rankColor(g)}44` : 'whiteAlpha.100' }}
-                onClick={() => setGrades({ ...grades, [g]: !grades[g] })}>{rankTag(g)}</Button>
+                borderColor={grades[g] === -1 ? 'red.500' : rankColor(g)}
+                opacity={grades[g] === 0 ? 0.5 : 1}
+                textDecoration={grades[g] === -1 ? 'line-through' : undefined}
+                _hover={{ bg: grades[g] === 1 ? `${rankColor(g)}44` : 'whiteAlpha.100' }}
+                onClick={() => setGrades({ ...grades, [g]: nextFilterMode(grades[g]) })}>{rankTag(g)}</Button>
             ))}
           </ButtonGroup>
 
@@ -137,7 +140,7 @@ export default function Units() {
           <Center py={16}><Text color="gray.500">No units match the current filters.</Text></Center>
         ) : (
           // one table per active class type; columns = active roles, rows = active grades.
-          TYPES.filter((ty) => types[ty]).map((type) => (
+          TYPES.filter((ty) => filterValueAllowed(ty, types)).map((type) => (
             <Box key={type} borderWidth="1px" borderColor="surface.border" borderRadius="xl"
               overflow="hidden" bg="surface.elevated">
               <Box px={4} py={2} bg="blackAlpha.300" borderBottomWidth="1px" borderBottomColor="surface.border">

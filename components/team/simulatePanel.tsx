@@ -86,13 +86,18 @@ export default function SimulatePanel({ team }: { team: Team }) {
 
   // Build sim inputs from the configured team; null until every needed bundle
   // (unit detail + equipped-item records) has arrived.
-  const { inputs, missing } = useMemo(() => {
+  const { inputs, missing, unavailable } = useMemo(() => {
     const inputs: SimUnitInput[] = [];
     const missing: string[] = [];
+    const unavailable: string[] = [];
     team.forEach((slot, tile) => {
       if (!slot) return;
       const unit = selectUnitFull(state, slot.unitId);
-      if (!unit) { missing.push(slot.unitId); return; }
+      if (!unit) {
+        const status = state.unit.byRegion[state.region.region].status;
+        (status === 'loading' ? missing : unavailable).push(slot.unitId);
+        return;
+      }
       if (!unit.stat) { missing.push(unitDisplayName(unit)); return; }
       const full = unit as FullUnitData;
       const skills = selectUnitSkills(state, slot.unitId);
@@ -123,7 +128,7 @@ export default function SimulatePanel({ team }: { team: Team }) {
       const stats = computeStats(full, slot, equippedStats(slot, unit, (id) => selectEquipFull(state, id)));
       inputs.push({ tile, unit: full, slot, stats, passives, equips });
     });
-    return { inputs, missing };
+    return { inputs, missing, unavailable };
     // state identity changes on every store update; that's fine — memo is cheap.
   }, [team, state]);
 
@@ -134,6 +139,16 @@ export default function SimulatePanel({ team }: { team: Team }) {
 
   if (team.every((s) => !s)) {
     return <Text color="gray.500" fontSize="sm" py={6} textAlign="center">Place some units first.</Text>;
+  }
+  if (unavailable.length > 0) {
+    return (
+      <Box borderWidth="1px" borderColor="red.700" borderRadius="lg" bg="surface.elevated" p={4}>
+        <Text color="red.300" fontSize="sm">
+          Unavailable on the current server: {unavailable.join(', ')}. Swap or remove these units,
+          or switch back to the server where they are available.
+        </Text>
+      </Box>
+    );
   }
   if (missing.length > 0) {
     return (

@@ -10,6 +10,7 @@ import { unitDisplayName } from '@/lib/rank';
 interface Props {
   team: Team;
   units: Record<string, UnitData>;
+  loadingUnits: boolean;
   selected: number | null;
   highlight: number[] | null;
   caster: number | null;
@@ -25,7 +26,7 @@ export const TILE_POSITION = [7, 8, 9, 4, 5, 6, 1, 2, 3] as const;
 const COL_LABELS = ['Back', 'Mid', 'Front'];
 
 export default function FormationGrid({
-  team, units, selected, highlight, caster,
+  team, units, loadingUnits, selected, highlight, caster,
   onTileClick, onUnitMove, onUnitReplace, onUnitRemove,
 }: Props) {
   const hi = new Set(highlight ?? []);
@@ -74,7 +75,8 @@ export default function FormationGrid({
               }}
             >
               <Box as="button" position="absolute" inset={0} w="100%" h="100%"
-                onClick={() => onTileClick(tile)} aria-label={unit ? `Configure ${unitDisplayName(unit)}` : 'Add unit'}>
+                onClick={() => onTileClick(tile)}
+                aria-label={unit ? `Configure ${unitDisplayName(unit)}` : slot ? 'Unavailable unit' : 'Add unit'}>
               {/* ten-key position label */}
               <Text position="absolute" top="1px" left="4px" fontSize="xs" fontWeight="700"
                 color={unit ? 'whiteAlpha.800' : 'gray.600'} zIndex={1}
@@ -98,13 +100,20 @@ export default function FormationGrid({
                     </Box>
                   ) : null}
                 </>
+              ) : slot ? (
+                <VStack spacing={1} justify="center" h="100%" px={1}>
+                  <Text fontSize="2xs" color={loadingUnits ? 'gray.500' : 'red.300'} noOfLines={2}>
+                    {loadingUnits ? 'Loading…' : 'Unavailable on this server'}
+                  </Text>
+                  {!loadingUnits ? <Text fontSize="2xs" color="gray.600" noOfLines={1}>{slot.unitId}</Text> : null}
+                </VStack>
               ) : (
                 <VStack spacing={0} justify="center" h="100%">
                   <Text fontSize="xl" color="gray.600">+</Text>
                 </VStack>
               )}
               </Box>
-              {unit ? (
+              {slot ? (
                 <HStack position="absolute" top="3px" right="3px" spacing="2px" zIndex={3}>
                   <IconButton aria-label="swap unit" title="Swap unit" icon={<RepeatIcon />} size="xs"
                     minW="22px" h="22px" colorScheme="teal" variant="solid"

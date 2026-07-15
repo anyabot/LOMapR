@@ -12,7 +12,7 @@ import { useRouter } from 'next/router';
 import SimpleCard from '@/components/simpleCard';
 import { t } from '@/lib/strings';
 import { useTranslationVersion } from '@/lib/translationVersion';
-import { typeIcon, roleIcon, filterActiveProps } from '@/lib/rank';
+import { typeIcon, roleIcon, filterModeProps, nextFilterMode, FilterMode } from '@/lib/rank';
 import { Image } from '@chakra-ui/react';
 import Head from 'next/head';
 
@@ -45,20 +45,24 @@ export default function Home() {
   }, [router.isReady, router.query.enemy, router.query.lv, enemy, dispatch]);
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [showUnused, setShowUnused] = useState(false);
+  const [usedMode, setUsedMode] = useState<FilterMode>(0);
   const [filterGroup, setFilterGroup] = useState({
-    Light: true, Air: true, Heavy: true,
-    Attacker: true, Defender: true, Supporter: true,
+    Light: 0, Air: 0, Heavy: 0,
+    Attacker: 0, Defender: 0, Supporter: 0,
   });
 
   const getImage = (id: string) => imagelink[id] || undefined;
 
   function handleSwitch(e: keyof typeof filterGroup) {
-    setFilterGroup({ ...filterGroup, [e]: !filterGroup[e] });
+    setFilterGroup({ ...filterGroup, [e]: nextFilterMode(filterGroup[e] as FilterMode) });
   }
   function filterButton(e: EnemyData) {
     if (e.role in filterGroup && e.type in filterGroup) {
-      return filterGroup[e.role as keyof typeof filterGroup] && filterGroup[e.type as keyof typeof filterGroup];
+      const allowed = (value: keyof typeof filterGroup, keys: readonly (keyof typeof filterGroup)[]) =>
+        filterGroup[value] !== -1
+        && (!keys.some((key) => filterGroup[key] === 1) || filterGroup[value] === 1);
+      return allowed(e.role as keyof typeof filterGroup, ROLES)
+        && allowed(e.type as keyof typeof filterGroup, TYPES);
     }
     return false;
   }
@@ -69,8 +73,8 @@ export default function Home() {
     return t(e.name).toLowerCase().includes(q) || (e.id || '').toLowerCase().includes(q);
   }
   function filterUsed(e: EnemyData) {
-    if (showUnused) return true;
-    return e.used ? Object.keys(e.used).length > 0 || e.usedSanctum : false;
+    const used = e.used ? Object.keys(e.used).length > 0 || !!e.usedSanctum : false;
+    return usedMode === 0 || (usedMode === 1 ? used : !used);
   }
   function enemies(list: { [key: string]: EnemyData }) {
     const out: EnemyData[] = [];
@@ -119,21 +123,21 @@ export default function Home() {
         >
           <ButtonGroup isAttached size="sm" variant="outline" colorScheme="red">
             {ROLES.map((r) => (
-              <Button key={r} {...filterActiveProps('red', filterGroup[r])}
+              <Button key={r} {...filterModeProps('red', filterGroup[r] as FilterMode)}
                 leftIcon={roleIcon(r) ? <Image src={roleIcon(r)!} alt={r} boxSize="16px" /> : undefined}
                 onClick={() => handleSwitch(r)}>{r}</Button>
             ))}
           </ButtonGroup>
           <ButtonGroup isAttached size="sm" variant="outline" colorScheme="green">
             {TYPES.map((ty) => (
-              <Button key={ty} {...filterActiveProps('green', filterGroup[ty])}
+              <Button key={ty} {...filterModeProps('green', filterGroup[ty] as FilterMode)}
                 leftIcon={typeIcon(ty) ? <Image src={typeIcon(ty)!} alt={ty} boxSize="16px" /> : undefined}
                 onClick={() => handleSwitch(ty)}>{ty}</Button>
             ))}
           </ButtonGroup>
-          <Button size="sm" variant="outline" colorScheme="yellow" {...filterActiveProps('yellow', showUnused)}
-            onClick={() => setShowUnused(!showUnused)}>
-            {showUnused ? 'All enemies' : 'Used only'}
+          <Button size="sm" variant="outline" colorScheme="yellow" {...filterModeProps('yellow', usedMode)}
+            onClick={() => setUsedMode(nextFilterMode(usedMode))}>
+            {usedMode === 1 ? 'Used only' : usedMode === -1 ? 'Unused only' : 'Used'}
           </Button>
 
           <InputGroup size="sm" maxW="260px" ml="auto">
