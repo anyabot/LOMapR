@@ -47,12 +47,14 @@ export function loadSkinArchive(skin: string): Promise<Map<string, Blob>> {
   let p = archiveCache.get(skin);
   if (!p) {
     p = (async () => {
-      // Local dev override: if public/skin_test/<skin>/layout.json exists, load the
-      // unpacked dir instead of the R2 tar.br (lets you test an export before packing).
-      try {
-        const probe = await fetch(`/skin_test/${skin}/layout.json`, { method: 'HEAD' });
-        if (probe.ok) return await loadLocalSkinDir(skin);
-      } catch { /* fall through to archive */ }
+      // Local dev override: production deliberately prunes /skin_test, so never
+      // probe that Worker route there. Development can still test unpacked exports.
+      if (process.env.NODE_ENV !== 'production') {
+        try {
+          const probe = await fetch(`/skin_test/${skin}/layout.json`, { method: 'HEAD' });
+          if (probe.ok) return await loadLocalSkinDir(skin);
+        } catch { /* fall through to archive */ }
+      }
 
       const [res, brotli] = await Promise.all([
         fetch(`${ARCHIVE_BASE}/${skin}.tar.br`),

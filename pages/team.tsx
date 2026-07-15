@@ -7,7 +7,7 @@ import {
   Tabs, Tab, TabList, TabPanels, TabPanel,
 } from '@chakra-ui/react';
 import { useAppSelector, useAppDispatch } from '@/hooks';
-import { selectUnits, selectUnitFull, fetchUnitsAsync, fetchUnitBundleAsync } from '@/store/unitSlice';
+import { selectUnits, selectUnitFull, selectUnitStatus, fetchUnitsAsync, fetchUnitBundleAsync } from '@/store/unitSlice';
 import { fetchEquipAsync, fetchEquipFullAsync, selectEquip } from '@/store/equipSlice';
 import { selectRegion } from '@/store/regionSlice';
 import { Team, TeamSlot } from '@/interfaces/team';
@@ -32,6 +32,7 @@ export default function TeamBuilder() {
   const dispatch = useAppDispatch();
   const toast = useToast();
   const units = useAppSelector(selectUnits);
+  const unitStatus = useAppSelector(selectUnitStatus);
   const equip = useAppSelector(selectEquip);
   const region = useAppSelector(selectRegion);
 
@@ -47,9 +48,12 @@ export default function TeamBuilder() {
 
   // fetch bundles / equip records only when the SET of ids changes (not on
   // every slot tweak — the pending actions would re-render the whole page)
-  const teamUnitIds = team.filter((s): s is TeamSlot => !!s).map((s) => s.unitId).sort().join('|');
+  const teamUnitIds = team.filter((s): s is TeamSlot => !!s && !!units[s.unitId])
+    .map((s) => s.unitId).sort().join('|');
   const teamEquipIds = team
-    .flatMap((s) => (s ? s.equips.filter(Boolean).map((e) => e!.id) : []))
+    .flatMap((s) => (s && units[s.unitId]
+      ? s.equips.filter((e) => e && equip[e.id]).map((e) => e!.id)
+      : []))
     .sort().join('|');
   useEffect(() => {
     for (const id of teamUnitIds.split('|')) if (id) dispatch(fetchUnitBundleAsync(id));
@@ -199,6 +203,7 @@ export default function TeamBuilder() {
                   <Box borderWidth="1px" borderColor="surface.border" borderRadius="xl" bg="surface.elevated" p={4}>
                     <FormationGrid
                       team={team} units={units} selected={selTile}
+                      loadingUnits={unitStatus === 'loading'}
                       highlight={aoe?.tiles ?? null} caster={aoe?.caster ?? null}
                       onTileClick={onTileClick}
                       onUnitMove={moveUnit}
@@ -259,6 +264,21 @@ export default function TeamBuilder() {
                       onSkillClick={onSkillClick(selTile!)}
                       aoeSkillKey={aoe && aoe.caster === selTile ? aoe.key : null}
                     />
+                  ) : selSlot ? (
+                    <Center borderWidth="1px" borderColor="red.700" borderRadius="xl"
+                      bg="surface.elevated" py={12} px={6} flexDirection="column" gap={3}>
+                      <Text color="red.300" fontSize="sm" textAlign="center">
+                        {unitStatus === 'loading'
+                          ? `Loading ${selSlot.unitId}…`
+                          : `${selSlot.unitId} is unavailable on the ${region === 'kr' ? 'KR' : 'Global'} server.`}
+                      </Text>
+                      {unitStatus !== 'loading' ? (
+                        <HStack>
+                          <Button size="xs" colorScheme="teal" onClick={() => setPickerTile(selTile!)}>Swap unit</Button>
+                          <Button size="xs" colorScheme="red" variant="outline" onClick={() => onRemove(selTile!)}>Remove</Button>
+                        </HStack>
+                      ) : null}
+                    </Center>
                   ) : (
                     <Center borderWidth="1px" borderColor="surface.border" borderRadius="xl"
                       bg="surface.elevated" py={16} px={6}>
