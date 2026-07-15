@@ -67,7 +67,7 @@ function linkText(b: LinkBonus, mult = 1): string {
 // Linear interpolation of a [base@lv1, max@lvCap] stat pair at a given level.
 function lerp(pair: [number, number], level: number): number {
   const f = (Math.min(Math.max(level, 1), LV_CAP) - 1) / (LV_CAP - 1);
-  return Math.floor(pair[0] + (pair[1] - pair[0]) * f);
+  return Math.ceil(pair[0] + (pair[1] - pair[0]) * f);
 }
 
 // The collection chart values (1..11) are flavor grades shown as a letter ladder

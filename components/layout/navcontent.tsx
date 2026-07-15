@@ -153,6 +153,7 @@ function NavContent({ isOpen }: { isOpen: boolean }) {
           <NavLink to="/units">Units</NavLink>
           <NavLink to="/skins">Skins</NavLink>
           <NavLink to="/equipment">Equipment</NavLink>
+          <NavLink to="/team">Team</NavLink>
           <NavLink to="/world">World</NavLink>
           <NavLink to="/sanctum">Sanctum</NavLink>
           <NavLink to="/enemies">Enemies</NavLink>
