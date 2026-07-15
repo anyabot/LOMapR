@@ -2,7 +2,7 @@
 
 > **MAINTENANCE POLICY: update this doc at the end of any task that adds/moves/
 > removes a page, slice, component, lib module, or data contract.** Verify
-> against the code, don't assume. Last verified against code: **2026-07-14**.
+> against the code, don't assume. Last verified against code: **2026-07-15**.
 
 Next.js **pages router**, deployed to Cloudflare Workers via OpenNext (all
 pages prerendered and served as static assets; the Worker only handles the
@@ -19,6 +19,7 @@ every data read is a runtime `fetch` from the R2 asset domain or `/local-data`
 | `/units`, `/units/detail?id=` | `pages/units.tsx`, `pages/units/detail.tsx` | unit grid (class/role/grade filter, search) → detail: stats calculator, skills, profile, drops, promotion, limit break, exclusive equip |
 | `/skins` | `pages/skins.tsx` | skin browser + viewer entry (PixiJS / Unity iframe) |
 | `/equipment` | `pages/equipment.tsx` | equip list (type/grade/exchange filters); modal deep-link `?equip=<id>` |
+| `/team` | `pages/team.tsx` | team builder: 3x3 formation (ten-key layout, max 5 units), per-unit level/grade/links/stat points/equipment/skill levels, ally-AoE tile highlight, share code (`?t=`), localStorage persist, round-1 battle simulation |
 | `/world`, `/world/detail`, `/world/stage` | `pages/world/*.tsx` | chapters → zones → stages → waves/rewards/missions |
 | `/sanctum` | `pages/sanctum.tsx` | EW stages (suitability/prohibition) |
 | `/enemies` | `pages/enemies.tsx` | enemy list; modal deep-link `?enemy=<id>` (stats, skills, AI graph) |
@@ -37,12 +38,13 @@ drop chip / gear tile anywhere opens them in place. Unit references share
 
 | file / dir | what |
 |---|---|
-| `layout.tsx` + `layout/` (`navbar`, `navcontent`, `navlink`, `scrollTop`) | app shell, nav, region switch, global modals, scroll-to-top |
+| `layout.tsx` + `layout/` (`navbar`, `navcontent`, `navlink`, `footer`, `scrollTop`) | app shell, nav, region switch, global modals, footer (GitHub links), scroll-to-top |
 | `enemyTab/` (`enemyModal`, `skillTab(+List)`, `skillArea`, `appearance(+List)`, `aiGraph`) | enemy modal internals; AI graph uses dagre |
 | `skinViewer.tsx` + `skinViewer/` (`chrome.tsx`, `types.ts`) | skin viewer: PixiJS (fixed/spine, spine-pixi-v8, brotli-dec-wasm archives via `lib/skinArchive.ts`) + Unity WebGL iframe (skinned) with postMessage variant API |
 | `buffList.tsx` | buff/effect rendering; exports `buffValue`, `BuffCondTags`, `TARGET_LABELS` (reused by misc page) |
 | `statBlock.tsx`, `rewardList.tsx`, `stageGrid.tsx`, `stageTabs.tsx`, `enemyGrid.tsx` | stat tables, reward chips, stage wave grids |
 | `equipModal.tsx`, `unitHoverCard.tsx`, `gameText.tsx`, `eventImage.tsx`, `copyLink.tsx`, `simpleCard.tsx`, `globalLoader.tsx` | equip modal, unit hover card, loc-string renderer, misc UI |
+| `team/` (`formationGrid`, `unitPicker`, `equipPicker`, `unitConfig`, `simulatePanel`) | team-builder internals: formation map, pickers, per-unit config panel, round-1 sim output |
 
 ## Store (`store.ts` — 14 slices in `store/`)
 
@@ -60,10 +62,12 @@ unit, equip, misc, world`. `regionSlice` holds the active region
 | `buffIcons.ts` | buff icon mapping |
 | `skinArchive.ts` | fetch + brotli-decompress `.tar.br` skin archives |
 | `translationVersion.tsx` | community-translation versioning |
+| `team.ts` | team-builder logic: level/slot gating, stat computation (points + equipment + core links), skill scaling, ally-AoE tile mapping, equip eligibility, share-code encode/decode |
+| `simulate.ts` | round-1 battle simulation: fixpoint application of battle/round-start effects with condition evaluation, in-battle stat recompute, AP/action order, review notes for effects not auto-applied |
 | `publicImages.json` | generated manifest of `public/images/**` (rebuild: `npm run gen:images`; auto via `prebuild`) |
 
 `interfaces/` holds the TS types per domain (`ai, enemy, equip, iw, misc,
-sanctum, skill, unit, world`).
+sanctum, skill, team, unit, world`).
 
 ## Data contracts (what the app expects on R2 / `public/local-data`)
 
