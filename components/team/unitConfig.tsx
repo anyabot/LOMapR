@@ -16,6 +16,7 @@ import { selectRegion } from '@/store/regionSlice';
 import { RootState } from '@/store';
 import { UnitData, FullUnitData, LinkBonus } from '@/interfaces/unit';
 import { EquipData } from '@/interfaces/equip';
+import { EnemyIndex } from '@/interfaces/world';
 import { Team, TeamSlot, TeamEquipSel, StatKey } from '@/interfaces/team';
 import { Skill } from '@/interfaces/skill';
 import { t } from '@/lib/strings';
@@ -29,7 +30,7 @@ import {
   scaleSkillLevel, fullLinkSkillPowerValue, fullLinkBuffLv,
   skillUnlockRank,
 } from '@/lib/team';
-import { buildSimInputs } from '@/lib/simInputs';
+import { buildSimInputs, buildEnemySimInputs, isEnemyWaveCell } from '@/lib/simInputs';
 import { solveAutoPoints } from '@/lib/autoStats';
 import EquipPicker from './equipPicker';
 
@@ -41,6 +42,7 @@ interface Props {
   slot: TeamSlot;
   unit: UnitData;                 // full once the bundle merges
   team: Team;                     // whole team — the auto-stat solver simulates round 1
+  enemyWave: (EnemyIndex | null)[] | null;  // selected wave; enables ACC-vs-enemies
   onChange: (patch: Partial<TeamSlot>) => void;
   onRemove: () => void;
   onReplace: () => void;
@@ -86,7 +88,7 @@ function ConfigSection({ title, children }: { title: string; children: ReactNode
   );
 }
 
-export default function UnitConfig({ tile, slot, unit, team, onChange, onRemove, onReplace, onSkillClick, aoeSkillKey }: Props) {
+export default function UnitConfig({ tile, slot, unit, team, enemyWave, onChange, onRemove, onReplace, onSkillClick, aoeSkillKey }: Props) {
   useTranslationVersion();
   const dispatch = useAppDispatch();
   const equipList = useAppSelector(selectEquip);
@@ -100,9 +102,13 @@ export default function UnitConfig({ tile, slot, unit, team, onChange, onRemove,
   const [pickerSlot, setPickerSlot] = useState<number | null>(null);
   const [openEqSlot, setOpenEqSlot] = useState<number | null>(null);
 
-  // auto-stat: solve points for 100% round-1 CRIT (+ optional ACC floor)
+  // auto-stat: solve points for 100% round-1 CRIT (+ optional ACC floor,
+  // either manual or derived from the enemy wave's highest EVA)
   const [autoStat, setAutoStat] = useState(false);
   const [accTarget, setAccTarget] = useState(0);
+  const [accFromEnemies, setAccFromEnemies] = useState(false);
+  const hasWave = !!enemyWave?.some(isEnemyWaveCell);
+  const accVsEnemies = accFromEnemies && hasWave;
 
   const detail = !!unit.stat;
   const full = unit as FullUnitData;
@@ -129,12 +135,19 @@ export default function UnitConfig({ tile, slot, unit, team, onChange, onRemove,
     () => (autoStat && detail ? buildSimInputs(team, state) : null),
     [autoStat, detail, team, state],
   );
+  const enemyBuild = useMemo(
+    () => (autoStat && detail && hasWave && enemyWave ? buildEnemySimInputs(enemyWave, state) : null),
+    [autoStat, detail, hasWave, enemyWave, state],
+  );
   const autoSolution = useMemo(() => {
     if (!simBuild || simBuild.missing.length > 0 || simBuild.unavailable.length > 0) return null;
+    if (enemyBuild && enemyBuild.missing.length > 0) return null;
     return solveAutoPoints({
       inputs: simBuild.inputs, tile, unit: full, slot, getFull, accTarget,
+      enemyInputs: enemyBuild?.inputs ?? [],
+      accFromEnemies: accVsEnemies,
     });
-  }, [simBuild, tile, full, slot, getFull, accTarget]);
+  }, [simBuild, enemyBuild, tile, full, slot, getFull, accTarget, accVsEnemies]);
   useEffect(() => {
     if (!autoStat || !autoSolution) return;
     if (autoSolution.points.some((p, i) => p !== (slot.points[i] ?? 0))) {
@@ -350,6 +363,7 @@ export default function UnitConfig({ tile, slot, unit, team, onChange, onRemove,
             <HStack spacing={1.5}>
               <Text fontSize="2xs" color="gray.500" whiteSpace="nowrap">CRIT 100% + ACC ≥</Text>
               <NumberInput size="xs" value={accTarget} min={0} max={999} w="72px"
+                isDisabled={accVsEnemies}
                 onChange={(_, n) => setAccTarget(Number.isFinite(n) ? Math.max(n, 0) : 0)}>
                 <NumberInputField borderColor="surface.border" pr="20px" />
                 <NumberInputStepper>
@@ -359,6 +373,13 @@ export default function UnitConfig({ tile, slot, unit, team, onChange, onRemove,
               </NumberInput>
               <Text fontSize="2xs" color="gray.500" whiteSpace="nowrap">% (0 = ignore ACC)</Text>
             </HStack>
+            <Checkbox size="sm" colorScheme="red" isChecked={accVsEnemies} isDisabled={!hasWave}
+              onChange={(e) => setAccFromEnemies(e.target.checked)}
+              title="ACC target = 100 + highest enemy round-1 EVA (hit chance = ACC − EVA)">
+              <Text fontSize="2xs" fontWeight="600">
+                ACC vs enemies{hasWave ? '' : ' (pick a wave first)'}
+              </Text>
+            </Checkbox>
           </Flex>
           {autoStat ? (
             simBuild && simBuild.unavailable.length > 0 ? (
@@ -369,12 +390,16 @@ export default function UnitConfig({ tile, slot, unit, team, onChange, onRemove,
               <Text fontSize="2xs" color="gray.500" mt={1}>Loading team data…</Text>
             ) : autoSolution.possible ? (
               <Text fontSize="2xs" color="green.300" mt={1}>
-                Possible — CRIT {autoSolution.critPts} pts{accTarget > 0 ? `, ACC ${autoSolution.accPts} pts` : ''},
+                Possible — CRIT {autoSolution.critPts} pts
+                {autoSolution.accTargetUsed > 0
+                  ? `, ACC ${autoSolution.accPts} pts (target ${autoSolution.accTargetUsed}%${accVsEnemies ? ' = 100 + highest enemy EVA' : ''})`
+                  : ''},
                 {' '}{autoSolution.leftover} pts left to spend. Recomputes as equipment / team changes.
               </Text>
             ) : (
               <Text fontSize="2xs" color="red.300" mt={1}>
-                Not possible — round-1 CRIT 100%{accTarget > 0 ? ` + ACC ${accTarget}%` : ''} needs{' '}
+                Not possible — round-1 CRIT 100%
+                {autoSolution.accTargetUsed > 0 ? ` + ACC ${autoSolution.accTargetUsed}%` : ''} needs{' '}
                 {autoSolution.needed} pts, only {totalPts} available. Best effort applied (CRIT first).
               </Text>
             )

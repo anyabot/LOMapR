@@ -43,6 +43,7 @@ import { fetchUnitsAsync, selectUnits } from "@/store/unitSlice";
 import { factionIcon, unitDisplayName } from "@/lib/rank";
 import { t } from "@/lib/strings";
 import { useTranslationVersion } from "@/lib/translationVersion";
+import { encodeWaveRef } from "@/lib/waveRef";
 import styles from "@/styles/custom.module.css";
 
 export default function Home() {
@@ -352,15 +353,23 @@ export default function Home() {
             flexWrap="wrap"
           >
           {waveData ? (
-            <HStack as={Center} gap={[2, 4]}>
-              <IconButton aria-label="Previous wave" icon={<ArrowLeftIcon />}
-                isRound size="md" variant="outline" colorScheme="gray"
-                isDisabled={wave == 0} onClick={decreaseWave} />
-              <EnemyGrid wave={waveData.e} />
-              <IconButton aria-label="Next wave" icon={<ArrowRightIcon />}
-                isRound size="md" variant="outline" colorScheme="gray"
-                isDisabled={wave == floorData!.waves.length - 1} onClick={increaseWave} />
-            </HStack>
+            <VStack spacing={2}>
+              <HStack as={Center} gap={[2, 4]}>
+                <IconButton aria-label="Previous wave" icon={<ArrowLeftIcon />}
+                  isRound size="md" variant="outline" colorScheme="gray"
+                  isDisabled={wave == 0} onClick={decreaseWave} />
+                <EnemyGrid wave={waveData.e} />
+                <IconButton aria-label="Next wave" icon={<ArrowRightIcon />}
+                  isRound size="md" variant="outline" colorScheme="gray"
+                  isDisabled={wave == floorData!.waves.length - 1} onClick={increaseWave} />
+              </HStack>
+              <Button as={Link} size="xs" variant="outline" colorScheme="teal"
+                href={`/team?w=${encodeURIComponent(encodeWaveRef({
+                  src: 'sanctum', area: activeArea, floor: activeFloor, diff: activeDiff, wave,
+                }))}`}>
+                Simulate this wave in Team Builder
+              </Button>
+            </VStack>
           ) : null}
 
           <VStack align="stretch" flex={1} minW={{ base: "100%", lg: "320px" }} maxW="640px">
