@@ -128,6 +128,7 @@ const MULT_KEYS = new Set<StatKey>(['ATK', 'DEF', 'HP', 'SPD']);
 
 const AP_ADD = 20, AP_SET = 21;
 const trunc2 = (n: number): number => Math.floor((n + Number.EPSILON) * 100) / 100;
+const capAp = (n: number): number => trunc2(Math.min(n, 20));
 
 // ── helpers over the running state ───────────────────────────────────────────
 
@@ -672,8 +673,10 @@ export function simulateRound1(
   // The first combat round starts as soon as ANY unit reaches 10 AP. Slower
   // units do not keep accumulating pre-combat cycles before that round starts;
   // they remain below 10 and gain SPD (+ recurring round AP) in later rounds.
+  // Every unit receives at least one SPD cycle, even when effects already give
+  // it 10+ AP, and AP is capped at 20 at every displayed timeline point.
   const apMeta = new Map<number, {
-    battle: StatMap; apAdd: number; roundAp: number; apSet: number | null;
+    battle: StatMap; startAp: number; roundAp: number;
     spd: number; cycles: number;
   }>();
   const allStates: UnitState[] = [
@@ -682,21 +685,18 @@ export function simulateRound1(
   for (const u of allStates) {
     const { battle, apSpd, apAdd, roundAp, apSet } = recomputeBattle(u);
     const spd = Math.max(apSpd, 0.1);
-    const cycles = apSet != null
-      ? (apSet >= 10 ? 1 : Math.max(1, Math.ceil((10 - apSet - apAdd) / spd)))
-      : Math.max(1, Math.ceil((10 - apAdd) / spd));
-    apMeta.set(sideTileKey(u.side, u.tile), { battle, apAdd, roundAp, apSet, spd, cycles });
+    const startAp = Math.min((apSet ?? 0) + apAdd, 20);
+    const cycles = Math.max(1, Math.ceil((10 - startAp) / spd));
+    apMeta.set(sideTileKey(u.side, u.tile), { battle, startAp, roundAp, spd, cycles });
   }
   const firstCycle = Math.min(...Array.from(apMeta.values()).map((m) => m.cycles));
   const results: SimUnitResult[] = [];
   for (const u of allStates) {
-    const { battle, apAdd, roundAp, apSet, spd, cycles } = apMeta.get(sideTileKey(u.side, u.tile))!;
-    let ap = spd * firstCycle + apAdd;
-    if (apSet != null) ap = apSet;
-    ap = trunc2(Math.min(ap, 20));
+    const { battle, startAp, roundAp, spd, cycles } = apMeta.get(sideTileKey(u.side, u.tile))!;
+    const ap = capAp(startAp + spd * firstCycle);
     const perRound = Math.max(spd + roundAp, 0.1);
     const readyRound = ap >= 10 ? 1 : 1 + Math.ceil((10 - ap) / perRound);
-    const readyAp = trunc2(Math.min(ap + perRound * (readyRound - 1), 20));
+    const readyAp = capAp(ap + perRound * (readyRound - 1));
     const t0 = u.total;
     const delta = Object.fromEntries(
       (Object.keys(battle) as StatKey[]).map((k) => [k, Math.round((battle[k] - t0[k]) * 100) / 100]),

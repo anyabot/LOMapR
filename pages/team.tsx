@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
+import { useStore } from 'react-redux';
 import {
   Box, Button, ButtonGroup, Center, Flex, Heading, HStack, VStack, Text, Badge,
   Input, InputGroup, InputRightElement, SimpleGrid, useToast,
@@ -16,6 +17,7 @@ import { fetchEnemySkillsAsync } from '@/store/skillSlice';
 import { selectSanctum, fetchSanctumAsync } from '@/store/sanctumSlice';
 import { selectIW, fetchIWAsync } from '@/store/IWSlice';
 import { Team, TeamSlot, WaveRef } from '@/interfaces/team';
+import { RootState } from '@/store';
 import { UnitData } from '@/interfaces/unit';
 import { Skill } from '@/interfaces/skill';
 import { EnemyIndex } from '@/interfaces/world';
@@ -24,6 +26,7 @@ import { useTranslationVersion } from '@/lib/translationVersion';
 import { makeSlot, encodeTeam, decodeTeam, allyAffectedTiles, MAX_UNITS } from '@/lib/team';
 import { decodeWaveRef, sanitizeWaveRef } from '@/lib/waveRef';
 import { isEnemyWaveCell } from '@/lib/simInputs';
+import { exportTeamImage } from '@/lib/teamImage';
 import FormationGrid from '@/components/team/formationGrid';
 import UnitPicker from '@/components/team/unitPicker';
 import UnitConfig from '@/components/team/unitConfig';
@@ -66,6 +69,7 @@ export default function TeamBuilder() {
   useTranslationVersion();
   const router = useRouter();
   const dispatch = useAppDispatch();
+  const reduxStore = useStore<RootState>();
   const toast = useToast();
   const units = useAppSelector(selectUnits);
   const unitStatus = useAppSelector(selectUnitStatus);
@@ -82,6 +86,7 @@ export default function TeamBuilder() {
   const [moveArm, setMoveArm] = useState(false);
   const [aoe, setAoe] = useState<{ caster: number; key: string; tiles: number[] } | null>(null);
   const [loadCode, setLoadCode] = useState('');
+  const [exporting, setExporting] = useState(false);
   const restored = useRef(false);
   const [hydrated, setHydrated] = useState(false);
 
@@ -261,6 +266,18 @@ export default function TeamBuilder() {
   const shareCode = () => copy(encodeTeam(team), 'Team code');
   const shareLink = () =>
     copy(`${window.location.origin}/team?t=${encodeURIComponent(encodeTeam(team))}`, 'Team link');
+  const exportImage = async () => {
+    setExporting(true);
+    try {
+      await exportTeamImage(team, reduxStore.getState());
+      toast({ status: 'success', duration: 2000, title: 'Team image exported.' });
+    } catch (error) {
+      toast({ status: 'error', duration: 3500, title: 'Could not export team image.',
+        description: error instanceof Error ? error.message : String(error) });
+    } finally {
+      setExporting(false);
+    }
+  };
 
   // a loaded code goes into its own slot; if it's already saved, switch there
   const applyCode = () => {
@@ -478,6 +495,9 @@ export default function TeamBuilder() {
                         isDisabled={!team.some((s) => s)}>Copy team code</Button>
                       <Button size="xs" colorScheme="yellow" variant="outline" onClick={shareLink}
                         isDisabled={!team.some((s) => s)}>Copy link</Button>
+                      <Button size="xs" colorScheme="teal" variant="outline" onClick={exportImage}
+                        isLoading={exporting} loadingText="Exporting"
+                        isDisabled={!team.some((s) => s)}>Export image</Button>
                     </HStack>
                     <InputGroup size="sm">
                       <Input placeholder="Paste a team code…" value={loadCode}

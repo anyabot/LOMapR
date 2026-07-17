@@ -1,4 +1,4 @@
-import { Box, Flex, Grid, HStack, IconButton, Image, Text, VStack } from '@chakra-ui/react';
+import { Box, Grid, HStack, IconButton, Image, Text, VStack } from '@chakra-ui/react';
 import { RepeatIcon, SmallCloseIcon } from '@chakra-ui/icons';
 import { Team } from '@/interfaces/team';
 import { UnitData } from '@/interfaces/unit';
@@ -127,9 +127,6 @@ export default function FormationGrid({
           );
         })}
       </Grid>
-      <Flex justify="flex-end" mt={1}>
-        <Text fontSize="2xs" color="gray.600">enemy side →</Text>
-      </Flex>
     </Box>
   );
 }

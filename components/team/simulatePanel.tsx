@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from 'react';
+import NextLink from 'next/link';
 import {
   Box, Center, Flex, Heading, HStack, VStack, Text, Tag, Badge, Image, Spinner,
   Accordion, AccordionItem, AccordionButton, AccordionPanel, AccordionIcon,
@@ -7,7 +8,7 @@ import {
 import { useAppSelector, useAppDispatch } from '@/hooks';
 import { RootState } from '@/store';
 import { selectUnits } from '@/store/unitSlice';
-import { selectEnemy, fetchEnemyAsync } from '@/store/enemySlice';
+import { selectEnemy, fetchEnemyAsync, setActive } from '@/store/enemySlice';
 import { selectImage, fetchImageAsync } from '@/store/imageSlice';
 import { Team, StatKey } from '@/interfaces/team';
 import { UnitData } from '@/interfaces/unit';
@@ -46,7 +47,9 @@ const NOTE_META: Record<NoteKind, { label: string; color: string; blurb: string 
 
 function UnitChip({ unit }: { unit: UnitData }) {
   return (
-    <HStack spacing={1.5} flexShrink={0}>
+    <HStack as={NextLink} href={`/units/detail?id=${encodeURIComponent(unit.id)}`}
+      spacing={1.5} flexShrink={0} onClick={(e) => e.stopPropagation()}
+      _hover={{ color: 'yellow.300', textDecoration: 'underline' }}>
       {unit.icon ? (
         <Image src={`/images/icons/${unit.icon}.png`} alt="" boxSize="22px" borderRadius="sm" objectFit="cover" />
       ) : null}
@@ -56,12 +59,15 @@ function UnitChip({ unit }: { unit: UnitData }) {
 }
 
 function EnemyChip({ id, lv }: { id: string; lv?: number }) {
+  const dispatch = useAppDispatch();
   const enemyList = useAppSelector(selectEnemy);
   const imagelink = useAppSelector(selectImage);
   const rec = enemyList[id];
   const img = rec ? imagelink[rec.img] : undefined;
   return (
-    <HStack spacing={1.5} flexShrink={0}>
+    <HStack as="button" type="button" spacing={1.5} flexShrink={0}
+      onClick={(e) => { e.stopPropagation(); dispatch(setActive([id, lv ?? 1])); }}
+      _hover={{ textDecoration: 'underline' }}>
       {img ? <Image src={img} alt="" boxSize="22px" borderRadius="sm" objectFit="cover" /> : null}
       <Text fontSize="xs" fontWeight="600" noOfLines={1} color="red.200">
         {rec ? t(rec.name) : id}{lv ? ` Lv.${lv}` : ''}
@@ -333,8 +339,8 @@ export default function SimulatePanel({ team, enemyWave }: {
                       ? (rec ? imagelink[rec.img] : undefined)
                       : (u?.icon ? `/images/icons/${u.icon}.png` : undefined);
                     const name = isEnemy ? (rec ? t(rec.name) : r.unitId) : (u ? unitDisplayName(u) : '');
-                    return (
-                      <VStack key={`${entry.side}-${entry.tile}`} spacing={1} w="68px" flexShrink={0}>
+                    const chip = (
+                      <VStack spacing={1} w="68px" flexShrink={0}>
                         {img ? (
                           <Image src={img} alt={name}
                             boxSize="48px" borderRadius="lg" objectFit="cover" borderWidth="2px"
@@ -350,6 +356,19 @@ export default function SimulatePanel({ team, enemyWave }: {
                           {r.ap.toLocaleString()} AP
                         </Text>
                       </VStack>
+                    );
+                    return isEnemy ? (
+                      <Box as="button" type="button" key={`${entry.side}-${entry.tile}`}
+                        onClick={() => dispatch(setActive([r.unitId, enemyLvOf(entry.tile) ?? 1]))}
+                        _hover={{ opacity: 0.8 }}>
+                        {chip}
+                      </Box>
+                    ) : (
+                      <Box as={NextLink} key={`${entry.side}-${entry.tile}`}
+                        href={`/units/detail?id=${encodeURIComponent(r.unitId)}`}
+                        _hover={{ opacity: 0.8 }}>
+                        {chip}
+                      </Box>
                     );
                   })}
                 </HStack>
@@ -371,7 +390,7 @@ export default function SimulatePanel({ team, enemyWave }: {
               <AccordionItem key={`${r.side}-${r.tile}`} border="1px solid"
                 borderColor={r.side === 1 ? 'red.900' : 'surface.border'}
                 borderRadius="lg" mb={2} bg="blackAlpha.300">
-                <AccordionButton px={3} py={2}>
+                <AccordionButton as="div" px={3} py={2} cursor="pointer">
                   <Flex flex="1" align="center" gap={3} wrap="wrap" textAlign="left">
                     {u ? <UnitChip unit={u} /> : <EnemyChip id={r.unitId} lv={enemyLvOf(r.tile)} />}
                     <HStack spacing={2} fontSize="2xs" color="gray.400">
@@ -456,7 +475,7 @@ export default function SimulatePanel({ team, enemyWave }: {
                             return (
                               <Tr key={i}>
                                 <Td py={1}>
-                                  {n.side === 1 ? <EnemyChip id={n.unitId} />
+                                  {n.side === 1 ? <EnemyChip id={n.unitId} lv={enemyLvOf(n.tile)} />
                                     : u ? <UnitChip unit={u} />
                                     : <Text fontSize="xs">{n.unitId}</Text>}
                                 </Td>
