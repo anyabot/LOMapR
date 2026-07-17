@@ -29,7 +29,8 @@ import UnitHoverCard from '@/components/unitHoverCard';
 import { filterActiveProps, rankColor, rankTag, unitDisplayName } from '@/lib/rank';
 import { t } from '@/lib/strings';
 import { useTranslationVersion } from '@/lib/translationVersion';
-import { MiscAoeEntry, MiscBuffEntry, MiscSkillMeta } from '@/interfaces/misc';
+import { MiscAoeEntry, MiscBuffEntry, MiscBuffTypeMeta, MiscSkillMeta } from '@/interfaces/misc';
+import { SkillBuff } from '@/interfaces/skill';
 import { UnitData } from '@/interfaces/unit';
 
 // ── shared bits ───────────────────────────────────────────────────────────────
@@ -102,10 +103,41 @@ const TARGET_FILTERS = [
 const triggerOptionLabel = (t: number) =>
   (TRIGGER_LABELS[t] ?? `Trigger ${t}`).replace('{0}', 'N').replace('{key}', '…');
 
-// numeric value magnitude for value-sorting (max-level value when non-linear).
+const buffValueAtLevel = (buff: SkillBuff, level: number) => buff.vals
+  ? buff.vals[Math.min(level - 1, buff.vals.length - 1)]
+  : Math.round((buff.val + buff.gain * (level - 1)) * 10000) / 10000;
+
+type ValueDirection = -1 | 0 | 1;
+type BuffSig = MiscBuffTypeMeta['sig'][number];
+interface BuffGroup {
+  key: string;
+  name: string;
+  types: number[];
+  count: number;
+  attrs: Set<number>;
+  sig: BuffSig[];
+  direction: ValueDirection | null;
+}
+
+const normalizeDirection = (direction: number | undefined): ValueDirection =>
+  direction === 1 ? 1 : direction === -1 ? -1 : 0;
+
+const buffDirectionAtLevel = (buff: SkillBuff, level: number): ValueDirection => {
+  const value = buffValueAtLevel(buff, level) * (buff.type === 90 ? -1 : 1);
+  return value > 0 ? 1 : value < 0 ? -1 : 0;
+};
+
+// The reverse lookup is not tied to the unit page's skill-level selector, so
+// present the full natural skill range instead of silently showing level 1.
+const buffWithLevelRange = (buff: SkillBuff): SkillBuff => {
+  const lv1 = buffValueAtLevel(buff, 1);
+  const lv10 = buffValueAtLevel(buff, 10);
+  return lv1 === lv10 ? buff : { ...buff, vals: [lv1, lv10] };
+};
+
+// numeric value magnitude for value-sorting (skill level 10).
 const buffMagnitude = (b: MiscBuffEntry) => {
-  const v = b.buff.vals ? b.buff.vals[b.buff.vals.length - 1] : b.buff.val;
-  return Math.abs(v);
+  return Math.abs(buffValueAtLevel(b.buff, 10));
 };
 
 function BuffLookup({ unitById }: { unitById: Record<string, UnitData> }) {
@@ -120,24 +152,55 @@ function BuffLookup({ unitById }: { unitById: Record<string, UnitData> }) {
   const [trigger, setTrigger] = useState('any');            // 'any' | trigger ordinal
   const [sortBy, setSortBy] = useState<'unit' | 'value'>('unit');
 
-  // Group buff-type ordinals by display name (e.g. ATK covers STAT_ATK_VALUE +
-  // STAT_ATK_RATIO): one chip per name, entries of all its ordinals merged.
+  // Group ordinals by display name. When that name has both positive and negative
+  // level-10 values, expose separate +/- chips; one-sided effects remain one chip.
   const groups = useMemo(() => {
-    const m = new Map<string, { name: string; types: number[]; count: number; attrs: Set<number>; sig: [number, number, number][] }>();
+    const byName = new Map<string, { ord: number; meta: MiscBuffTypeMeta }[]>();
     for (const [k, meta] of Object.entries(index?.buffTypes ?? {})) {
       const ord = parseInt(k, 10);
       const name = BUFF_TYPE_NAMES[ord] ?? `Type ${ord}`;
-      const g = m.get(name) ?? { name, types: [], count: 0, attrs: new Set<number>(), sig: [] };
-      g.types.push(ord);
-      g.count += meta.count;
-      g.sig = g.sig.concat(meta.sig ?? []);
-      meta.attrs.forEach((a) => g.attrs.add(a));
-      m.set(name, g);
+      const members = byName.get(name) ?? [];
+      members.push({ ord, meta });
+      byName.set(name, members);
     }
-    return Array.from(m.values()).sort((a, b) => a.name.localeCompare(b.name));
+
+    const result: BuffGroup[] = [];
+    for (const [baseName, members] of Array.from(byName.entries())) {
+      const signs = new Set<ValueDirection>();
+      for (const { meta } of members)
+        for (const sig of meta.sig ?? []) signs.add(normalizeDirection(sig[3]));
+      const split = signs.has(1) && signs.has(-1);
+      const directions: (ValueDirection | null)[] = split ? Array.from(signs).sort() : [null];
+
+      for (const direction of directions) {
+        const sig: BuffSig[] = [];
+        const types: number[] = [];
+        const attrs = new Set<number>();
+        for (const { ord, meta } of members) {
+          const matching = direction == null
+            ? (meta.sig ?? [])
+            : (meta.sig ?? []).filter((s: BuffSig) => normalizeDirection(s[3]) === direction);
+          if (matching.length === 0) continue;
+          types.push(ord);
+          sig.push(...matching);
+          matching.forEach((s: BuffSig) => attrs.add(s[1]));
+        }
+        const suffix = direction === 1 ? ' +' : direction === -1 ? ' −' : '';
+        result.push({
+          key: split ? `${baseName}:${direction}` : baseName,
+          name: `${baseName}${suffix}`,
+          types,
+          count: sig.length,
+          attrs,
+          sig,
+          direction,
+        });
+      }
+    }
+    return result.sort((a, b) => a.name.localeCompare(b.name));
   }, [index]);
 
-  const activeGroup = groups.find((g) => g.name === selected) ?? null;
+  const activeGroup = groups.find((g) => g.key === selected) ?? null;
 
   // fetch the selected group's per-type entry files (slice caches per region+type)
   useEffect(() => {
@@ -158,17 +221,22 @@ function BuffLookup({ unitById }: { unitById: Record<string, UnitData> }) {
     ([] as MiscBuffEntry[]).concat(...entryLists.filter(Boolean) as MiscBuffEntry[][]),
     [entryLists]);
 
+  const directionalAll = useMemo(() => activeGroup?.direction == null
+    ? all
+    : all.filter((e) => buffDirectionAtLevel(e.buff, 10) === activeGroup.direction),
+    [all, activeGroup]);
+
   // activation-condition options: only triggers present in the selected effect.
   const triggerOptions = useMemo(() => {
     const counts = new Map<number, number>();
-    for (const e of all) counts.set(e.buff.trigger, (counts.get(e.buff.trigger) ?? 0) + 1);
+    for (const e of directionalAll) counts.set(e.buff.trigger, (counts.get(e.buff.trigger) ?? 0) + 1);
     return Array.from(counts.entries())
       .sort((a, b) => triggerOptionLabel(a[0]).localeCompare(triggerOptionLabel(b[0])));
-  }, [all]);
+  }, [directionalAll]);
 
   const rows = useMemo(() => {
     const q = search.toLowerCase();
-    const filtered = all
+    const filtered = directionalAll
       .filter((e) => attrPass(e.buff.attr))
       .filter((e) => targetPass(e.buff.targetType))
       .filter((e) => trigger === 'any' || e.buff.trigger === parseInt(trigger, 10))
@@ -182,13 +250,13 @@ function BuffLookup({ unitById }: { unitById: Record<string, UnitData> }) {
       ? (a, b) => buffMagnitude(b) - buffMagnitude(a) || byUnit(a, b)
       : byUnit);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [all, search, attrOn, targetOn, trigger, sortBy, unitById]);
+  }, [directionalAll, search, attrOn, targetOn, trigger, sortBy, unitById]);
 
   const chipFilter = search && !activeGroup ? groups.filter((g) => g.name.toLowerCase().includes(search.toLowerCase())) : groups;
 
   // filter-aware chip count: distinct units whose entries pass the attr + target
   // filters (from the compact index signatures — no per-type fetch needed).
-  const groupUnitCount = (g: { sig: [number, number, number][] }) => {
+  const groupUnitCount = (g: { sig: BuffSig[] }) => {
     const set = new Set<number>();
     for (const [u, a, tt] of g.sig) if (attrPass(a) && targetPass(tt)) set.add(u);
     return set.size;
@@ -241,12 +309,12 @@ function BuffLookup({ unitById }: { unitById: Record<string, UnitData> }) {
       <Wrap spacing={1.5}>
         {chipFilter
           .map((g) => ({ g, n: groupUnitCount(g) }))
-          .filter(({ g, n }) => n > 0 || selected === g.name)
+          .filter(({ g, n }) => n > 0 || selected === g.key)
           .map(({ g, n }) => (
-            <WrapItem key={g.name}>
-              <Button size="xs" variant={selected === g.name ? 'solid' : 'outline'}
-                colorScheme={selected === g.name ? 'yellow' : 'gray'}
-                onClick={() => { setSelected(selected === g.name ? null : g.name); setSearch(''); setTrigger('any'); }}>
+            <WrapItem key={g.key}>
+              <Button size="xs" variant={selected === g.key ? 'solid' : 'outline'}
+                colorScheme={selected === g.key ? 'yellow' : 'gray'}
+                onClick={() => { setSelected(selected === g.key ? null : g.key); setSearch(''); setTrigger('any'); }}>
                 {g.name}
                 <Box as="span" ml={1} opacity={0.65}>{n}</Box>
               </Button>
@@ -282,7 +350,7 @@ function BuffLookup({ unitById }: { unitById: Record<string, UnitData> }) {
                   <Box as="tr" key={`${e.unit}-${e.skill}-${i}`}>
                     <Box {...tdProps}><UnitCell unit={unitById[e.unit]} /></Box>
                     <Box {...tdProps}><SkillCell e={e} /></Box>
-                    <Box {...tdProps} p={0}><BuffEffectRow buff={e.buff} /></Box>
+                    <Box {...tdProps} p={0}><BuffEffectRow buff={buffWithLevelRange(e.buff)} /></Box>
                     <Box {...tdProps}>
                       {e.area ? <SkillArea area={e.area} center={e.center ?? 5} size={9} />
                         : <Text fontSize="xs" color="gray.600">—</Text>}

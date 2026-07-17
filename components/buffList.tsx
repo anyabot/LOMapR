@@ -55,7 +55,7 @@ const APPLY_COND_LABELS: Record<number, string> = {
   17: "If target in mid row", 18: "If target in back row",
   19: "If self has [buff] (joint)", 20: "If self has ≥ {0} [buff]",
   21: "If self HP in range", 22: "If self missing [buff]",
-  23: "If target has ≥ {0} stacks", 24: "If self missing [buff] (joint)",
+  23: "If target has ≥ {0} stacks of [buff]", 24: "If self missing [buff] (joint)",
   // CHECK_COUNT_* compare a counted group size against {0} (e.g. 27 = total units
   // on both sides ≤ {0}).
   25: "If enemies = {0}", 26: "If allies = {0}",
@@ -380,8 +380,13 @@ export function buffValue(buff: SkillBuff): { str: string; color: string } {
   let valStr = "", valPositive = true;
   const t = buff.type;
   // Use max-level value when per-level values are stored non-linearly.
-  const v = buff.vals ? buff.vals[buff.vals.length - 1] : buff.val;
-  const vMin = buff.vals ? buff.vals[0] : v;
+  const rawV = buff.vals ? buff.vals[buff.vals.length - 1] : buff.val;
+  const rawVMin = buff.vals ? buff.vals[0] : rawV;
+  // DEBUFF_RATEUP stores a positive magnitude, but semantically lowers Status
+  // Resistance. DEBUFF_PERDOWN (91) is the opposite direction and stays positive.
+  const direction = t === 90 ? -1 : 1;
+  const v = rawV * direction;
+  const vMin = rawVMin * direction;
   const isPct = buff.fmt === "pct" || RATIO_TYPES.has(t);
   if (t === 33 && v !== 0) valStr = `×${v}`;
   else if ((t === 34 || t === 35) && v !== 0) valStr = `< ${v}`;
@@ -437,13 +442,16 @@ function resolveRemoveTargets(buff: SkillBuff): string {
 export function BuffEffectRow({ buff, topBorder = false, extraCondNode }: { buff: SkillBuff; topBorder?: boolean; extraCondNode?: React.ReactNode }) {
   if (!buff.icon && !BUFF_TYPE_NAMES[buff.type]) return null;
   const { str: valStr, color: valColor } = buffValue(buff);
-  const descFill = valStr.replace(/^[+×<]\s?/, "").replace(/%$/, "");
+  // Type 90 descriptions already say "reduced/decreased", so interpolate the
+  // unsigned magnitude even though the effect row correctly displays a minus.
+  const descValStr = buff.type === 90 ? valStr.replace(/-/g, "") : valStr;
+  const descFill = descValStr.replace(/^[+×<]\s?/, "").replace(/%$/, "");
   const as = attrStyle(buff.attr);
   const removeTarget = resolveRemoveTargets(buff);
 
   const name = (
     <HStack spacing={1.5} flexWrap="wrap">
-      {buff.rate < 1 ? <Box px="5px" py="1px" borderRadius="3px" bg="yellow.900" color="yellow.300" fontSize="11px" lineHeight="16px">{Math.round(buff.rate * 100)}%</Box> : null}
+      {buff.rate !== 1 ? <Box px="5px" py="1px" borderRadius="3px" bg="yellow.900" color="yellow.300" fontSize="11px" lineHeight="16px">{Math.round(buff.rate * 100)}%</Box> : null}
       {buff.icon ? <Image src={`/images/effects/BuffIcon_${buff.icon}.png`} boxSize="16px" alt={buff.icon} display="inline-block" /> : null}
       <Text as="span" fontSize="sm" fontWeight="bold" textDecoration="underline" color="gray.200">{BUFF_TYPE_NAMES[buff.type]}</Text>
       {removeTarget ? <Text as="span" fontSize="sm" color="orange.200">{removeTarget}</Text> : null}

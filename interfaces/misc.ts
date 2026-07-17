@@ -34,9 +34,10 @@ export interface MiscBuffTypeMeta {
   count: number;      // total entries of this BUFFEFFECT_TYPE ordinal
   attrs: number[];    // BUFF_ATTR_TYPEs seen among the entries
   units: number;      // distinct units applying it
-  // compact per-entry signature [unitIdx, attr, targetType] — unitIdx indexes
-  // MiscIndex.units. Lets the picker compute filter-aware counts client-side.
-  sig: [number, number, number][];
+  // compact per-entry signature [unitIdx, attr, targetType, valueDirection], where
+  // direction is -1 / 0 / 1 at skill level 10. unitIdx indexes MiscIndex.units.
+  // This lets the picker split +/- values and compute filter-aware counts.
+  sig: [number, number, number, -1 | 0 | 1][];
 }
 
 export interface MiscIndex {

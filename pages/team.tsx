@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import {
-  Box, Button, Center, Flex, Heading, HStack, VStack, Text, Badge,
+  Box, Button, ButtonGroup, Center, Flex, Heading, HStack, VStack, Text, Badge,
   Input, InputGroup, InputRightElement, SimpleGrid, useToast,
   Tabs, Tab, TabList, TabPanels, TabPanel,
 } from '@chakra-ui/react';
@@ -21,10 +21,32 @@ import UnitConfig from '@/components/team/unitConfig';
 import SimulatePanel from '@/components/team/simulatePanel';
 
 // /team — team builder on the 3x3 formation map + round-1 battle simulation,
-// with share codes (?t=) and localStorage persistence.
+// with share codes (?t=) and localStorage persistence. Multiple team slots are
+// kept locally; loading a code (paste or ?t=) lands in its own slot.
 
-const STORAGE_KEY = 'lomapr.team.v1';
+const STORAGE_KEY = 'lomapr.team.v1';          // legacy single-team key, migrated once
+const STORAGE_KEY_MULTI = 'lomapr.teams.v1';   // { active, teams: string[] } of team codes
 const EMPTY_TEAM: Team = Array(9).fill(null);
+
+interface StoredTeams { active: number; teams: string[] }
+
+function readStoredTeams(): StoredTeams | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_MULTI);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed?.teams) && parsed.teams.length > 0 &&
+          parsed.teams.every((c: unknown) => typeof c === 'string')) {
+        const active = Number.isInteger(parsed.active)
+          ? Math.min(Math.max(parsed.active, 0), parsed.teams.length - 1) : 0;
+        return { active, teams: parsed.teams };
+      }
+    }
+    const legacy = localStorage.getItem(STORAGE_KEY);
+    if (legacy) return { active: 0, teams: [legacy] };
+  } catch { /* ignore */ }
+  return null;
+}
 
 export default function TeamBuilder() {
   useTranslationVersion();
@@ -37,6 +59,8 @@ export default function TeamBuilder() {
   const region = useAppSelector(selectRegion);
 
   const [team, setTeam] = useState<Team>(EMPTY_TEAM);
+  const [slotIdx, setSlotIdx] = useState(0);
+  const [slotCodes, setSlotCodes] = useState<string[]>(['']);
   const [selTile, setSelTile] = useState<number | null>(null);
   const [pickerTile, setPickerTile] = useState<number | null>(null);
   const [moveArm, setMoveArm] = useState(false);
@@ -62,24 +86,47 @@ export default function TeamBuilder() {
     for (const id of teamEquipIds.split('|')) if (id) dispatch(fetchEquipFullAsync(id));
   }, [teamEquipIds, region, dispatch]);
 
-  // one-time restore: ?t= wins over the locally saved team.
+  // one-time restore. A ?t= code lands in its own slot (or re-activates the
+  // slot that already holds the same team) instead of overwriting anything.
   useEffect(() => {
     if (restored.current || !router.isReady) return;
     restored.current = true;
+    const stored = readStoredTeams() ?? { active: 0, teams: [''] };
     const fromUrl = typeof router.query.t === 'string' ? decodeTeam(router.query.t) : null;
-    if (fromUrl) { setTeam(fromUrl); return; }
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      const dec = saved ? decodeTeam(saved) : null;
-      if (dec) setTeam(dec);
-    } catch { /* ignore */ }
+    if (fromUrl) {
+      const code = encodeTeam(fromUrl);
+      const existing = stored.teams.indexOf(code);
+      const teams = existing >= 0 ? stored.teams : [...stored.teams, code];
+      setSlotCodes(teams);
+      setSlotIdx(existing >= 0 ? existing : teams.length - 1);
+      setTeam(fromUrl);
+      return;
+    }
+    setSlotCodes(stored.teams);
+    setSlotIdx(stored.active);
+    const dec = decodeTeam(stored.teams[stored.active] ?? '');
+    if (dec) setTeam(dec);
   }, [router.isReady, router.query.t]);
 
-  // persist the working team
+  // keep the active slot's code in sync with the working team…
   useEffect(() => {
     if (!restored.current) return;
-    try { localStorage.setItem(STORAGE_KEY, encodeTeam(team)); } catch { /* ignore */ }
-  }, [team]);
+    const code = encodeTeam(team);
+    setSlotCodes((codes) => {
+      if (codes[slotIdx] === code) return codes;
+      const next = [...codes];
+      next[slotIdx] = code;
+      return next;
+    });
+  }, [team, slotIdx]);
+
+  // …and persist all slots
+  useEffect(() => {
+    if (!restored.current) return;
+    try {
+      localStorage.setItem(STORAGE_KEY_MULTI, JSON.stringify({ active: slotIdx, teams: slotCodes }));
+    } catch { /* ignore */ }
+  }, [slotCodes, slotIdx]);
 
   const usedIds = useMemo(
     () => new Set(team
@@ -90,6 +137,28 @@ export default function TeamBuilder() {
 
   const patchSlot = (tile: number, patch: Partial<TeamSlot>) =>
     setTeam((tm) => tm.map((s, i) => (i === tile && s ? { ...s, ...patch } : s)));
+
+  // team-slot management (the working team is already saved continuously)
+  const activateSlot = (i: number, codes: string[]) => {
+    setSlotIdx(i);
+    setTeam(decodeTeam(codes[i] ?? '') ?? EMPTY_TEAM);
+    setSelTile(null);
+    setAoe(null);
+    setMoveArm(false);
+  };
+  const switchSlot = (i: number) => { if (i !== slotIdx) activateSlot(i, slotCodes); };
+  const addSlot = () => {
+    const next = [...slotCodes, ''];
+    setSlotCodes(next);
+    activateSlot(next.length - 1, next);
+  };
+  const deleteSlot = () => {
+    if (!window.confirm(`Delete team ${slotIdx + 1}? This cannot be undone.`)) return;
+    const next = slotCodes.filter((_, i) => i !== slotIdx);
+    if (next.length === 0) next.push('');
+    setSlotCodes(next);
+    activateSlot(Math.min(slotIdx, next.length - 1), next);
+  };
 
   const onTileClick = (tile: number) => {
     setAoe(null);
@@ -165,17 +234,25 @@ export default function TeamBuilder() {
   const shareLink = () =>
     copy(`${window.location.origin}/team?t=${encodeURIComponent(encodeTeam(team))}`, 'Team link');
 
+  // a loaded code goes into its own slot; if it's already saved, switch there
   const applyCode = () => {
     const dec = decodeTeam(loadCode);
     if (!dec) {
       toast({ status: 'error', duration: 3000, title: 'Invalid team code.' });
       return;
     }
-    setTeam(dec);
-    setSelTile(null);
-    setAoe(null);
+    const code = encodeTeam(dec);
+    const existing = slotCodes.indexOf(code);
     setLoadCode('');
-    toast({ status: 'success', duration: 2000, title: 'Team loaded.' });
+    if (existing >= 0) {
+      activateSlot(existing, slotCodes);
+      toast({ status: 'success', duration: 2000, title: `Already saved — switched to team ${existing + 1}.` });
+      return;
+    }
+    const next = [...slotCodes, code];
+    setSlotCodes(next);
+    activateSlot(next.length - 1, next);
+    toast({ status: 'success', duration: 2000, title: `Team loaded into slot ${next.length}.` });
   };
 
   const selSlot = selTile != null ? team[selTile] : null;
@@ -200,6 +277,29 @@ export default function TeamBuilder() {
               <SimpleGrid columns={[1, 1, 2]} spacing={4} alignItems="start">
                 {/* left: map + share */}
                 <VStack align="stretch" spacing={4}>
+                  <Box borderWidth="1px" borderColor="surface.border" borderRadius="xl" bg="surface.elevated" p={3}>
+                    <Flex align="center" gap={2} wrap="wrap">
+                      <Text fontSize="xs" color="gray.500" fontWeight="700">Teams</Text>
+                      <ButtonGroup isAttached size="xs">
+                        {slotCodes.map((_, i) => (
+                          <Button key={i} colorScheme="yellow"
+                            variant={i === slotIdx ? 'solid' : 'outline'}
+                            onClick={() => switchSlot(i)}>
+                            {i + 1}
+                          </Button>
+                        ))}
+                      </ButtonGroup>
+                      <Button size="xs" variant="outline" colorScheme="teal" onClick={addSlot}>+ New</Button>
+                      <Button size="xs" variant="outline" colorScheme="red" onClick={deleteSlot}
+                        isDisabled={slotCodes.length <= 1 && !team.some((s) => s)}>
+                        Delete
+                      </Button>
+                    </Flex>
+                    <Text fontSize="2xs" color="gray.500" mt={1}>
+                      Saved in this browser. Loading a team code adds a new slot.
+                    </Text>
+                  </Box>
+
                   <Box borderWidth="1px" borderColor="surface.border" borderRadius="xl" bg="surface.elevated" p={4}>
                     <FormationGrid
                       team={team} units={units} selected={selTile}
@@ -255,9 +355,11 @@ export default function TeamBuilder() {
                 <Box>
                   {selSlot && selUnit ? (
                     <UnitConfig
+                      key={`${selTile}-${selSlot.unitId}`}
                       tile={selTile!}
                       slot={selSlot}
                       unit={selUnit}
+                      team={team}
                       onChange={(patch) => patchSlot(selTile!, patch)}
                       onRemove={() => onRemove(selTile!)}
                       onReplace={() => setPickerTile(selTile!)}
