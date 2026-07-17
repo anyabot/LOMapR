@@ -1,23 +1,28 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
+import NextLink from 'next/link';
 import {
   Box, Center, Flex, Heading, HStack, VStack, Text, Tag, Badge, Image, Spinner,
   Accordion, AccordionItem, AccordionButton, AccordionPanel, AccordionIcon,
   Table, Thead, Tbody, Tr, Th, Td, TableContainer, SimpleGrid,
 } from '@chakra-ui/react';
-import { useAppSelector } from '@/hooks';
+import { useAppSelector, useAppDispatch } from '@/hooks';
 import { RootState } from '@/store';
 import { selectUnits } from '@/store/unitSlice';
+import { selectEnemy, fetchEnemyAsync, setActive } from '@/store/enemySlice';
+import { selectImage, fetchImageAsync } from '@/store/imageSlice';
 import { Team, StatKey } from '@/interfaces/team';
 import { UnitData } from '@/interfaces/unit';
+import { EnemyIndex } from '@/interfaces/world';
 import { t } from '@/lib/strings';
 import { useTranslationVersion } from '@/lib/translationVersion';
 import { unitDisplayName } from '@/lib/rank';
 import { BUFF_TYPE_NAMES, TRIGGER_LABELS, buffValue } from '@/components/buffList';
-import { buildSimInputs } from '@/lib/simInputs';
-import { simulateRound1, NoteKind, AppliedBuff } from '@/lib/simulate';
+import { buildSimInputs, buildEnemySimInputs, isEnemyWaveCell } from '@/lib/simInputs';
+import { simulateRound1, NoteKind, AppliedBuff, SimUnitResult } from '@/lib/simulate';
 
-// Round-1 simulation output: in-battle stats, applied buffs by type, action
-// order, and the review list of effects not auto-applied.
+// Round-1 simulation output: in-battle stats (both sides when an enemy wave is
+// selected), applied buffs by type, action order, and the review list of
+// effects not auto-applied.
 
 const STAT_ROWS: [StatKey, string, string][] = [
   ['HP', 'HP', ''], ['ATK', 'ATK', ''], ['DEF', 'DEF', ''],
@@ -27,11 +32,11 @@ const STAT_ROWS: [StatKey, string, string][] = [
 
 const NOTE_META: Record<NoteKind, { label: string; color: string; blurb: string }> = {
   'enemy-target': { label: 'Enemy-side', color: 'gray',
-    blurb: 'Targets the enemy side — no enemy team is simulated.' },
+    blurb: 'Targets a single enemy (victim unknown pre-combat) or an enemy side that is not simulated.' },
   event: { label: 'Mid-battle', color: 'purple',
     blurb: 'Fires on an in-battle event (attack, hit, kill…), after the round-1 snapshot.' },
   'enemy-cond': { label: 'Enemy condition', color: 'orange',
-    blurb: 'Condition reads the enemy side, which is not simulated.' },
+    blurb: 'Condition reads enemy-side state that is not available.' },
   random: { label: 'Random pick', color: 'yellow',
     blurb: 'Randomly applies one of several effects — not deterministic.' },
   unknown: { label: 'Needs review', color: 'red',
@@ -42,11 +47,31 @@ const NOTE_META: Record<NoteKind, { label: string; color: string; blurb: string 
 
 function UnitChip({ unit }: { unit: UnitData }) {
   return (
-    <HStack spacing={1.5} flexShrink={0}>
+    <HStack as={NextLink} href={`/units/detail?id=${encodeURIComponent(unit.id)}`}
+      spacing={1.5} flexShrink={0} onClick={(e) => e.stopPropagation()}
+      _hover={{ color: 'yellow.300', textDecoration: 'underline' }}>
       {unit.icon ? (
         <Image src={`/images/icons/${unit.icon}.png`} alt="" boxSize="22px" borderRadius="sm" objectFit="cover" />
       ) : null}
       <Text fontSize="xs" fontWeight="600" noOfLines={1}>{unitDisplayName(unit)}</Text>
+    </HStack>
+  );
+}
+
+function EnemyChip({ id, lv }: { id: string; lv?: number }) {
+  const dispatch = useAppDispatch();
+  const enemyList = useAppSelector(selectEnemy);
+  const imagelink = useAppSelector(selectImage);
+  const rec = enemyList[id];
+  const img = rec ? imagelink[rec.img] : undefined;
+  return (
+    <HStack as="button" type="button" spacing={1.5} flexShrink={0}
+      onClick={(e) => { e.stopPropagation(); dispatch(setActive([id, lv ?? 1])); }}
+      _hover={{ textDecoration: 'underline' }}>
+      {img ? <Image src={img} alt="" boxSize="22px" borderRadius="sm" objectFit="cover" /> : null}
+      <Text fontSize="xs" fontWeight="600" noOfLines={1} color="red.200">
+        {rec ? t(rec.name) : id}{lv ? ` Lv.${lv}` : ''}
+      </Text>
     </HStack>
   );
 }
@@ -125,19 +150,39 @@ function AppliedGroupRow({ group }: { group: AppliedGroup }) {
   );
 }
 
-export default function SimulatePanel({ team }: { team: Team }) {
+export default function SimulatePanel({ team, enemyWave }: {
+  team: Team;
+  enemyWave?: (EnemyIndex | null)[] | null;
+}) {
   useTranslationVersion();
+  const dispatch = useAppDispatch();
   const units = useAppSelector(selectUnits);
+  const enemyList = useAppSelector(selectEnemy);
+  const imagelink = useAppSelector(selectImage);
   const state = useAppSelector((s: RootState) => s);
+  const hasWave = !!enemyWave?.some(isEnemyWaveCell);
+
+  // enemy names/portraits for the wave cards
+  useEffect(() => {
+    if (hasWave) { dispatch(fetchEnemyAsync()); dispatch(fetchImageAsync()); }
+  }, [hasWave, dispatch]);
 
   // Build sim inputs from the configured team; empty until every needed bundle
   // (unit detail + equipped-item records) has arrived.
   // state identity changes on every store update; that's fine — memo is cheap.
   const { inputs, missing, unavailable } = useMemo(() => buildSimInputs(team, state), [team, state]);
+  const enemyBuild = useMemo(
+    () => (hasWave && enemyWave ? buildEnemySimInputs(enemyWave, state) : null),
+    [hasWave, enemyWave, state],
+  );
+  const enemyMissing = enemyBuild?.missing ?? [];
 
   const result = useMemo(
-    () => (missing.length === 0 && inputs.length > 0 ? simulateRound1(inputs) : null),
-    [inputs, missing.length],
+    () => (missing.length === 0 && inputs.length > 0 && enemyMissing.length === 0
+      ? simulateRound1(inputs, enemyBuild?.inputs ?? [])
+      : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [inputs, missing.length, enemyBuild],
   );
 
   if (team.every((s) => !s)) {
@@ -153,20 +198,26 @@ export default function SimulatePanel({ team }: { team: Team }) {
       </Box>
     );
   }
-  if (missing.length > 0) {
+  if (missing.length > 0 || enemyMissing.length > 0) {
     return (
       <Center py={10}>
         <VStack>
           <Spinner color="yellow.400" />
-          <Text fontSize="xs" color="gray.500">Loading data for: {missing.join(', ')}</Text>
+          <Text fontSize="xs" color="gray.500">
+            Loading data for: {[...missing, ...enemyMissing].join(', ')}
+          </Text>
         </VStack>
       </Center>
     );
   }
   if (!result) return null;
 
-  const byTile = new Map(result.units.map((r) => [r.tile, r]));
+  const byKey = new Map<number, SimUnitResult>(
+    [...result.units, ...result.enemyUnits].map((r) => [r.side * 9 + r.tile, r]),
+  );
   const unitOf = (tile: number) => units[team[tile]!.unitId];
+  const enemyLvOf = (tile: number) => enemyBuild?.inputs.find((i) => i.tile === tile)?.lv;
+  const hasEnemies = result.enemyUnits.length > 0;
 
   return (
     <VStack align="stretch" spacing={4}>
@@ -178,7 +229,10 @@ export default function SimulatePanel({ team }: { team: Team }) {
       <Text fontSize="2xs" color="gray.500">
         Round-1 snapshot: battle-start / round-start / always-on passives and equipment effects,
         re-applied in passes until nothing new activates ({result.passes} pass{result.passes > 1 ? 'es' : ''}).
-        Configured HP percentages are used for HP-dependent effects; the enemy side is not simulated.
+        Configured HP percentages are used for HP-dependent effects
+        {hasEnemies
+          ? '; the selected enemy wave is simulated the same way (full HP, monster passives).'
+          : '; no enemy wave is selected, so enemy-side effects are only noted.'}
       </Text>
 
       {/* Persistent, recomputed result cards: these are the simulation's source of truth. */}
@@ -220,6 +274,43 @@ export default function SimulatePanel({ team }: { team: Team }) {
         </SimpleGrid>
       </Box>
 
+      {/* enemy wave: same battle-stat cards, red-tinted */}
+      {hasEnemies ? (
+        <Box borderWidth="1px" borderColor="red.800" borderRadius="xl" bg="surface.elevated" p={4}>
+          <Heading size="xs" mb={3} color="red.200">Enemy Side <Text as="span" fontSize="2xs"
+            color="gray.500" fontWeight="normal">after all round-start effects</Text></Heading>
+          <SimpleGrid columns={[1, 1, 2]} spacing={3}>
+            {result.enemyUnits.map((r) => (
+              <Box key={r.tile} borderWidth="1px" borderColor="red.900" borderRadius="lg"
+                bg="blackAlpha.300" p={3}>
+                <Flex align="center" justify="space-between" gap={2} mb={2}>
+                  <EnemyChip id={r.unitId} lv={enemyLvOf(r.tile)} />
+                  <HStack spacing={1}>
+                    <Badge colorScheme="yellow">AP {r.ap}</Badge>
+                    <Badge colorScheme="red">tile {r.tile + 1}</Badge>
+                  </HStack>
+                </Flex>
+                <SimpleGrid columns={2} spacingX={4} spacingY={1}>
+                  {STAT_ROWS.map(([k, label, suffix]) => (
+                    <Flex key={k} justify="space-between" gap={2} fontSize="xs">
+                      <Text color="gray.500">{label}</Text>
+                      <Text fontWeight="700">
+                        {r.battle[k].toLocaleString()}{suffix}
+                        {r.delta[k] ? (
+                          <Text as="span" ml={1} color={r.delta[k] > 0 ? 'green.300' : 'red.300'}>
+                            ({r.delta[k] > 0 ? '+' : ''}{r.delta[k].toLocaleString()}{suffix})
+                          </Text>
+                        ) : null}
+                      </Text>
+                    </Flex>
+                  ))}
+                </SimpleGrid>
+              </Box>
+            ))}
+          </SimpleGrid>
+        </Box>
+      ) : null}
+
       {/* AP timeline — like the in-game bar, the rightmost unit acts first. */}
       <Box borderWidth="1px" borderColor="surface.border" borderRadius="xl" bg="surface.elevated" p={4}>
         <Heading size="xs" mb={1}>First Action Timeline <Text as="span" fontSize="2xs" color="gray.500" fontWeight="normal">
@@ -239,24 +330,45 @@ export default function SimulatePanel({ team }: { team: Team }) {
                   Round {group.round} · cycle {group.cycle}
                 </Badge>
                 <HStack spacing={2} align="end">
-                  {[...group.tiles].reverse().map((tile) => {
-                    const r = byTile.get(tile)!;
-                    const u = unitOf(tile);
-                    return (
-                      <VStack key={tile} spacing={1} w="68px" flexShrink={0}>
-                        {u?.icon ? (
-                          <Image src={`/images/icons/${u.icon}.png`} alt={u ? unitDisplayName(u) : ''}
+                  {[...group.entries].reverse().map((entry) => {
+                    const r = byKey.get(entry.side * 9 + entry.tile)!;
+                    const isEnemy = entry.side === 1;
+                    const u = isEnemy ? undefined : unitOf(entry.tile);
+                    const rec = isEnemy ? enemyList[r.unitId] : undefined;
+                    const img = isEnemy
+                      ? (rec ? imagelink[rec.img] : undefined)
+                      : (u?.icon ? `/images/icons/${u.icon}.png` : undefined);
+                    const name = isEnemy ? (rec ? t(rec.name) : r.unitId) : (u ? unitDisplayName(u) : '');
+                    const chip = (
+                      <VStack spacing={1} w="68px" flexShrink={0}>
+                        {img ? (
+                          <Image src={img} alt={name}
                             boxSize="48px" borderRadius="lg" objectFit="cover" borderWidth="2px"
-                            borderColor={group.round === 1 ? 'yellow.400' : 'surface.border'} />
+                            borderColor={isEnemy ? 'red.500'
+                              : group.round === 1 ? 'yellow.400' : 'surface.border'} />
                         ) : null}
-                        <Text fontSize="2xs" fontWeight="600" noOfLines={1} maxW="68px">
-                          {u ? unitDisplayName(u) : ''}
+                        <Text fontSize="2xs" fontWeight="600" noOfLines={1} maxW="68px"
+                          color={isEnemy ? 'red.200' : undefined}>
+                          {name}
                         </Text>
                         <Text fontSize="xs" color={group.round === 1 ? 'cyan.300' : 'gray.400'} fontWeight="700"
                           title={group.round === 1 ? undefined : `Projected ${r.readyAp} AP when ready`}>
                           {r.ap.toLocaleString()} AP
                         </Text>
                       </VStack>
+                    );
+                    return isEnemy ? (
+                      <Box as="button" type="button" key={`${entry.side}-${entry.tile}`}
+                        onClick={() => dispatch(setActive([r.unitId, enemyLvOf(entry.tile) ?? 1]))}
+                        _hover={{ opacity: 0.8 }}>
+                        {chip}
+                      </Box>
+                    ) : (
+                      <Box as={NextLink} key={`${entry.side}-${entry.tile}`}
+                        href={`/units/detail?id=${encodeURIComponent(r.unitId)}`}
+                        _hover={{ opacity: 0.8 }}>
+                        {chip}
+                      </Box>
                     );
                   })}
                 </HStack>
@@ -270,16 +382,17 @@ export default function SimulatePanel({ team }: { team: Team }) {
       <Box borderWidth="1px" borderColor="surface.border" borderRadius="xl" bg="surface.elevated" p={4}>
         <Heading size="xs" mb={2}>Effects by Unit</Heading>
         <Accordion allowMultiple defaultIndex={[]}>
-          {result.units.map((r) => {
-            const u = unitOf(r.tile);
-            if (!u) return null;
+          {[...result.units, ...result.enemyUnits].map((r) => {
+            const u = r.side === 0 ? unitOf(r.tile) : undefined;
+            if (r.side === 0 && !u) return null;
             const effectGroups = groupAppliedBuffs(r.applied);
             return (
-              <AccordionItem key={r.tile} border="1px solid" borderColor="surface.border"
+              <AccordionItem key={`${r.side}-${r.tile}`} border="1px solid"
+                borderColor={r.side === 1 ? 'red.900' : 'surface.border'}
                 borderRadius="lg" mb={2} bg="blackAlpha.300">
-                <AccordionButton px={3} py={2}>
+                <AccordionButton as="div" px={3} py={2} cursor="pointer">
                   <Flex flex="1" align="center" gap={3} wrap="wrap" textAlign="left">
-                    <UnitChip unit={u} />
+                    {u ? <UnitChip unit={u} /> : <EnemyChip id={r.unitId} lv={enemyLvOf(r.tile)} />}
                     <HStack spacing={2} fontSize="2xs" color="gray.400">
                       <Text>ATK {r.battle.ATK.toLocaleString()}{r.delta.ATK ? <Text as="span" color="yellow.300"> ({r.delta.ATK > 0 ? '+' : ''}{r.delta.ATK.toLocaleString()})</Text> : null}</Text>
                       <Text>SPD {r.spd}</Text>
@@ -358,10 +471,14 @@ export default function SimulatePanel({ team }: { team: Team }) {
                         <Thead><Tr><Th>Unit</Th><Th>Source</Th><Th>Effect</Th><Th>Trigger</Th><Th>Detail</Th></Tr></Thead>
                         <Tbody>
                           {list.map((n, i) => {
-                            const u = units[n.unitId];
+                            const u = n.side === 0 ? units[n.unitId] : undefined;
                             return (
                               <Tr key={i}>
-                                <Td py={1}>{u ? <UnitChip unit={u} /> : <Text fontSize="xs">{n.unitId}</Text>}</Td>
+                                <Td py={1}>
+                                  {n.side === 1 ? <EnemyChip id={n.unitId} lv={enemyLvOf(n.tile)} />
+                                    : u ? <UnitChip unit={u} />
+                                    : <Text fontSize="xs">{n.unitId}</Text>}
+                                </Td>
                                 <Td py={1}><Text fontSize="2xs" noOfLines={1}>{t(n.sourceName)} <Text as="span" color="gray.600">({n.sourceKind})</Text></Text></Td>
                                 <Td py={1}>
                                   <HStack spacing={1}>

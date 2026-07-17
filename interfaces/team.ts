@@ -28,6 +28,15 @@ export interface TeamSlot {
 // The whole team: 9 tiles, null = empty.
 export type Team = (TeamSlot | null)[];
 
+// A selected enemy wave for the simulation, from one of three sources:
+// world stages, Sanctum floors, or Infinite War boss stages. Persisted per
+// saved team slot (localStorage only, not in the share code) and linkable via
+// /team?w= (see lib/waveRef.ts).
+export type WaveRef =
+  | { src: 'world'; world: string; stage: string; wave: number }
+  | { src: 'sanctum'; area: string; floor: number; diff: number; wave: number }
+  | { src: 'iw'; boss: string; stage: number };
+
 // Keys of the displayed stat block (percent stats are stored as whole percents,
 // matching UnitStat).
 export type StatKey =

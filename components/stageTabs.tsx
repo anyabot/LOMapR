@@ -1,9 +1,11 @@
 import {
-  Box, HStack, VStack, Text, Image, Center, IconButton, SimpleGrid,
+  Box, Button, HStack, VStack, Text, Image, Center, IconButton, SimpleGrid,
   Tabs, TabList, Tab, TabPanels, TabPanel, Tag, Divider, Link,
 } from '@chakra-ui/react';
 import { ArrowLeftIcon, ArrowRightIcon, StarIcon } from '@chakra-ui/icons';
+import NextLink from 'next/link';
 import { Stage, WaveDrop, RewardEntry, StageMission } from '@/interfaces/world';
+import { encodeWaveRef } from '@/lib/waveRef';
 import { t } from '@/lib/strings';
 import { useTranslationVersion } from '@/lib/translationVersion';
 import { unitDisplayName } from '@/lib/rank';
@@ -40,11 +42,12 @@ function fmtTime(s: number): string {
 }
 
 export default function StageTabs({
-  stage, currWave, setCurrWave,
+  stage, currWave, setCurrWave, worldId,
 }: {
   stage: Stage;
   currWave: number;
   setCurrWave: (n: number) => void;
+  worldId?: string;   // enables the "simulate this wave" team-builder link
 }) {
   useTranslationVersion();
   const isBattle = !!stage.waves.length;
@@ -178,6 +181,14 @@ export default function StageTabs({
               isDisabled={currWave === stage.waves.length - 1}
               onClick={() => setCurrWave(Math.min(stage.waves.length - 1, currWave + 1))} />
           </HStack>
+          {worldId ? (
+            <Button as={NextLink} size="xs" variant="outline" colorScheme="teal"
+              href={`/team?w=${encodeURIComponent(encodeWaveRef({
+                src: 'world', world: worldId, stage: stage.id, wave: currWave,
+              }))}`}>
+              Simulate this wave in Team Builder
+            </Button>
+          ) : null}
         </VStack>
       ),
     });

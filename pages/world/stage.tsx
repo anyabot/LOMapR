@@ -194,7 +194,7 @@ export default function Home() {
               {/* per-stage detail tabs: Clear Rewards / Drops / Squad / Enemies
                   / Exploration — only the sections this stage has are shown. */}
               <Box w="100%" maxW="container.lg">
-                <StageTabs stage={realCurrStage} currWave={currWave} setCurrWave={setCurrWave} />
+                <StageTabs stage={realCurrStage} currWave={currWave} setCurrWave={setCurrWave} worldId={id} />
               </Box>
             </VStack>
           </>

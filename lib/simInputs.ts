@@ -1,18 +1,22 @@
-// Build round-1 simulation inputs for a configured team straight from the
-// store. `missing` lists units whose bundles are still loading; `unavailable`
-// lists units that do not exist on the current server.
+// Build round-1 simulation inputs (player team and enemy wave) straight from
+// the store. `missing` lists units whose bundles are still loading;
+// `unavailable` lists units that do not exist on the current server.
 
 import { RootState } from '@/store';
 import { selectUnitFull, selectUnitSkills } from '@/store/unitSlice';
 import { selectEquipFull } from '@/store/equipSlice';
-import { Team } from '@/interfaces/team';
+import { selectEnemyFull } from '@/store/enemySlice';
+import { selectEnemySkills, selectEnemySkillStatus } from '@/store/skillSlice';
+import { Team, StatMap } from '@/interfaces/team';
 import { FullUnitData } from '@/interfaces/unit';
+import { EnemyFull } from '@/interfaces/enemy';
+import { EnemyIndex } from '@/interfaces/world';
 import { unitDisplayName } from '@/lib/rank';
 import {
   computeStats, equippedStats, equipSlotUnlocked, scaleSkillLevel,
   fullLinkSkillPowerValue, fullLinkBuffLv, skillUnlockRank,
 } from '@/lib/team';
-import { SimUnitInput } from '@/lib/simulate';
+import { SimUnitInput, SimEnemyInput } from '@/lib/simulate';
 
 export interface SimInputBuild {
   inputs: SimUnitInput[];
@@ -63,4 +67,54 @@ export function buildSimInputs(team: Team, state: RootState): SimInputBuild {
     inputs.push({ tile, unit: full, slot, stats, passives, equips });
   });
   return { inputs, missing, unavailable };
+}
+
+// ── enemy side ────────────────────────────────────────────────────────────────
+
+// Enemy stats at a wave level: HP/ATK/DEF grow linearly (base + perLv·(lv−1),
+// floored); ACC/EVA/CRIT/SPD and resists are flat — same math as the enemy modal.
+export function enemyStatsAt(e: EnemyFull, lv: number): StatMap {
+  const lin = (pair: [number, number]) => Math.floor(pair[0] + pair[1] * (lv - 1));
+  return {
+    HP: lin(e.HP), ATK: lin(e.ATK), DEF: lin(e.DEF),
+    SPD: e.SPD, CRI: e.CRIT, ACC: e.ACC, EVA: e.EVA,
+    fireRes: e.resist[0], iceRes: e.resist[1], lightningRes: e.resist[2],
+  };
+}
+
+export interface EnemySimInputBuild {
+  inputs: SimEnemyInput[];
+  missing: string[];
+}
+
+export function isEnemyWaveCell(
+  cell: EnemyIndex | null | undefined,
+): cell is EnemyIndex {
+  return !!cell?.id && cell.id !== '0';
+}
+
+// Build the enemy side from a stage wave (9 cells of {id, lv} | null). Needs
+// each enemy's full record + skill bundle; still-loading entries go to
+// `missing`. A failed skill fetch degrades to "no passives" rather than block.
+export function buildEnemySimInputs(
+  wave: (EnemyIndex | null)[], state: RootState,
+): EnemySimInputBuild {
+  const inputs: SimEnemyInput[] = [];
+  const missing: string[] = [];
+  wave.forEach((cell, tile) => {
+    if (tile >= 9 || !isEnemyWaveCell(cell)) return;
+    const full = selectEnemyFull(state, cell.id);
+    if (!full || !full.HP) { missing.push(cell.id); return; }
+    const skills = selectEnemySkills(state, cell.id);
+    const skillStatus = selectEnemySkillStatus(state, cell.id);
+    if ((full.skills?.length ?? 0) > 0 && Object.keys(skills).length === 0 &&
+        skillStatus !== 'failed') {
+      missing.push(`${cell.id} (skills)`); return;
+    }
+    const passives = Object.entries(skills)
+      .filter(([, s]) => s.type === 'passive')
+      .map(([key, s]) => ({ key, name: s.name, skill: s }));
+    inputs.push({ tile, enemy: full, lv: cell.lv, stats: enemyStatsAt(full, cell.lv), passives });
+  });
+  return { inputs, missing };
 }

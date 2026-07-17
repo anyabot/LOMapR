@@ -30,6 +30,7 @@ import { selectEnemy, selectEnemyFull, fetchEnemyAsync, fetchEnemyFullAsync } fr
 import { EnemyFull } from "@/interfaces/enemy";
 import { useNumberInput } from "@chakra-ui/react";
 import { t } from "@/lib/strings";
+import { encodeWaveRef } from "@/lib/waveRef";
 import styles from "@/styles/custom.module.css";
 
 export default function Home() {
@@ -173,6 +174,12 @@ export default function Home() {
                 <Button {...inc}>+</Button>
                 <Button size="sm" variant="outline" colorScheme="gray" onClick={() => setStage(boss.length - 1)} isDisabled={stage === boss.length - 1}>Max »</Button>
               </HStack>
+            </Center>
+            <Center>
+              <Button as={Link} size="xs" variant="outline" colorScheme="teal"
+                href={`/team?w=${encodeURIComponent(encodeWaveRef({ src: 'iw', boss: id, stage }))}`}>
+                Simulate stage {stage + 1} in Team Builder
+              </Button>
             </Center>
             <Divider/>
             <Center>

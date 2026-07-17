@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
+import { useStore } from 'react-redux';
 import {
   Box, Button, ButtonGroup, Center, Flex, Heading, HStack, VStack, Text, Badge,
   Input, InputGroup, InputRightElement, SimpleGrid, useToast,
@@ -10,25 +11,39 @@ import { useAppSelector, useAppDispatch } from '@/hooks';
 import { selectUnits, selectUnitFull, selectUnitStatus, fetchUnitsAsync, fetchUnitBundleAsync } from '@/store/unitSlice';
 import { fetchEquipAsync, fetchEquipFullAsync, selectEquip } from '@/store/equipSlice';
 import { selectRegion } from '@/store/regionSlice';
-import { Team, TeamSlot } from '@/interfaces/team';
+import { selectWorld, fetchWorldAsync, fetchWorldStageAsync } from '@/store/worldSlice';
+import { selectEnemy, fetchEnemyAsync, fetchEnemyFullAsync } from '@/store/enemySlice';
+import { fetchEnemySkillsAsync } from '@/store/skillSlice';
+import { selectSanctum, fetchSanctumAsync } from '@/store/sanctumSlice';
+import { selectIW, fetchIWAsync } from '@/store/IWSlice';
+import { Team, TeamSlot, WaveRef } from '@/interfaces/team';
+import { RootState } from '@/store';
 import { UnitData } from '@/interfaces/unit';
 import { Skill } from '@/interfaces/skill';
+import { EnemyIndex } from '@/interfaces/world';
+import { t } from '@/lib/strings';
 import { useTranslationVersion } from '@/lib/translationVersion';
 import { makeSlot, encodeTeam, decodeTeam, allyAffectedTiles, MAX_UNITS } from '@/lib/team';
+import { decodeWaveRef, sanitizeWaveRef } from '@/lib/waveRef';
+import { isEnemyWaveCell } from '@/lib/simInputs';
+import { exportTeamImage } from '@/lib/teamImage';
 import FormationGrid from '@/components/team/formationGrid';
 import UnitPicker from '@/components/team/unitPicker';
 import UnitConfig from '@/components/team/unitConfig';
 import SimulatePanel from '@/components/team/simulatePanel';
+import WavePicker from '@/components/team/wavePicker';
 
 // /team — team builder on the 3x3 formation map + round-1 battle simulation,
 // with share codes (?t=) and localStorage persistence. Multiple team slots are
 // kept locally; loading a code (paste or ?t=) lands in its own slot.
 
 const STORAGE_KEY = 'lomapr.team.v1';          // legacy single-team key, migrated once
-const STORAGE_KEY_MULTI = 'lomapr.teams.v1';   // { active, teams: string[] } of team codes
+// { active, teams: string[], waves: (WaveRef|null)[] } — team codes + the enemy
+// wave picked for each slot
+const STORAGE_KEY_MULTI = 'lomapr.teams.v1';
 const EMPTY_TEAM: Team = Array(9).fill(null);
 
-interface StoredTeams { active: number; teams: string[] }
+interface StoredTeams { active: number; teams: string[]; waves: (WaveRef | null)[] }
 
 function readStoredTeams(): StoredTeams | null {
   try {
@@ -39,11 +54,13 @@ function readStoredTeams(): StoredTeams | null {
           parsed.teams.every((c: unknown) => typeof c === 'string')) {
         const active = Number.isInteger(parsed.active)
           ? Math.min(Math.max(parsed.active, 0), parsed.teams.length - 1) : 0;
-        return { active, teams: parsed.teams };
+        const rawWaves = Array.isArray(parsed.waves) ? parsed.waves : [];
+        const waves = parsed.teams.map((_: string, i: number) => sanitizeWaveRef(rawWaves[i]));
+        return { active, teams: parsed.teams, waves };
       }
     }
     const legacy = localStorage.getItem(STORAGE_KEY);
-    if (legacy) return { active: 0, teams: [legacy] };
+    if (legacy) return { active: 0, teams: [legacy], waves: [null] };
   } catch { /* ignore */ }
   return null;
 }
@@ -52,6 +69,7 @@ export default function TeamBuilder() {
   useTranslationVersion();
   const router = useRouter();
   const dispatch = useAppDispatch();
+  const reduxStore = useStore<RootState>();
   const toast = useToast();
   const units = useAppSelector(selectUnits);
   const unitStatus = useAppSelector(selectUnitStatus);
@@ -61,12 +79,16 @@ export default function TeamBuilder() {
   const [team, setTeam] = useState<Team>(EMPTY_TEAM);
   const [slotIdx, setSlotIdx] = useState(0);
   const [slotCodes, setSlotCodes] = useState<string[]>(['']);
+  const [waveSels, setWaveSels] = useState<(WaveRef | null)[]>([null]);
+  const [wavePickerOpen, setWavePickerOpen] = useState(false);
   const [selTile, setSelTile] = useState<number | null>(null);
   const [pickerTile, setPickerTile] = useState<number | null>(null);
   const [moveArm, setMoveArm] = useState(false);
   const [aoe, setAoe] = useState<{ caster: number; key: string; tiles: number[] } | null>(null);
   const [loadCode, setLoadCode] = useState('');
+  const [exporting, setExporting] = useState(false);
   const restored = useRef(false);
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => { dispatch(fetchUnitsAsync()); dispatch(fetchEquipAsync()); }, [dispatch]);
 
@@ -87,30 +109,33 @@ export default function TeamBuilder() {
   }, [teamEquipIds, region, dispatch]);
 
   // one-time restore. A ?t= code lands in its own slot (or re-activates the
-  // slot that already holds the same team) instead of overwriting anything.
+  // slot that already holds the same team) instead of overwriting anything;
+  // a ?w= wave link attaches to whichever slot ends up active.
   useEffect(() => {
     if (restored.current || !router.isReady) return;
     restored.current = true;
-    const stored = readStoredTeams() ?? { active: 0, teams: [''] };
+    const stored = readStoredTeams() ?? { active: 0, teams: [''], waves: [null] };
     const fromUrl = typeof router.query.t === 'string' ? decodeTeam(router.query.t) : null;
+    const waveFromUrl = typeof router.query.w === 'string' ? decodeWaveRef(router.query.w) : null;
+    let teams = stored.teams, waves = stored.waves, idx = stored.active;
     if (fromUrl) {
       const code = encodeTeam(fromUrl);
       const existing = stored.teams.indexOf(code);
-      const teams = existing >= 0 ? stored.teams : [...stored.teams, code];
-      setSlotCodes(teams);
-      setSlotIdx(existing >= 0 ? existing : teams.length - 1);
-      setTeam(fromUrl);
-      return;
+      if (existing >= 0) idx = existing;
+      else { teams = [...teams, code]; waves = [...waves, null]; idx = teams.length - 1; }
     }
-    setSlotCodes(stored.teams);
-    setSlotIdx(stored.active);
-    const dec = decodeTeam(stored.teams[stored.active] ?? '');
+    if (waveFromUrl) waves = teams.map((_, i) => (i === idx ? waveFromUrl : waves[i] ?? null));
+    setSlotCodes(teams);
+    setWaveSels(waves);
+    setSlotIdx(idx);
+    const dec = fromUrl ?? decodeTeam(teams[idx] ?? '');
     if (dec) setTeam(dec);
-  }, [router.isReady, router.query.t]);
+    setHydrated(true);
+  }, [router.isReady, router.query.t, router.query.w]);
 
   // keep the active slot's code in sync with the working team…
   useEffect(() => {
-    if (!restored.current) return;
+    if (!hydrated) return;
     const code = encodeTeam(team);
     setSlotCodes((codes) => {
       if (codes[slotIdx] === code) return codes;
@@ -118,15 +143,16 @@ export default function TeamBuilder() {
       next[slotIdx] = code;
       return next;
     });
-  }, [team, slotIdx]);
+  }, [hydrated, team, slotIdx]);
 
   // …and persist all slots
   useEffect(() => {
-    if (!restored.current) return;
+    if (!hydrated) return;
     try {
-      localStorage.setItem(STORAGE_KEY_MULTI, JSON.stringify({ active: slotIdx, teams: slotCodes }));
+      localStorage.setItem(STORAGE_KEY_MULTI,
+        JSON.stringify({ active: slotIdx, teams: slotCodes, waves: waveSels }));
     } catch { /* ignore */ }
-  }, [slotCodes, slotIdx]);
+  }, [hydrated, slotCodes, slotIdx, waveSels]);
 
   const usedIds = useMemo(
     () => new Set(team
@@ -150,6 +176,7 @@ export default function TeamBuilder() {
   const addSlot = () => {
     const next = [...slotCodes, ''];
     setSlotCodes(next);
+    setWaveSels((w) => [...w, null]);
     activateSlot(next.length - 1, next);
   };
   const deleteSlot = () => {
@@ -157,8 +184,14 @@ export default function TeamBuilder() {
     const next = slotCodes.filter((_, i) => i !== slotIdx);
     if (next.length === 0) next.push('');
     setSlotCodes(next);
+    setWaveSels((w) => {
+      const nw = w.filter((_, i) => i !== slotIdx);
+      return nw.length ? nw : [null];
+    });
     activateSlot(Math.min(slotIdx, next.length - 1), next);
   };
+  const setWaveSel = (sel: WaveRef | null) =>
+    setWaveSels((w) => slotCodes.map((_, i) => (i === slotIdx ? sel : w[i] ?? null)));
 
   const onTileClick = (tile: number) => {
     setAoe(null);
@@ -233,6 +266,18 @@ export default function TeamBuilder() {
   const shareCode = () => copy(encodeTeam(team), 'Team code');
   const shareLink = () =>
     copy(`${window.location.origin}/team?t=${encodeURIComponent(encodeTeam(team))}`, 'Team link');
+  const exportImage = async () => {
+    setExporting(true);
+    try {
+      await exportTeamImage(team, reduxStore.getState());
+      toast({ status: 'success', duration: 2000, title: 'Team image exported.' });
+    } catch (error) {
+      toast({ status: 'error', duration: 3500, title: 'Could not export team image.',
+        description: error instanceof Error ? error.message : String(error) });
+    } finally {
+      setExporting(false);
+    }
+  };
 
   // a loaded code goes into its own slot; if it's already saved, switch there
   const applyCode = () => {
@@ -251,9 +296,92 @@ export default function TeamBuilder() {
     }
     const next = [...slotCodes, code];
     setSlotCodes(next);
+    setWaveSels((w) => [...w, null]);
     activateSlot(next.length - 1, next);
     toast({ status: 'success', duration: 2000, title: `Team loaded into slot ${next.length}.` });
   };
+
+  // ── enemy wave for the active slot ──
+  const waveSel = waveSels[slotIdx] ?? null;
+  const worlds = useAppSelector(selectWorld);
+  const sanctum = useAppSelector(selectSanctum);
+  const iw = useAppSelector(selectIW);
+  const enemyList = useAppSelector(selectEnemy);
+
+  // resolve the picked wave (world stage / sanctum floor / IW boss stage) to a
+  // display label + 9 enemy cells
+  const DIFF_LABEL = ['EASY', 'NORMAL', 'EXTREME'];
+  const waveInfo = useMemo<{ label: string; cells: (EnemyIndex | null)[] } | null>(() => {
+    if (!waveSel) return null;
+    if (waveSel.src === 'world') {
+      const world = worlds[waveSel.world];
+      for (const zone of world?.zones ?? []) {
+        for (const stages of zone.subzones ?? [zone.stages]) {
+          for (const s of stages ?? []) {
+            if (s.id !== waveSel.stage) continue;
+            const cells = s.waves[waveSel.wave]?.enemies;
+            return cells
+              ? { label: `${s.title} ${t(s.name)} · wave ${waveSel.wave + 1}`, cells }
+              : null;
+          }
+        }
+      }
+      return null;
+    }
+    if (waveSel.src === 'sanctum') {
+      const variants = sanctum[waveSel.area]?.[waveSel.floor];
+      const floor = variants?.[Math.min(waveSel.diff, (variants?.length ?? 1) - 1)];
+      const cells = floor?.waves[waveSel.wave]?.[0]?.e;
+      return floor && cells
+        ? {
+          label: `Sanctum ${waveSel.area} · Floor ${floor.stage} ${DIFF_LABEL[waveSel.diff] ?? ''}`
+            + ` · wave ${waveSel.wave + 1}`,
+          cells,
+        }
+        : null;
+    }
+    const st = iw.bosses[waveSel.boss]?.[waveSel.stage];
+    if (!st) return null;
+    const season = iw.seasons.find((s) => s.key === waveSel.boss);
+    return {
+      label: `IW ${season ? t(season.monster) : waveSel.boss} · stage ${waveSel.stage + 1}`,
+      cells: st.monster.group.map((g) => (g ? { id: g, lv: st.monster.lv } : null)),
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [waveSel, worlds, sanctum, iw]);
+  // is the referenced source loaded (so "no waveInfo" means "not found")?
+  const waveSourceLoaded = !waveSel ? false
+    : waveSel.src === 'world'
+      ? !!worlds[waveSel.world]?.zones?.some((z) => (z.stages && z.stages.length) || z.subzones)
+      : waveSel.src === 'sanctum' ? Object.keys(sanctum).length > 0
+      : iw.seasons.length > 0;
+
+  // load the wave's source data, then its enemy records + skill bundles
+  useEffect(() => {
+    if (!waveSel) return;
+    dispatch(fetchEnemyAsync());
+    if (waveSel.src === 'world') {
+      dispatch(fetchWorldAsync());
+      dispatch(fetchWorldStageAsync(waveSel.world));
+    } else if (waveSel.src === 'sanctum') {
+      dispatch(fetchSanctumAsync());
+    } else {
+      dispatch(fetchIWAsync());
+    }
+  }, [waveSel, region, dispatch]);
+  const waveEnemyIds = Array.from(new Set((waveInfo?.cells ?? [])
+    .filter(isEnemyWaveCell)
+    .map((c) => c.id))).sort().join('|');
+  useEffect(() => {
+    for (const id of waveEnemyIds.split('|')) {
+      // the skill fetch resolves skillsRef through the list record — wait for it
+      if (id && enemyList[id]) {
+        dispatch(fetchEnemyFullAsync(id));
+        dispatch(fetchEnemySkillsAsync(id));
+      }
+    }
+  }, [waveEnemyIds, enemyList, region, dispatch]);
+  const enemyWave = waveInfo?.cells ?? null;
 
   const selSlot = selTile != null ? team[selTile] : null;
   const selUnit = useAppSelector((s) => (selSlot ? selectUnitFull(s, selSlot.unitId) : null));
@@ -300,6 +428,35 @@ export default function TeamBuilder() {
                     </Text>
                   </Box>
 
+                  <Box borderWidth="1px" borderColor="surface.border" borderRadius="xl" bg="surface.elevated" p={3}>
+                    <Flex align="center" gap={2} wrap="wrap">
+                      <Text fontSize="xs" color="gray.500" fontWeight="700">Enemy Wave</Text>
+                      {waveSel && waveInfo ? (
+                        <Text fontSize="xs" fontWeight="600">
+                          {waveInfo.label} ({waveInfo.cells.filter(isEnemyWaveCell).length} enemies)
+                        </Text>
+                      ) : waveSel ? (
+                        <Text fontSize="xs" color={waveSourceLoaded ? 'red.300' : 'gray.500'}>
+                          {waveSourceLoaded ? 'not found on this server — pick again' : 'loading…'}
+                        </Text>
+                      ) : (
+                        <Text fontSize="xs" color="gray.500">none — simulate without enemies</Text>
+                      )}
+                      <Button size="xs" variant="outline" colorScheme="teal"
+                        onClick={() => setWavePickerOpen(true)}>
+                        {waveSel ? 'Change' : 'Choose'}
+                      </Button>
+                      {waveSel ? (
+                        <Button size="xs" variant="outline" colorScheme="red"
+                          onClick={() => setWaveSel(null)}>Clear</Button>
+                      ) : null}
+                    </Flex>
+                    <Text fontSize="2xs" color="gray.500" mt={1}>
+                      The enemy side joins the round-1 simulation (stats, passives, AP order)
+                      and powers the auto-stat ACC target. Saved with this team slot.
+                    </Text>
+                  </Box>
+
                   <Box borderWidth="1px" borderColor="surface.border" borderRadius="xl" bg="surface.elevated" p={4}>
                     <FormationGrid
                       team={team} units={units} selected={selTile}
@@ -338,6 +495,9 @@ export default function TeamBuilder() {
                         isDisabled={!team.some((s) => s)}>Copy team code</Button>
                       <Button size="xs" colorScheme="yellow" variant="outline" onClick={shareLink}
                         isDisabled={!team.some((s) => s)}>Copy link</Button>
+                      <Button size="xs" colorScheme="teal" variant="outline" onClick={exportImage}
+                        isLoading={exporting} loadingText="Exporting"
+                        isDisabled={!team.some((s) => s)}>Export image</Button>
                     </HStack>
                     <InputGroup size="sm">
                       <Input placeholder="Paste a team code…" value={loadCode}
@@ -360,6 +520,7 @@ export default function TeamBuilder() {
                       slot={selSlot}
                       unit={selUnit}
                       team={team}
+                      enemyWave={enemyWave}
                       onChange={(patch) => patchSlot(selTile!, patch)}
                       onRemove={() => onRemove(selTile!)}
                       onReplace={() => setPickerTile(selTile!)}
@@ -395,7 +556,7 @@ export default function TeamBuilder() {
             </TabPanel>
 
             <TabPanel px={0}>
-              <SimulatePanel team={team} />
+              <SimulatePanel team={team} enemyWave={enemyWave} />
             </TabPanel>
           </TabPanels>
         </Tabs>
@@ -407,6 +568,12 @@ export default function TeamBuilder() {
         units={units}
         usedIds={usedIds}
         onPick={onPick}
+      />
+      <WavePicker
+        isOpen={wavePickerOpen}
+        onClose={() => setWavePickerOpen(false)}
+        initial={waveSel}
+        onPick={(sel) => { setWaveSel(sel); setWavePickerOpen(false); }}
       />
     </>
   );
