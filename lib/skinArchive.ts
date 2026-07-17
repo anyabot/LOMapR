@@ -6,6 +6,7 @@
 // decoder (brotli-dec-wasm) instead.
 
 const ARCHIVE_BASE = (process.env.NEXT_PUBLIC_SKIN_ARCHIVE_BASE ?? '').replace(/\/$/, '');
+const LOCAL_SKIN_DIR = process.env.NEXT_PUBLIC_LOCAL_SKIN_DIR === '1';
 
 let brotliModPromise: Promise<{ decompress: (data: Uint8Array) => Uint8Array }> | null = null;
 function loadBrotli(): Promise<{ decompress: (data: Uint8Array) => Uint8Array }> {
@@ -42,17 +43,18 @@ function untar(bytes: Uint8Array): Map<string, Blob> {
 const archiveCache = new Map<string, Promise<Map<string, Blob>>>();
 
 // Fetch + decompress + untar a skin's archive (cached per skin name).
-// If /skin_test/<skin>/layout.json exists (local dev override), use that instead.
+// With NEXT_PUBLIC_LOCAL_SKIN_DIR=1, try an unpacked /public/skin_test/<skin>/
+// export first. The override is opt-in so ordinary dev sessions do not generate
+// one expected 404 per archived skin while probing a directory that is absent.
 export function loadSkinArchive(skin: string): Promise<Map<string, Blob>> {
   let p = archiveCache.get(skin);
   if (!p) {
     p = (async () => {
-      // Local dev override: production deliberately prunes /skin_test, so never
-      // probe that Worker route there. Development can still test unpacked exports.
-      if (process.env.NODE_ENV !== 'production') {
+      // Local dev override for explicitly staged unpacked exports. loadLocalSkinDir
+      // understands both Spine's spine.json and fixed/skinned layout.json.
+      if (process.env.NODE_ENV !== 'production' && LOCAL_SKIN_DIR) {
         try {
-          const probe = await fetch(`/skin_test/${skin}/layout.json`, { method: 'HEAD' });
-          if (probe.ok) return await loadLocalSkinDir(skin);
+          return await loadLocalSkinDir(skin);
         } catch { /* fall through to archive */ }
       }
 

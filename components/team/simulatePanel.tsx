@@ -2,26 +2,19 @@ import { useMemo } from 'react';
 import {
   Box, Center, Flex, Heading, HStack, VStack, Text, Tag, Badge, Image, Spinner,
   Accordion, AccordionItem, AccordionButton, AccordionPanel, AccordionIcon,
-  Table, Thead, Tbody, Tr, Th, Td, TableContainer, Wrap, WrapItem, SimpleGrid,
+  Table, Thead, Tbody, Tr, Th, Td, TableContainer, SimpleGrid,
 } from '@chakra-ui/react';
 import { useAppSelector } from '@/hooks';
 import { RootState } from '@/store';
-import { selectUnits, selectUnitFull, selectUnitSkills } from '@/store/unitSlice';
-import { selectEquipFull } from '@/store/equipSlice';
+import { selectUnits } from '@/store/unitSlice';
 import { Team, StatKey } from '@/interfaces/team';
-import { FullUnitData, UnitData } from '@/interfaces/unit';
+import { UnitData } from '@/interfaces/unit';
 import { t } from '@/lib/strings';
 import { useTranslationVersion } from '@/lib/translationVersion';
 import { unitDisplayName } from '@/lib/rank';
 import { BUFF_TYPE_NAMES, TRIGGER_LABELS, buffValue } from '@/components/buffList';
-import {
-  computeStats, equippedStats, equipSlotUnlocked, scaleSkillLevel,
-  fullLinkSkillPowerValue, fullLinkBuffLv,
-  skillUnlockRank,
-} from '@/lib/team';
-import {
-  simulateRound1, SimUnitInput, SimNote, NoteKind, AppliedBuff,
-} from '@/lib/simulate';
+import { buildSimInputs } from '@/lib/simInputs';
+import { simulateRound1, NoteKind, AppliedBuff } from '@/lib/simulate';
 
 // Round-1 simulation output: in-battle stats, applied buffs by type, action
 // order, and the review list of effects not auto-applied.
@@ -58,22 +51,75 @@ function UnitChip({ unit }: { unit: UnitData }) {
   );
 }
 
-function AppliedRow({ a, units }: { a: AppliedBuff; units: Record<string, UnitData> }) {
-  const { str: valStr, color } = buffValue(a.buff);
+interface AppliedGroup {
+  type: number;
+  rows: AppliedBuff[];
+}
+
+function groupAppliedBuffs(applied: AppliedBuff[]): AppliedGroup[] {
+  const groups = new Map<number, AppliedBuff[]>();
+  for (const a of applied) groups.set(a.buff.type, [...(groups.get(a.buff.type) ?? []), a]);
+  return Array.from(groups, ([type, rows]) => ({ type, rows })).sort((a, b) => a.type - b.type);
+}
+
+function effectColor(attr: number): string {
+  if (attr === 0 || attr === 2 || attr === 4) return 'green.300';
+  if (attr === 1 || attr === 5) return 'red.300';
+  return 'gray.100';
+}
+
+function durationLabel(a: AppliedBuff): string {
+  const { buff } = a;
+  if (buff.eraseType === 3 || buff.eraseType === 4) return 'Permanent';
+  if (buff.eraseType === 0) return buff.turns > 0 ? `${buff.turns} round${buff.turns === 1 ? '' : 's'}` : 'Instant';
+  if (buff.eraseType === 1) return `${buff.turns || 1} use${(buff.turns || 1) === 1 ? '' : 's'}`;
+  if (buff.eraseType === 2) return 'Until triggered';
+  return '—';
+}
+
+function AppliedGroupRow({ group }: { group: AppliedGroup }) {
+  const representative = group.rows[0].buff;
+  const total = Math.round(group.rows.reduce((sum, a) => sum + a.buff.val, 0) * 10000) / 10000;
+  // `tid` values are effect-type IDs (for example, Debuff Immunity against AP
+  // or EVA), not numeric magnitudes. Adding them can resolve to a completely
+  // unrelated effect name, so categorical groups intentionally have no total.
+  const totalStr = representative.fmt === 'tid'
+    ? ''
+    : buffValue({ ...representative, val: total, vals: undefined }).str;
+  const attrs = new Set(group.rows.map((a) => a.buff.attr));
+  const totalColor = attrs.size === 1 ? effectColor(representative.attr) : 'gray.100';
+
   return (
     <Tr>
-      <Td py={1}>
+      <Td py={2} verticalAlign="top">
         <HStack spacing={1.5}>
-          {a.buff.icon ? <Image src={`/images/effects/BuffIcon_${a.buff.icon}.png`} boxSize="16px" alt="" /> : null}
-          <Text fontSize="xs">{BUFF_TYPE_NAMES[a.buff.type] ?? `type ${a.buff.type}`}</Text>
-          {a.chance ? <Badge colorScheme="yellow" fontSize="2xs">{Math.round(a.buff.rate * 100)}%</Badge> : null}
+          {representative.icon ? (
+            <Image src={`/images/effects/BuffIcon_${representative.icon}.png`} boxSize="16px" alt="" />
+          ) : null}
+          <Text fontSize="xs" fontWeight="700">{BUFF_TYPE_NAMES[group.type] ?? `type ${group.type}`}</Text>
+          {group.rows.length > 1 ? <Badge fontSize="2xs">{group.rows.length}</Badge> : null}
         </HStack>
       </Td>
-      <Td py={1}><Text fontSize="xs" fontWeight="700" color={color}>{valStr || '—'}</Text></Td>
-      <Td py={1}>
-        <Text fontSize="2xs" color="gray.400" noOfLines={1}>
-          {t(a.sourceName)} <Text as="span" color="gray.600">({a.sourceKind}, pass {a.pass})</Text>
-        </Text>
+      <Td py={2} verticalAlign="top">
+        <Text fontSize="xs" fontWeight="700" color={totalColor}>{totalStr || '—'}</Text>
+      </Td>
+      <Td py={1.5}>
+        <VStack align="stretch" spacing={1}>
+          {group.rows.map((a, i) => {
+            const { str: valStr } = buffValue(a.buff);
+            return (
+              <Flex key={i} align="center" gap={2} wrap="wrap" fontSize="2xs"
+                borderTopWidth={i ? '1px' : 0} borderColor="whiteAlpha.100" pt={i ? 1 : 0}>
+                <Text minW="52px" fontWeight="700" color={effectColor(a.buff.attr)}>{valStr || '—'}</Text>
+                <Badge colorScheme="gray" fontSize="2xs">{durationLabel(a)}</Badge>
+                {a.chance ? <Badge colorScheme="yellow" fontSize="2xs">{Math.round(a.buff.rate * 100)}%</Badge> : null}
+                <Text color="gray.400">
+                  {t(a.sourceName)} <Text as="span" color="gray.600">({a.sourceKind}, pass {a.pass})</Text>
+                </Text>
+              </Flex>
+            );
+          })}
+        </VStack>
       </Td>
     </Tr>
   );
@@ -84,53 +130,10 @@ export default function SimulatePanel({ team }: { team: Team }) {
   const units = useAppSelector(selectUnits);
   const state = useAppSelector((s: RootState) => s);
 
-  // Build sim inputs from the configured team; null until every needed bundle
+  // Build sim inputs from the configured team; empty until every needed bundle
   // (unit detail + equipped-item records) has arrived.
-  const { inputs, missing, unavailable } = useMemo(() => {
-    const inputs: SimUnitInput[] = [];
-    const missing: string[] = [];
-    const unavailable: string[] = [];
-    team.forEach((slot, tile) => {
-      if (!slot) return;
-      const unit = selectUnitFull(state, slot.unitId);
-      if (!unit) {
-        const status = state.unit.byRegion[state.region.region].status;
-        (status === 'loading' ? missing : unavailable).push(slot.unitId);
-        return;
-      }
-      if (!unit.stat) { missing.push(unitDisplayName(unit)); return; }
-      const full = unit as FullUnitData;
-      const skills = selectUnitSkills(state, slot.unitId);
-      const keys = (slot.form === 1 ? full.skillsCh : full.skills) ?? [];
-      if (keys.length > 0 && Object.keys(skills).length === 0) {
-        missing.push(unitDisplayName(unit)); return;
-      }
-      const spAdd = fullLinkSkillPowerValue(full, slot.links >= 5 ? slot.fullLink : -1);
-      const buffLv = fullLinkBuffLv(full, slot.links >= 5 ? slot.fullLink : -1)
-        + (slot.maxAffection && full.affection ? 1 : 0);
-      const grade = unit.rarity + Math.min(slot.gradeIdx, full.stat.length - 1);
-      const passives = keys
-        .map((k, i) => ({ k, raw: skills[k], lv: slot.skillLv[i] ?? 10 }))
-        .filter((x) => x.raw && x.raw.type === 'passive' &&
-          skillUnlockRank(x.k, x.raw.leastRank, state.region.region) <= grade)
-        .map((x) => ({ key: x.k, name: x.raw.name, skill: scaleSkillLevel(x.raw, x.lv, spAdd, buffLv) }));
-      const equips: SimUnitInput['equips'] = [];
-      let equipsReady = true;
-      slot.equips.forEach((sel, i) => {
-        if (!sel || !equipSlotUnlocked(unit, i, slot.level)) return;
-        const fe = selectEquipFull(state, sel.id);
-        if (!fe) { equipsReady = false; return; }
-        const rank = fe.ranks[Math.min(sel.rank, fe.ranks.length - 1)];
-        const lvl = rank.levels[Math.min(sel.level, rank.levels.length - 1)];
-        equips.push({ id: sel.id, name: rank.name, buffs: lvl?.buffs ?? [] });
-      });
-      if (!equipsReady) { missing.push(`${unitDisplayName(unit)} (equipment)`); return; }
-      const stats = computeStats(full, slot, equippedStats(slot, unit, (id) => selectEquipFull(state, id)));
-      inputs.push({ tile, unit: full, slot, stats, passives, equips });
-    });
-    return { inputs, missing, unavailable };
-    // state identity changes on every store update; that's fine — memo is cheap.
-  }, [team, state]);
+  // state identity changes on every store update; that's fine — memo is cheap.
+  const { inputs, missing, unavailable } = useMemo(() => buildSimInputs(team, state), [team, state]);
 
   const result = useMemo(
     () => (missing.length === 0 && inputs.length > 0 ? simulateRound1(inputs) : null),
@@ -164,16 +167,6 @@ export default function SimulatePanel({ team }: { team: Team }) {
 
   const byTile = new Map(result.units.map((r) => [r.tile, r]));
   const unitOf = (tile: number) => units[team[tile]!.unitId];
-
-  // team-wide buff list grouped by buff type
-  const byType = new Map<number, { targetTile: number; a: AppliedBuff }[]>();
-  for (const r of result.units)
-    for (const a of r.applied) {
-      const list = byType.get(a.buff.type) ?? [];
-      list.push({ targetTile: r.tile, a });
-      byType.set(a.buff.type, list);
-    }
-  const typeOrder = Array.from(byType.keys()).sort((x, y) => x - y);
 
   return (
     <VStack align="stretch" spacing={4}>
@@ -280,6 +273,7 @@ export default function SimulatePanel({ team }: { team: Team }) {
           {result.units.map((r) => {
             const u = unitOf(r.tile);
             if (!u) return null;
+            const effectGroups = groupAppliedBuffs(r.applied);
             return (
               <AccordionItem key={r.tile} border="1px solid" borderColor="surface.border"
                 borderRadius="lg" mb={2} bg="blackAlpha.300">
@@ -290,7 +284,9 @@ export default function SimulatePanel({ team }: { team: Team }) {
                       <Text>ATK {r.battle.ATK.toLocaleString()}{r.delta.ATK ? <Text as="span" color="yellow.300"> ({r.delta.ATK > 0 ? '+' : ''}{r.delta.ATK.toLocaleString()})</Text> : null}</Text>
                       <Text>SPD {r.spd}</Text>
                       <Text>AP {r.ap}</Text>
-                      <Badge colorScheme="teal" fontSize="2xs">{r.applied.length} effects</Badge>
+                      <Badge colorScheme="teal" fontSize="2xs">
+                        {effectGroups.length} effect type{effectGroups.length === 1 ? '' : 's'}
+                      </Badge>
                     </HStack>
                   </Flex>
                   <AccordionIcon />
@@ -318,11 +314,9 @@ export default function SimulatePanel({ team }: { team: Team }) {
                   {r.applied.length ? (
                     <TableContainer>
                       <Table size="sm" variant="simple" minW="420px">
-                        <Thead><Tr><Th>Effect</Th><Th>Value</Th><Th>Source</Th></Tr></Thead>
+                        <Thead><Tr><Th>Effect</Th><Th>Total</Th><Th>Individual effects</Th></Tr></Thead>
                         <Tbody>
-                          {[...r.applied].sort((a, b) => a.buff.type - b.buff.type).map((a, i) => (
-                            <AppliedRow key={i} a={a} units={units} />
-                          ))}
+                          {effectGroups.map((group) => <AppliedGroupRow key={group.type} group={group} />)}
                         </Tbody>
                       </Table>
                     </TableContainer>
@@ -332,49 +326,6 @@ export default function SimulatePanel({ team }: { team: Team }) {
             );
           })}
         </Accordion>
-      </Box>
-
-      {/* team-wide buffs grouped by type */}
-      <Box borderWidth="1px" borderColor="surface.border" borderRadius="xl" bg="surface.elevated" p={4}>
-        <Heading size="xs" mb={2}>Applied Buffs by Type</Heading>
-        {typeOrder.length === 0 ? (
-          <Text fontSize="xs" color="gray.500">Nothing applied.</Text>
-        ) : (
-          <VStack align="stretch" spacing={2}>
-            {typeOrder.map((tp) => {
-              const rows = byType.get(tp)!;
-              return (
-                <Box key={tp} borderWidth="1px" borderColor="surface.border" borderRadius="lg" bg="blackAlpha.300" p={2}>
-                  <HStack mb={1.5} spacing={2}>
-                    {rows[0].a.buff.icon ? (
-                      <Image src={`/images/effects/BuffIcon_${rows[0].a.buff.icon}.png`} boxSize="18px" alt="" />
-                    ) : null}
-                    <Text fontSize="xs" fontWeight="700" textDecoration="underline">
-                      {BUFF_TYPE_NAMES[tp] ?? `type ${tp}`}
-                    </Text>
-                    <Badge fontSize="2xs">{rows.length}</Badge>
-                  </HStack>
-                  <Wrap spacing={2}>
-                    {rows.map(({ targetTile, a }, i) => {
-                      const u = unitOf(targetTile);
-                      const { str: valStr, color } = buffValue(a.buff);
-                      return (
-                        <WrapItem key={i}>
-                          <HStack spacing={1.5} borderWidth="1px" borderColor="surface.border"
-                            borderRadius="md" px={1.5} py={0.5} bg="blackAlpha.400">
-                            {u ? <UnitChip unit={u} /> : null}
-                            <Text fontSize="xs" fontWeight="700" color={color}>{valStr || '—'}</Text>
-                            <Text fontSize="2xs" color="gray.500" noOfLines={1}>{t(a.sourceName)}</Text>
-                          </HStack>
-                        </WrapItem>
-                      );
-                    })}
-                  </Wrap>
-                </Box>
-              );
-            })}
-          </VStack>
-        )}
       </Box>
 
       {/* review notes — everything NOT auto-applied */}

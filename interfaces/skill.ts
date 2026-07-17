@@ -26,7 +26,7 @@ export interface SkillBuff {
   applyCondCount2?: number;
   condAttr2?: number;
   turns: number;   // 0 = instant/no duration
-  rate: number;    // 0..1 application chance
+  rate: number;    // application chance multiplier (normally 0..1; can exceed 1)
   val: number;     // effect value at skill level 1 — interpret per fmt
   gain: number;    // per-(skill/buff-debuff)-level increment of val; value@L = val + gain*(L-1)
   vals?: number[]; // per-level values when non-linear (gain alone can't reproduce them); index 0 = lv1
