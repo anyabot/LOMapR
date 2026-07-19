@@ -186,10 +186,14 @@ function buffMatches(a: AppliedBuff, val: string, name: string, condAttr: number
   if (!isNaN(num) && String(num) === val) {
     return a.buff.type === num || a.buff.type === pairType(num);
   }
-  if (val && a.buff.effectKey &&
-      (a.buff.effectKey === val || a.buff.effectKey.startsWith(val + '_'))) return true;
-  if (name && a.buff.name === name) return true;
-  return false;
+  // A concrete effect key decides on its own: display names collide across
+  // levels of a buff family (e.g. Horn of Faucre Lv1..11 all share one name),
+  // so the name is only consulted when no key is given.
+  if (val) {
+    return !!a.buff.effectKey &&
+      (a.buff.effectKey === val || a.buff.effectKey.startsWith(val + '_'));
+  }
+  return !!name && a.buff.name === name;
 }
 
 function countMatching(u: UnitState, vals: string[], names: string[], condAttr: number): number {
