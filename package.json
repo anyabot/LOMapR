@@ -11,6 +11,8 @@
     "dev:local": "npm run sync:local-data && cross-env NEXT_PUBLIC_DATA_SOURCE=local next dev",
     "dev:bucket": "cross-env NEXT_PUBLIC_DATA_SOURCE=bucket next dev",
     "lint": "next lint",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
     "gen:images": "node scripts/gen-public-images.js",
     "cf:build": "node scripts/sync-local-data.js --clean && opennextjs-cloudflare build && node scripts/copy-prerendered-assets.js",
     "cf:preview": "npm run cf:build && opennextjs-cloudflare preview",
@@ -44,6 +46,7 @@
   },
   "devDependencies": {
     "@opennextjs/cloudflare": "^1.6.0",
+    "@playwright/test": "^1.61.1",
     "cross-env": "^10.1.0",
     "patch-package": "^8.0.1",
     "wrangler": "^4.0.0"

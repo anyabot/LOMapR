@@ -15,14 +15,33 @@
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS",
-    // IMPORTANT: keep asset-first routing. Any request matching a file in
+    // IMPORTANT: keep selective asset-first routing. Any request matching a file in
     // .open-next/assets (all _next/static, public/ files, AND every
     // prerendered page's HTML) is served directly by Cloudflare — the Worker
-    // is never invoked and the request is free/unmetered. The Worker only
-    // runs for non-asset paths: the /models|/rebuilt|/skins rewrites, 404s,
-    // and future API routes. Never set this to true / a catch-all pattern.
-    "run_worker_first": false
+    // is never invoked and the request is free/unmetered. Unknown paths get
+    // the static 404 page. Only intentional dynamic routes run the Worker.
+    // Never set this to true / a catch-all pattern.
+    "not_found_handling": "404-page",
+    "run_worker_first": [
+      "/models", "/models/*",
+      "/rebuilt", "/rebuilt/*",
+      "/skins", "/skins/*",
+      "/api", "/api/*"
+    ]
   },
+  // Invisible abuse protection for requests that make it past asset-first
+  // routing. Counters are per client and per Cloudflare location; normal page
+  // and static-asset requests never reach this binding.
+  "ratelimits": [
+    {
+      "name": "DYNAMIC_RATE_LIMITER",
+      "namespace_id": "1109202601",
+      "simple": {
+        "limit": 120,
+        "period": 60
+      }
+    }
+  ],
   // Production domain. Attach after detaching lo.altterisk.cc from the old
   // Pages project (DEPLOY.md, one-time step).
   "routes": [

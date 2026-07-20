@@ -2,7 +2,7 @@
 
 > **MAINTENANCE POLICY: update this doc at the end of any task that adds/moves/
 > removes a page, slice, component, lib module, or data contract.** Verify
-> against the code, don't assume. Last verified against code: **2026-07-17**.
+> against the code, don't assume. Last verified against code: **2026-07-19**.
 
 Next.js **pages router**, deployed to Cloudflare Workers via OpenNext (all
 pages prerendered and served as static assets; the Worker only handles the
@@ -94,3 +94,48 @@ resolved at render time via `t()`.
 | `cf:build` | clean local-data + OpenNext Cloudflare build → `.open-next/` |
 | `cf:preview` / `cf:deploy` | local Worker preview (workerd) / `wrangler deploy` |
 | `gen:images` | rebuild `lib/publicImages.json` |
+| `test:e2e` / `test:e2e:ui` | Playwright smoke tests (`tests/e2e/`, chromium; auto-starts `dev:local`) |
+
+## Tests (`tests/e2e/`, `playwright.config.ts`)
+
+Playwright (`@playwright/test`). Two projects: `chromium` (desktop, all specs)
+and `mobile` (Pixel 5 viewport, runs the `pages.spec.ts` route table only —
+enforces the mobile-first rule). `playwright.config.ts` auto-starts
+`npm run dev:local` on :3000 (reused if already running), so tests read data
+from `public/local-data` with no network. `pages.spec.ts` is a smoke table over
+every route asserting: HTTP < 400, expected `<title>`, main heading visible
+where static (proves the data fetch ran), no uncaught page errors, **no
+horizontal body scroll** (scrollWidth − clientWidth ≤ 1, both viewports), and
+**no failed data requests** (any 5xx, or 404 on `/local-data/global/` — kr/
+404s are the legitimate KR→global fallback). Detail pages are visited without
+query params and must show their fallback state.
+
+Per-page functional specs (one file per page): `units` (search/type filter/
+tri-state exclude mode/tile → detail, detail stats + not-found fallback,
+CopyLink copies the canonical deep link), `equipment` (search, slot filter,
+tile → modal, `?equip=` deep link), `enemies` (search, card → modal, `?enemy=`
++ `&lv=` deep links), `skins` (search, category chips), `gacha` (pull →
+results/history, multi-pull count > 1, tabs), `misc` (three tabs render),
+`world` (list → chapter → zone → stage drill-down, `?stage=` deep link, 404),
+`sanctum` (area/floor/difficulty, share deep link restores all three),
+`iw` (season → raid boss detail), `team` (picker → tile, 5-unit cap toast,
+no-duplicate picker, team-code copy→clear→load round-trip into a new slot,
+localStorage reload survival, PNG image export via download event, slot bar,
+simulate tab; clipboard permissions granted), `home` (quick-nav cards,
+external links), `region` (KR-only unit — Maria Grace — hidden on global,
+revealed via `?server=kr` and the navbar region select, unit-detail not-found
+vs. resolves per region, region persists across reload + `?server=` override
+wins, no raw numeric loc-ids on the KR grid, and the past-bug regression:
+switching region on an open unit detail must refetch, not hang on the
+spinner/overlay), `skin-viewer` (one fixed + one spine skin fetched from the
+live R2 CDN and rendered to a PixiJS canvas — the ONLY specs needing network;
+skinned/Unity kind not covered). `fixtures.ts` holds known-good
+sample ids/names from the committed local data (Constantia S2, Attack Chip EX,
+Knight Chick, Story zone 1, Colossus_01) — update it if a data rename breaks it.
+
+Selector gotchas baked into the specs: `Button as={Link}` renders an `<a>`
+(use `getByRole('link')`); `getByRole` name matching is substring by default
+(pass `exact: true` when a share-label contains the word); the navbar has its
+own `LOMapR` heading and region `<select>`; the gacha page opens on the Rates
+tab; the stage map is a canvas (drive it via the `?stage=` query instead of
+clicks).

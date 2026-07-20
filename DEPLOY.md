@@ -8,11 +8,12 @@ browser from the asset domain, and route params come from `?id=`/`&zone=`/
 `&stage=` query strings.
 
 **Request accounting** (the thing that matters for the free tier): the Worker
-uses **asset-first routing** (`run_worker_first: false` in `wrangler.jsonc`).
+uses **selective asset-first routing** (`assets.run_worker_first` in
+`wrangler.jsonc`).
 Anything matching a file in `.open-next/assets` — all `_next/static/*`, every
 `public/` file, and **every prerendered page's HTML** — is served directly by
 Cloudflare as a static asset: the Worker is never invoked and the request is
-free and unmetered. The Worker only runs for paths that are *not* assets:
+free and unmetered. The Worker only runs for explicitly allowlisted paths:
 
 ```
 browser ──▶ lo.altterisk.cc         static assets (HTML/JS/images/wasm) — free, no Worker
@@ -21,8 +22,13 @@ browser ──▶ lo.altterisk.cc/models/*, /rebuilt/*
 browser ──▶ lo-assets.altterisk.cc  JSON data + skin .tar.br — direct, free egress
 ```
 
-So Worker invocations ≈ Unity skinned-model loads (a few requests each), 404s,
-and any future API routes. Everything else is static.
+Unknown paths are served from the prerendered `404.html` (`not_found_handling:
+"404-page"`) without invoking the Worker. So Worker invocations ≈ Unity
+skinned-model loads (a few requests each) and any future API routes. Everything
+else is static. Requests that do reach the Worker pass through `middleware.ts`,
+which silently allows 120 requests
+per client per minute using Cloudflare's native rate-limit binding and returns
+`429` + `Retry-After: 60` above that rate. There is no challenge or cookie.
 
 ## Domains
 
@@ -65,8 +71,8 @@ npm run cf:deploy    # cf:build + wrangler deploy
 actually cover pages: stock OpenNext keeps prerendered HTML inside the server
 function (every page view would invoke the Worker), so the script copies each
 prerendered page into `.open-next/assets/<route>/index.html` and prunes
-local-only dirs (`local-data*`, `skin_test`) from the deploy. SSR/API routes
-added later emit no prerendered HTML and are naturally left to the Worker.
+local-only dirs (`local-data*`, `skin_test`) from the deploy. Future SSR/API
+routes must be added to `assets.run_worker_first` in `wrangler.jsonc`.
 
 `NEXT_PUBLIC_*` values are baked in at build time from `.env.local`
 (gitignored; see `.env.example`):
@@ -99,7 +105,12 @@ npm run gen:images
 
 - **Never** set `run_worker_first` to `true`/a catch-all in `wrangler.jsonc` —
   that routes every static asset through the Worker and burns the request
-  quota for nothing (the failure mode of the old backend setup).
+  quota for nothing (the failure mode of the old backend setup). Any future
+  API or SSR route must instead be added explicitly to the Worker-first list.
+- `DYNAMIC_RATE_LIMITER` is intentionally generous and only sees requests that
+  have already missed the static-assets layer. Keep its `namespace_id` unique
+  within the Cloudflare account. The binding is local to each Cloudflare data
+  center and is abuse protection, not exact monthly accounting.
 - `global_fetch_strictly_public` compatibility flag is required: the Worker's
   rewrite proxy fetches `lo-assets.altterisk.cc`, which is on the **same zone**
   as the Worker's domain; without the flag same-zone subrequests try to hit a
@@ -109,8 +120,8 @@ npm run gen:images
 - `patches/react-dom+18.3.1.patch` (applied by patch-package on install) adds
   a `react-dom/server.edge` shim (alias of `server.browser`). React 18 has no
   `server.edge` entry (React 19 only) and the bundled Worker can't express
-  Next's normal fallback, so Worker-side renders (the 404 page) 500 without
-  it. Keep the patch until React is bumped to 19.
+  Next's normal fallback, so Worker-side error renders can 500 without it.
+  Keep the patch until React is bumped to 19.
 - OpenNext warns it isn't fully supported on Windows (recommends WSL); build,
   preview, and deploy all worked from this Windows machine (verified
   2026-07-14). If a future version misbehaves, build from WSL.

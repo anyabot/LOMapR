@@ -4,13 +4,14 @@
 // every page view would invoke the Worker (and count against the request
 // quota). This app is 100% prerendered, so instead:
 //   1. copy each prerendered page's HTML (and its getStaticProps data JSON,
-//      if any) into .open-next/assets — with asset-first routing
-//      (run_worker_first: false) Cloudflare then serves pages as free static
+//      if any) into .open-next/assets — with selective asset-first routing
+//      Cloudflare then serves pages as free static
 //      assets without ever invoking the Worker;
 //   2. prune local-only public/ dirs (gitignored dev data) from the deploy.
-// The Worker still handles everything that is NOT a static asset: the
-// /models|/rebuilt|/skins proxy rewrites, 404s, future API/SSR routes
-// (SSR pages emit no .html, so they are naturally left to the Worker).
+// Cloudflare serves 404.html for unknown paths without invoking the Worker.
+// The Worker-first allowlist in wrangler.jsonc handles the
+// /models|/rebuilt|/skins proxy rewrites and future API routes. Any future SSR
+// route must also be added to that allowlist.
 const fs = require('fs');
 const path = require('path');
 
