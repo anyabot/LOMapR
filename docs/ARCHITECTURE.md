@@ -5,7 +5,7 @@
 > components, data files, or deploy behavior. Verify claims against the code,
 > never copy them from another doc.
 >
-> Last verified against code: **2026-07-14**.
+> Last verified against code: **2026-07-20**.
 
 ## What this is
 
@@ -30,9 +30,13 @@
   Cloudflare **Worker** via `@opennextjs/cloudflare` (`wrangler.jsonc`,
   `open-next.config.ts`). Still functionally a client-rendered SPA: every page
   prerenders at build time and is served as a static asset **without invoking
-  the Worker** (asset-first routing, `run_worker_first: false`); the Worker
+  the Worker** (selective asset-first routing); unknown paths use the static
+  `404.html`, while the Worker-first allowlist
   only handles the `/models|/rebuilt|/skins` proxy rewrites (Unity skinned
-  viewer) and 404s. Chakra UI + Redux Toolkit. All game data is fetched as
+  viewer) and future API routes. Dynamic Worker traffic is protected by a
+  native Cloudflare per-client rate-limit binding in `middleware.ts` (120
+  requests/minute; no browser challenge). Chakra UI + Redux Toolkit. All game
+  data is fetched as
   JSON **at runtime in the browser** from the R2 custom domain (or from
   `public/local-data/` in `dev:local` mode). Route params are query strings
   (`?id=`, `?zone=`, `?equip=`), never dynamic routes.
@@ -57,7 +61,7 @@ baked at build time): `NEXT_PUBLIC_R2_PUBLIC_URL`,
 | `public/unity-viewer/` | compiled Unity WebGL viewer for skinned models (iframe target) |
 | `docs/` | this folder — durable architecture/structure docs |
 | `README.md` / `DEPLOY.md` | quick start / Cloudflare Workers (OpenNext) + R2 deployment |
-| `wrangler.jsonc` / `open-next.config.ts` | Worker + OpenNext adapter config |
+| `wrangler.jsonc` / `open-next.config.ts` / `middleware.ts` | Worker + OpenNext adapter config and dynamic-request rate limiting |
 
 Gitignored (never in a clone): `data/`, `public/local-data/`, `OLD/`.
 
