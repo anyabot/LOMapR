@@ -111,6 +111,10 @@ export interface UnitData {
   // name/desc are loc ids (resolve with t()); icon is a UI_TroopIcon_* key
   // (PNG at /images/common/<icon>.png).
   faction: { name: string; desc: string; icon: string } | null;
+  // Overlapping lore/story groups which are not official icon-bearing troop
+  // factions. A unit may belong to more than one (for example, Lemonade Alpha
+  // is both Squad 21 and a Secretary Lemonade).
+  loreGroups?: { key: string; name: string }[];
   // exclusive gear locked to this unit (equip family ids, via the equip's pcLimit).
   exclusiveEquip?: string[];
 

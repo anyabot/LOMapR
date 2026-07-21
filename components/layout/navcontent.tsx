@@ -2,6 +2,9 @@ import {
   Box, Stack, HStack, Select, Checkbox, Text, VStack,
   Menu, MenuButton, MenuList, MenuItem, Button, Spinner,
 } from "@chakra-ui/react";
+import { ChevronDownIcon } from "@chakra-ui/icons";
+import NextLink from "next/link";
+import { useRouter } from "next/router";
 import NavLink from "./navlink"
 import { useAppSelector, useAppDispatch } from "@/hooks";
 import { selectRegion, setRegion, Region } from "@/store/regionSlice";
@@ -43,6 +46,60 @@ const LAYERS: LayerDef[] = [
     warning: "May be outdated — not kept in sync with game updates.",
   },
 ];
+
+const ETC_LINKS = [
+  ["/npcs", "NPC Viewer"],
+  ["/gacha", "Gacha Simulator"],
+  ["/team", "Team Builder"],
+  ["/misc", "Misc Categories"],
+] as const;
+
+function EtcMenu() {
+  const { pathname } = useRouter();
+  const active = ETC_LINKS.some(([href]) => pathname.startsWith(href));
+
+  return (
+    <Menu>
+      <MenuButton
+        as={Button}
+        variant="ghost"
+        size="sm"
+        h="auto"
+        minW={0}
+        px={1}
+        py={0.5}
+        fontWeight="bold"
+        color={active ? "yellow.300" : "gray.300"}
+        borderRadius={0}
+        borderBottomWidth="2px"
+        borderColor={active ? "yellow.400" : "transparent"}
+        _hover={{ color: "yellow.200", bg: "transparent" }}
+        _active={{ bg: "whiteAlpha.100" }}
+        rightIcon={<ChevronDownIcon />}
+      >
+        Etc
+      </MenuButton>
+      <MenuList bg="#21252e" borderColor="#2c313c" minW="190px" py={1}>
+        {ETC_LINKS.map(([href, label]) => {
+          const itemActive = pathname.startsWith(href);
+          return (
+            <MenuItem
+              as={NextLink}
+              key={href}
+              href={href}
+              bg={itemActive ? "whiteAlpha.100" : "transparent"}
+              color={itemActive ? "yellow.300" : "gray.200"}
+              fontWeight={itemActive ? "bold" : "normal"}
+              _hover={{ bg: "whiteAlpha.100", color: "yellow.200" }}
+            >
+              {label}
+            </MenuItem>
+          );
+        })}
+      </MenuList>
+    </Menu>
+  );
+}
 
 function TranslationMenu() {
   const mtl       = useAppSelector(selectMtl);
@@ -153,13 +210,11 @@ function NavContent({ isOpen }: { isOpen: boolean }) {
           <NavLink to="/units">Units</NavLink>
           <NavLink to="/skins">Skins</NavLink>
           <NavLink to="/equipment">Equipment</NavLink>
-          <NavLink to="/team">Team</NavLink>
           <NavLink to="/world">World</NavLink>
           <NavLink to="/sanctum">Sanctum</NavLink>
           <NavLink to="/enemies">Enemies</NavLink>
           <NavLink to="/iw">Infinite War</NavLink>
-          <NavLink to="/gacha">Gacha Sim</NavLink>
-          <NavLink to="/misc">Misc</NavLink>
+          <EtcMenu />
         </HStack>
 
         <HStack spacing={2} flexWrap="wrap" justify="center" align="center">

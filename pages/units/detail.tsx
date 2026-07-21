@@ -14,7 +14,7 @@ import {
 import { ArrowBackIcon } from '@chakra-ui/icons';
 import { useAppSelector, useAppDispatch } from '@/hooks';
 import {
-  selectUnitFull, selectUnitStatus, fetchUnitsAsync,
+  selectUnitFull, selectUnits, selectUnitStatus, fetchUnitsAsync,
   selectUnitSkills, selectUnitSkillStatus, fetchUnitBundleAsync,
 } from '@/store/unitSlice';
 import { selectWorld, fetchWorldAsync } from '@/store/worldSlice';
@@ -33,6 +33,7 @@ import SkinViewer from '@/components/skinViewer';
 import CopyLink from '@/components/copyLink';
 import { StatRow, StatPair, StatSection } from '@/components/statBlock';
 import { rankTag, rankColor, roleRankIcon, typeIcon, roleIcon, bodyIcon, equipIcon, factionIcon, unitDisplayName } from '@/lib/rank';
+import { NPCS, NpcEntry } from '@/lib/npcs';
 
 // Units cap at level 100 before the lv-limit unlocks; HP/ATK/DEF grow linearly
 // from stat[grade].X[0] (lv1) to X[1] (lv100). The other stats are flat per grade.
@@ -174,6 +175,7 @@ export default function UnitDetail() {
   // selectUnitFull merges the light list record with the heavy detail once its
   // bundle loads; until then the detail fields (stat/promotions/…) are absent.
   const unit = useAppSelector((s) => (id ? selectUnitFull(s, id) : null));
+  const units = useAppSelector(selectUnits);
   const status = useAppSelector(selectUnitStatus);
   const world = useAppSelector(selectWorld);
   const equip = useAppSelector(selectEquip);
@@ -364,12 +366,168 @@ export default function UnitDetail() {
         </Tabs>
         );
         })()}
+        <FactionSection unit={unit} units={Object.values(units)} />
+        <LoreGroupsSection unit={unit} units={Object.values(units)} />
       </VStack>
     </>
   );
 }
 
+// A faction is identified by its shared troop icon. Within it, the game assigns
+// units to separately named squads of at most five members. Preserve those squad
+// boundaries rather than flattening every member into one long list.
+function FactionSection({ unit, units }: { unit: UnitData; units: UnitData[] }) {
+  if (!unit.faction) return null;
+
+  const factionUnits = units.filter((candidate) => candidate.faction?.icon === unit.faction?.icon);
+  const squads = new Map<string, UnitData[]>();
+  for (const member of factionUnits) {
+    if (!member.faction) continue;
+    const members = squads.get(member.faction.name) || [];
+    members.push(member);
+    squads.set(member.faction.name, members);
+  }
+  if (squads.size === 0) return null;
+
+  const factionName = t(factionUnits[0]?.faction?.name || unit.faction.name)
+    .replace(/\s+(?:II|III|IV|V)$/i, '');
+
+  return (
+    <Box borderWidth="1px" borderColor="surface.border" borderRadius="xl" bg="surface.elevated" overflow="hidden">
+      <HStack px={4} py={3} bg="blackAlpha.300" borderBottomWidth="1px" borderBottomColor="surface.border">
+        {factionIcon(unit.faction.icon) ? (
+          <Image src={factionIcon(unit.faction.icon)!} alt={factionName} boxSize="30px" />
+        ) : null}
+        <Box>
+          <Text fontSize="2xs" color="gray.500" fontWeight="bold" textTransform="uppercase" letterSpacing="wide">
+            Faction
+          </Text>
+          <Heading size="sm">{factionName}</Heading>
+        </Box>
+      </HStack>
+
+      <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={4} p={4} alignItems="start">
+        {Array.from(squads, ([squadName, members]) => ({ squadName, members })).map(({ squadName, members }) => (
+          <Box key={squadName} borderWidth="1px" borderColor="surface.border" borderRadius="lg"
+            bg="blackAlpha.200" p={3} minW={0}>
+            <HStack mb={2} minH="20px">
+              <Heading as="h3" size="xs" color="blue.200">{t(squadName)}</Heading>
+              <Badge colorScheme="blue" borderRadius="full">{members.length}/5</Badge>
+            </HStack>
+            {/* Every squad owns one five-slot row, even when fewer slots are filled. */}
+            <UnitMemberGrid currentUnit={unit} members={members} />
+          </Box>
+        ))}
+      </SimpleGrid>
+    </Box>
+  );
+}
+
 // ── Skills tab: control group (level / full-link power / affection) + skill subtabs
+// Lore groups overlap official factions and are referenced by story/skill effects,
+// so they deliberately have no faction icon. Squad 21 comes from Table_PC's real
+// Is21Squad marker; the other memberships are curated from explicit skill targets.
+function LoreGroupsSection({ unit, units }: { unit: UnitData; units: UnitData[] }) {
+  const groups = unit.loreGroups || [];
+  if (groups.length === 0) return null;
+
+  return (
+    <Box borderWidth="1px" borderColor="surface.border" borderRadius="xl" bg="surface.elevated" overflow="hidden">
+      <Box px={4} py={3} bg="blackAlpha.300" borderBottomWidth="1px" borderBottomColor="surface.border">
+        <Text fontSize="2xs" color="gray.500" fontWeight="bold" textTransform="uppercase" letterSpacing="wide">
+          Story &amp; skill affiliations
+        </Text>
+        <Heading size="sm">Lore Groups</Heading>
+      </Box>
+
+      <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={4} p={4} alignItems="start">
+        {groups.map((group) => {
+          const members = units.filter((candidate) =>
+            candidate.loreGroups?.some((candidateGroup) => candidateGroup.key === group.key));
+          const npcMembers = NPCS.filter((candidate) => candidate.loreGroups?.includes(group.key));
+          return (
+            <Box key={group.key} borderWidth="1px" borderColor="surface.border" borderRadius="lg"
+              bg="blackAlpha.200" p={3} minW={0}>
+              <HStack mb={2} minH="20px">
+                <Heading as="h3" size="xs" color="purple.200">{group.name}</Heading>
+                <Badge colorScheme="purple" borderRadius="full">{members.length + npcMembers.length}</Badge>
+              </HStack>
+              <LoreMemberGrid currentUnit={unit} members={members} npcMembers={npcMembers} />
+            </Box>
+          );
+        })}
+      </SimpleGrid>
+    </Box>
+  );
+}
+
+function LoreMemberGrid({ currentUnit, members, npcMembers }: {
+  currentUnit: UnitData;
+  members: UnitData[];
+  npcMembers: NpcEntry[];
+}) {
+  return (
+    <SimpleGrid columns={5} spacing={{ base: 1, sm: 2 }} maxW="420px">
+      {members.map((member) => (
+        <UnitMemberCard key={member.id} currentUnit={currentUnit} member={member} />
+      ))}
+      {npcMembers.map((member) => {
+        const memberName = t(member.name);
+        return (
+          <Link key={member.id} href={`/npcs?id=${encodeURIComponent(member.id)}`}
+            aria-label={`View ${memberName}`}>
+            <Box borderWidth="1px" borderColor="surface.border" borderRadius="lg"
+              bg="blackAlpha.300" overflow="hidden" role="group"
+              transition="border-color .12s ease, transform .12s ease"
+              _hover={{ borderColor: 'yellow.400', transform: 'translateY(-2px)' }}>
+              <Box position="relative" w="100%" pt="100%" bg="blackAlpha.500">
+                <Image src={member.thumbnail} alt={memberName} position="absolute" inset={0}
+                  objectFit="cover" w="100%" h="100%" />
+                <Badge position="absolute" top={1} right={1} colorScheme="purple" fontSize="8px">NPC</Badge>
+              </Box>
+              <Text px={1} py={1} fontSize="2xs" fontWeight="semibold" textAlign="center" noOfLines={2}
+                color="gray.200">{memberName}</Text>
+            </Box>
+          </Link>
+        );
+      })}
+    </SimpleGrid>
+  );
+}
+
+// Fixed five-column member rows shared by official faction squads and lore groups.
+// Groups with more than five members wrap into another five-slot row.
+function UnitMemberGrid({ currentUnit, members }: { currentUnit: UnitData; members: UnitData[] }) {
+  return (
+    <SimpleGrid columns={5} spacing={{ base: 1, sm: 2 }} maxW="420px">
+      {members.map((member) => <UnitMemberCard key={member.id} currentUnit={currentUnit} member={member} />)}
+    </SimpleGrid>
+  );
+}
+
+function UnitMemberCard({ currentUnit, member }: { currentUnit: UnitData; member: UnitData }) {
+  const memberName = unitDisplayName(member);
+  const current = member.id === currentUnit.id;
+  const card = (
+    <Box borderWidth="1px" borderColor={current ? 'yellow.400' : 'surface.border'} borderRadius="lg"
+      bg={current ? 'yellowAlpha.100' : 'blackAlpha.300'} overflow="hidden" role="group"
+      transition="border-color .12s ease, transform .12s ease"
+      _hover={current ? undefined : { borderColor: 'yellow.400', transform: 'translateY(-2px)' }}>
+      <Box position="relative" w="100%" pt="100%" bg="blackAlpha.500">
+        {member.icon ? (
+          <Image src={`/images/icons/${member.icon}.png`} alt={memberName}
+            position="absolute" inset={0} objectFit="cover" w="100%" h="100%" />
+        ) : null}
+      </Box>
+      <Text px={1} py={1} fontSize="2xs" fontWeight="semibold" textAlign="center" noOfLines={2}
+        color={current ? 'yellow.200' : 'gray.200'}>{memberName}</Text>
+    </Box>
+  );
+  return current ? <Box>{card}</Box> : (
+    <Link href={`/units/detail?id=${encodeURIComponent(member.id)}`} aria-label={`View ${memberName}`}>{card}</Link>
+  );
+}
+
 function SkillsTab({
   unit, skills, headerAtk, skillStatus,
 }: {
