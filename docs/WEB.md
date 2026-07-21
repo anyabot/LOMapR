@@ -16,8 +16,9 @@ every data read is a runtime `fetch` from the R2 asset domain or `/local-data`
 | route | file | what |
 |---|---|---|
 | `/` | `pages/index.tsx` | home |
-| `/units`, `/units/detail?id=` | `pages/units.tsx`, `pages/units/detail.tsx` | unit grid (class/role/grade filter, search) → detail: stats calculator, skills, profile, drops, promotion, limit break, exclusive equip |
+| `/units`, `/units/detail?id=` | `pages/units.tsx`, `pages/units/detail.tsx` | unit grid (class/role/grade filter, search) → detail: stats calculator, skills, profile, drops, promotion, limit break, exclusive equip, an official faction roster grouped into max-five-member squads, and overlapping lore groups referenced by story/skill effects |
 | `/skins` | `pages/skins.tsx` | skin browser + viewer entry (PixiJS / Unity iframe) |
+| `/npcs?id=&model=` | `pages/npcs.tsx` | selectable non-playable-character and enemy 2D-model catalog; supports model-variant deep links and the shared PixiJS viewer |
 | `/equipment` | `pages/equipment.tsx` | equip list (type/grade/exchange filters); modal deep-link `?equip=<id>` |
 | `/team` | `pages/team.tsx` | team builder: 3x3 formation (ten-key layout, max 5 units), per-unit level/grade/links/equipment/skill levels, game-style stat tiles with inline point inputs + auto-stat (round-1 CRIT 100% / ACC floor, or ACC derived from the enemy wave's highest EVA), ally-AoE tile highlight, share code (`?t=`), downloadable PNG team summary, multiple localStorage team slots (`lomapr.teams.v1`, incl. a per-slot enemy-wave pick; codes load into their own slot), round-1 battle simulation of both sides (enemy wave via world→stage→wave picker; simulator unit links open details and enemy links open the global popup) |
 | `/world`, `/world/detail`, `/world/stage` | `pages/world/*.tsx` | chapters → zones → stages → waves/rewards/missions |

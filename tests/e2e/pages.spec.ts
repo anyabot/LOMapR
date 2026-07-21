@@ -17,6 +17,7 @@ type PageCase = {
 const CASES: PageCase[] = [
   { path: '/',             title: /LOMapR/,                 heading: 'LOMapR' },
   { path: '/units',        title: 'Units',                  heading: 'Units' },
+  { path: '/npcs',         title: 'NPC Viewer - LOMapR',    heading: 'NPC Viewer' },
   { path: '/equipment',    title: 'Equipment',              heading: 'Equipment' },
   { path: '/enemies',      title: 'Enemy List',             heading: 'Enemies' },
   { path: '/skins',        title: 'Skins',                  heading: 'Skins' },
@@ -79,3 +80,15 @@ for (const c of CASES) {
     expect(badResponses, badResponses.join('\n')).toHaveLength(0);
   });
 }
+
+test('Etc navigation groups secondary tools', async ({ page }) => {
+  await page.goto('/');
+  const mobileToggle = page.getByRole('button', { name: 'Toggle menu' });
+  if (await mobileToggle.isVisible()) await mobileToggle.click();
+
+  await page.getByRole('button', { name: 'Etc' }).click();
+  await expect(page.getByRole('menuitem', { name: 'NPC Viewer', exact: true })).toHaveAttribute('href', '/npcs');
+  await expect(page.getByRole('menuitem', { name: 'Gacha Simulator', exact: true })).toHaveAttribute('href', '/gacha');
+  await expect(page.getByRole('menuitem', { name: 'Team Builder', exact: true })).toHaveAttribute('href', '/team');
+  await expect(page.getByRole('menuitem', { name: 'Misc Categories', exact: true })).toHaveAttribute('href', '/misc');
+});

@@ -77,4 +77,26 @@ test.describe('/units/detail', () => {
     await page.getByRole('link', { name: 'Back to units' }).click();
     await expect(page).toHaveURL(/\/units$/);
   });
+
+  test('shows faction squads and lore groups with member links', async ({ page }) => {
+    await page.goto(`/units/detail?id=${encodeURIComponent(SAMPLE.unit.id)}`);
+    await expect(page.getByRole('heading', { name: SAMPLE.unit.name, exact: true })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('Faction', { exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Battle Maid Project', exact: true, level: 3 })).toBeVisible();
+    await expect(page.getByText('5/5', { exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Lore Groups', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Squad 21', exact: true })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'View Invincible Dragon', exact: true })).toBeVisible();
+    await page.getByRole('link', { name: 'View Vanilla A1', exact: true }).click();
+    await expect(page).toHaveURL(/\/units\/detail\?id=Char_3P_Vanilla_N/);
+  });
+
+  test('links NPC Lemonades from the Secretary Lemonades lore group', async ({ page }) => {
+    await page.goto('/units/detail?id=Char_PECS_LemonadeAlpha_N');
+    await expect(page.getByRole('heading', { name: 'Secretary Lemonades', exact: true })).toBeVisible({ timeout: 15_000 });
+    const zeta = page.getByRole('link', { name: 'View Lemonade Zeta (Humanoid)', exact: true });
+    await expect(zeta).toBeVisible();
+    await zeta.click();
+    await expect(page).toHaveURL(/\/npcs\?id=lemonade-zeta-humanoid/);
+  });
 });
