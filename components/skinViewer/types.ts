@@ -100,6 +100,63 @@ export function zAngle(q: [number, number, number, number]): number {
   return Math.atan2(2 * (w * z + x * y), 1 - 2 * (y * y + z * z));
 }
 
+// Largest root-local distance covered by one source-texture pixel for a mesh.
+// Sprite meshes can have a pixels-per-unit ratio that compensates for very
+// large Unity transforms, so transform scale alone is not a native-resolution
+// measurement. Measure every non-degenerate triangle because weighted Spine
+// meshes can have a different affine mapping across the current pose.
+export function mappedSourcePixelScale(
+  verts: ArrayLike<number>,
+  uvs: ArrayLike<number>,
+  indices: ArrayLike<number>,
+  textureWidth: number,
+  textureHeight: number,
+  transform: { a: number; b: number; c: number; d: number },
+): number {
+  let maxScale = 0;
+  for (let i = 0; i + 2 < indices.length; i += 3) {
+    const i0 = indices[i] * 2, i1 = indices[i + 1] * 2, i2 = indices[i + 2] * 2;
+    const sx1 = (uvs[i1] - uvs[i0]) * textureWidth;
+    const sy1 = (uvs[i1 + 1] - uvs[i0 + 1]) * textureHeight;
+    const sx2 = (uvs[i2] - uvs[i0]) * textureWidth;
+    const sy2 = (uvs[i2 + 1] - uvs[i0 + 1]) * textureHeight;
+    const det = sx1 * sy2 - sx2 * sy1;
+    if (Math.abs(det) < 1e-8) continue;
+
+    const vx1 = verts[i1] - verts[i0], vy1 = verts[i1 + 1] - verts[i0 + 1];
+    const vx2 = verts[i2] - verts[i0], vy2 = verts[i2 + 1] - verts[i0 + 1];
+    const dx1 = transform.a * vx1 + transform.c * vy1;
+    const dy1 = transform.b * vx1 + transform.d * vy1;
+    const dx2 = transform.a * vx2 + transform.c * vy2;
+    const dy2 = transform.b * vx2 + transform.d * vy2;
+
+    // [dx1 dx2; dy1 dy2] * inverse([sx1 sx2; sy1 sy2])
+    const a = (dx1 * sy2 - dx2 * sy1) / det;
+    const c = (-dx1 * sx2 + dx2 * sx1) / det;
+    const b = (dy1 * sy2 - dy2 * sy1) / det;
+    const d = (-dy1 * sx2 + dy2 * sx1) / det;
+    const sumSq = a * a + b * b + c * c + d * d;
+    const mapDet = a * d - b * c;
+    const discriminant = Math.max(0, sumSq * sumSq - 4 * mapDet * mapDet);
+    maxScale = Math.max(
+      maxScale,
+      Math.sqrt((sumSq + Math.sqrt(discriminant)) / 2),
+    );
+  }
+  return maxScale;
+}
+
+export function meshSourcePixelScale(
+  mesh: Mesh,
+  textureWidth: number,
+  textureHeight: number,
+  transform: { a: number; b: number; c: number; d: number },
+): number {
+  return mappedSourcePixelScale(
+    mesh.verts, mesh.uvs, mesh.indices, textureWidth, textureHeight, transform,
+  );
+}
+
 // Wire wheel-zoom + drag-pan + two-finger pinch on a PixiJS canvas, panning/
 // scaling `root` (and an optional `zoneLayer` kept in lockstep). Returns a
 // cleanup that removes the listeners. Shared by the fixed and spine viewers.
