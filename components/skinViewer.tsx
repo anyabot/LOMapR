@@ -19,7 +19,10 @@ import {
   IconBtn, FaceSelect, SaveButton, ReloadButton, PlayPauseButton, ZonesButton, variantMeta, VariantStrip,
 } from './skinViewer/chrome';
 import type { SpriteInfo, SkinNode, FixedFace, Layout } from './skinViewer/types';
-import { baseSkinKey, layoutHasVariant, zAngle, attachPanZoom } from './skinViewer/types';
+import {
+  baseSkinKey, layoutHasVariant, zAngle, attachPanZoom,
+  mappedSourcePixelScale, meshSourcePixelScale,
+} from './skinViewer/types';
 
 // Unity WebGL iframe viewer for the old skinned-mesh animation rig (the 144
 // skipped skins). The iframe loads /unity-viewer/?model=<skin> and communicates
@@ -380,7 +383,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
       // the wrapper container that will be added to root (holding the composed
       // world matrix so the mesh renders in the right place/scale/rotation),
       // the sort order, and the ancestor chain for visibility recompute.
-      const flatMeshes: { mesh: any; wrapper: any; order: number; chain: string[]; sprite: SpriteInfo }[] = [];
+      const flatMeshes: { mesh: any; wrapper: any; order: number; chain: string[]; sprite: SpriteInfo; pixelScale: number; isBody: boolean }[] = [];
       // Captured during build: the empty face node's world matrix + ancestor chain,
       // so we can overlay the chosen face-expression mesh at that exact spot.
       let faceAnchorMat: any = null;
@@ -431,7 +434,14 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
           const wrapper = new PIXI.Container();
           wrapper.setFromMatrix(worldMat);
           wrapper.addChild(mesh);
-          flatMeshes.push({ mesh, wrapper, order: n.sprite.order, chain, sprite: n.sprite });
+          const source = textures[n.sprite.tex]?.source;
+          const pixelScale = source
+            ? meshSourcePixelScale(n.sprite, source.width, source.height, worldMat)
+            : 0;
+          flatMeshes.push({
+            mesh, wrapper, order: n.sprite.order, chain, sprite: n.sprite, pixelScale,
+            isBody: n.name.toLowerCase() === 'body',
+          });
         }
         if (n.faceAnchor) {
           faceAnchorMat = worldMat.clone();
@@ -447,9 +457,18 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
       (layout.nodes ?? []).forEach((n) => root.addChild(build(n, [], identity)));
       app.stage.addChild(root);
       rootRef.current = root;
-      // _root node applies the Unity global scale-down (~0.13); invert it to get atlas-pixel scale.
+      // Measure the canonical body sprite's complete UV-pixel -> root-local
+      // mapping. Effects and letterbox sprites are intentionally enlarged and
+      // must not determine the figure's export resolution. Older/nonstandard
+      // layouts without a `body` sprite retain the established `_root` fallback.
       const rootNode = Object.values(byId).find((c: any) => c.label?.endsWith('_root')) as any;
-      u2pxRef.current = rootNode ? 1 / Math.abs(rootNode.scale.x) : 1;
+      const bodyPixelScale = flatMeshes.reduce(
+        (max, { pixelScale, isBody }) => isBody ? Math.max(max, pixelScale) : max,
+        0,
+      );
+      u2pxRef.current = bodyPixelScale > 0
+        ? 1 / bodyPixelScale
+        : rootNode ? 1 / Math.max(Math.abs(rootNode.scale.x), Math.abs(rootNode.scale.y)) : 1;
       nodesByIdRef.current = byId;
       flatMeshesRef.current = flatMeshes;
 
@@ -566,6 +585,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
   // Per atlas page: base and sfw SpineTexture objects for texture-swap case
   const spinePageTexRef = useRef<{ page: any; base: any; sfw: any }[]>([]);
   const spineBgTexRef = useRef<{ base: any; sfw: any } | null>(null);
+  const spinePixelScaleRef = useRef<() => number>(() => 1);
   const composeSkinRef = useRef<((face: string, breast: string[], parts: Record<string, boolean>) => void) | null>(null);
   const spineStateRef = useRef<number>(0);
   const reactThenRef = useRef<((trigger: 'breast' | 'Tep_1') => void) | null>(null);
@@ -588,11 +608,15 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
     spineActorsRef.current.clear();
     spinePageTexRef.current = [];
     spineBgTexRef.current = null;
+    spinePixelScaleRef.current = () => 1;
 
     (async () => {
       const PIXI = await import('pixi.js');
       pixiRef.current = PIXI;
-      const { Spine, SkeletonJson, AtlasAttachmentLoader, Skin, Physics, TextureAtlas, SpineTexture } =
+      const {
+        Spine, SkeletonJson, AtlasAttachmentLoader, Skin, Physics, TextureAtlas, SpineTexture,
+        RegionAttachment, MeshAttachment,
+      } =
         await import('@esotericsoftware/spine-pixi-v8') as any;
       const files = filesRef.current;
       if (!files) return;
@@ -812,6 +836,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
         bg.width = W.bg.w * u2px;
         bg.height = W.bg.h * u2px;
         bg.zIndex = -10;
+        bg.visible = togglesRef.current['bg'] ?? true;
         root.addChild(bg);
         bgSpriteRef.current = bg;
       }
@@ -944,12 +969,57 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
       };
       spine.update(0);
       fit();
-      // After one update pass, local bounds are valid. Compute true pixel scale from atlas page size.
-      const atlasPage = baseAtlas.pages[0];
-      const localB = root.getLocalBounds();
-      if (localB.width && atlasPage?.width) {
-        u2pxRef.current = atlasPage.width / localB.width;
-      }
+
+      // Measure source-atlas pixels in the current composed pose. Unlike the
+      // old atlas-width heuristic, this works for packed parts, mesh
+      // attachments, bone scaling, multiple actors, and optional backgrounds.
+      const attachmentScale = (sp: any): number => {
+        if (!sp?.visible) return 0;
+        let max = 0;
+        for (const slot of sp.skeleton.slots) {
+          const attachment = slot.getAttachment();
+          const region = attachment?.region;
+          const page = region?.page;
+          if (!attachment || !page?.width || !page?.height) continue;
+          let vertices: Float32Array;
+          let indices: ArrayLike<number>;
+          if (attachment instanceof RegionAttachment) {
+            vertices = new Float32Array(8);
+            attachment.computeWorldVertices(slot, vertices, 0, 2);
+            indices = [0, 1, 2, 0, 2, 3];
+          } else if (attachment instanceof MeshAttachment) {
+            vertices = new Float32Array(attachment.worldVerticesLength);
+            attachment.computeWorldVertices(
+              slot, 0, attachment.worldVerticesLength, vertices, 0, 2,
+            );
+            indices = attachment.triangles;
+          } else {
+            continue;
+          }
+          max = Math.max(max, mappedSourcePixelScale(
+            vertices, attachment.uvs, indices, page.width, page.height,
+            { a: sp.scale.x, b: 0, c: 0, d: sp.scale.y },
+          ));
+        }
+        return max;
+      };
+      spinePixelScaleRef.current = () => {
+        let max = 0;
+        const actors = actorInstances.length
+          ? actorInstances.flatMap((a) => [a.base, a.sfw].filter(Boolean))
+          : [spine, spineSfw].filter(Boolean);
+        for (const actor of actors) max = Math.max(max, attachmentScale(actor));
+        const bg = bgSpriteRef.current;
+        const bgSource = bg?.texture?.source;
+        if (bg?.visible && bgSource?.width && bgSource?.height) {
+          max = Math.max(
+            max,
+            Math.abs(bg.width) / bgSource.width,
+            Math.abs(bg.height) / bgSource.height,
+          );
+        }
+        return max || 1;
+      };
       app.renderer.on('resize', fit);
 
       attachPanZoom(app.canvas as HTMLCanvasElement, root, zoneLayer);
@@ -962,6 +1032,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
       spineActorsRef.current.clear();
       spinePageTexRef.current = [];
       spineBgTexRef.current = null;
+      spinePixelScaleRef.current = () => 1;
       composeSkinRef.current = null;
       reactThenRef.current = null;
       spineStateRef.current = 0;
@@ -1132,7 +1203,9 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
       // u2px: how many atlas-pixels per skeleton unit.
       // exportScale = u2px / fitScale scales the screen render up to atlas resolution.
       const fitScale = root.scale.x;
-      const u2px = u2pxRef.current;
+      const u2px = layout?.kind === 'spine'
+        ? 1 / spinePixelScaleRef.current()
+        : u2pxRef.current;
       const exportScale = u2px / fitScale;
       const screenBounds = root.getBounds(); // screen-pixel bounding box of content
       const natW = Math.ceil(screenBounds.width * exportScale);
