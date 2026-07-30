@@ -2,7 +2,7 @@
 
 > **MAINTENANCE POLICY: update this doc at the end of any task that adds/moves/
 > removes a page, slice, component, lib module, or data contract.** Verify
-> against the code, don't assume. Last verified against code: **2026-07-19**.
+> against the code, don't assume. Last verified against code: **2026-07-25**.
 
 Next.js **pages router**, deployed to Cloudflare Workers via OpenNext (all
 pages prerendered and served as static assets; the Worker only handles the
@@ -62,6 +62,7 @@ unit, equip, misc, world`. `regionSlice` holds the active region
 | `rank.ts` | icon resolvers: `roleRankIcon`, `typeIcon`, `roleIcon`, `factionIcon`, `equipIcon` |
 | `buffIcons.ts` | buff icon mapping |
 | `skinArchive.ts` | fetch + brotli-decompress `.tar.br` skin archives |
+| `npcs.ts` | curated NPC/enemy illustration catalog, model variants, portrait paths, and lore-group links used by `/npcs` and unit detail |
 | `translationVersion.tsx` | community-translation versioning |
 | `team.ts` | team-builder logic: level/slot gating, stat computation (points + equipment + core links), skill scaling, ally-AoE tile mapping, equip eligibility, share-code encode/decode |
 | `teamImage.ts` | canvas PNG exporter for the team formation and per-unit portrait/level, total stats + allocated points, and equipment + levels |
@@ -122,7 +123,8 @@ results/history, multi-pull count > 1, tabs), `misc` (three tabs render),
 `iw` (season → raid boss detail), `team` (picker → tile, 5-unit cap toast,
 no-duplicate picker, team-code copy→clear→load round-trip into a new slot,
 localStorage reload survival, PNG image export via download event, slot bar,
-simulate tab; clipboard permissions granted), `home` (quick-nav cards,
+simulate tab; clipboard permissions granted), `npcs` (catalog,
+category/search filtering, deep-link selection, viewer), `home` (quick-nav cards,
 external links), `region` (KR-only unit — Maria Grace — hidden on global,
 revealed via `?server=kr` and the navbar region select, unit-detail not-found
 vs. resolves per region, region persists across reload + `?server=` override
