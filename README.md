@@ -40,6 +40,11 @@ Open [http://localhost:3000](http://localhost:3000).
   **Infinite War** (`/iw`).
 - **Skins** (`/skins`) — skin browser + viewer (PixiJS for fixed/spine skins,
   Unity WebGL iframe for skinned models).
+- **NPC Viewer** (`/npcs`) — curated non-playable-character and enemy
+  illustration catalog using the shared fixed-skin viewer.
+- **Team Builder** (`/team`) — multi-slot formation builder with share codes,
+  PNG export, auto-stat allocation, enemy-wave selection, and round-one
+  simulation.
 - **Gacha Sim** (`/gacha`) — gacha simulator.
 - **Misc** (`/misc`) — cross-unit categorization: AoE skills, damage types,
   buff/debuff reverse lookup.
