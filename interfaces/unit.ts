@@ -82,7 +82,7 @@ export interface UnitSkin {
   bgDamUse: boolean;
   modelDiverged?: boolean;     // model asset: global/kr render genuinely different art
   modelDamDiverged?: boolean;  // modelDam asset: global/kr render genuinely different art
-  viewerKind?: 'fixed' | 'spine' | 'skinned';  // 'skinned' = old animated rig, not supported by the viewer yet
+  viewerKind?: 'fixed' | 'spine' | 'skinned';
 }
 
 // A unit record. The build splits each unit into a LIGHT list record (the always-

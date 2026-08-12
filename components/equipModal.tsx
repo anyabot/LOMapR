@@ -222,8 +222,7 @@ export default function EquipModal() {
                       {rank.pcLimit ? (
                         <WrapItem>
                           <UnitHoverCard unitId={rank.pcLimit} inModal>
-                            <Tag as={Link} href={`/units/detail?id=${encodeURIComponent(rank.pcLimit)}`}
-                              size="sm" colorScheme="purple" gap={1} _hover={{ bg: 'purple.600' }}>
+                            <Tag size="sm" colorScheme="purple" gap={1} _hover={{ bg: 'purple.600' }}>
                               {(() => {
                                 const u = units[rank.pcLimit];
                                 return u ? unitDisplayName(u) : 'Unit-locked';

@@ -5,7 +5,7 @@
 > components, data files, or deploy behavior. Verify claims against the code,
 > never copy them from another doc.
 >
-> Last verified against code: **2026-07-25**.
+> Last verified against code: **2026-08-12**.
 
 ## What this is
 
@@ -33,7 +33,7 @@ for the game.
   prerenders at build time and is served as a static asset **without invoking
   the Worker** (selective asset-first routing); unknown paths use the static
   `404.html`, while the Worker-first allowlist
-  handles the `/models|/rebuilt|/skins` proxy rewrites (Unity skinned viewer)
+  handles the `/models|/rebuilt|/skins` proxy rewrites (skin archives and Unity fallback)
   and `/api` routes. Dynamic Worker traffic is protected by a
   native Cloudflare per-client rate-limit binding in `middleware.ts` (120
   requests/minute; no browser challenge). Chakra UI + Redux Toolkit. All game
@@ -59,7 +59,7 @@ baked at build time): `NEXT_PUBLIC_R2_PUBLIC_URL`,
 | `pages/`, `components/`, `store/` + `store.ts`, `lib/`, `interfaces/`, `styles/` | the web app — see [docs/WEB.md](WEB.md) |
 | `scripts/` | node build helpers: image-manifest generation, local-data sync, and copying prerendered HTML into OpenNext static assets |
 | `public/images/` | sliced game sprite PNGs (icons, skill icons, tbar, world, common, events) — the one generated artifact that IS committed |
-| `public/unity-viewer/` | compiled Unity WebGL viewer for skinned models (iframe target) |
+| `public/unity-viewer/` | compiled Unity WebGL fallback for skinned models whose Pixi archive is unavailable |
 | `docs/` | this folder — durable architecture/structure docs |
 | `README.md` / `DEPLOY.md` | quick start / Cloudflare Workers (OpenNext) + R2 deployment |
 | `wrangler.jsonc` / `open-next.config.ts` / `middleware.ts` | Worker + OpenNext adapter config and dynamic-request rate limiting |

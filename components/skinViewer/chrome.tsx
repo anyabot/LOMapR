@@ -3,7 +3,9 @@
 // a face dropdown, save/reload buttons, a variant radio strip, and a control
 // bar. These presentational components are fed each viewer's own state so the
 // markup lives in one place.
-import { Box, HStack, Image, Select, Spinner, Text, Tooltip } from '@chakra-ui/react';
+import { useState } from 'react';
+import { Box, Button, CloseButton, Flex, HStack, Image, Input, Select, Spinner, Text, Tooltip } from '@chakra-ui/react';
+import { HamburgerIcon, ViewIcon, ViewOffIcon } from '@chakra-ui/icons';
 
 // Icon-button used in the canvas overlay panel (top-right / bottom-right).
 // `active` = highlighted/full-opacity; `inactive` = dimmed with slash.
@@ -109,6 +111,73 @@ export function ZonesButton({ shown, onToggle }: { shown: boolean; onToggle: () 
   return (
     <OverlayIconButton src="/images/shop/UI_Icon_Eye.png" alt="Zones"
       label={shown ? 'Hide zones' : 'Show zones'} onClick={onToggle} dim={!shown} />
+  );
+}
+
+// Layer-editor toggle (spine only) — opens the per-slot visibility panel.
+export function LayersButton({ active, onToggle }: { active: boolean; onToggle: () => void }) {
+  return (
+    <Tooltip label={active ? 'Close layer editor' : 'Layer editor'} fontSize="xs" hasArrow placement="left">
+      <Box as="button" onClick={onToggle} boxSize="36px" display="flex" alignItems="center"
+        justifyContent="center" opacity={active ? 1 : 0.6} _hover={{ opacity: 1 }} transition="opacity 0.15s">
+        <HamburgerIcon boxSize="20px" color={active ? 'yellow.300' : 'gray.200'} />
+      </Box>
+    </Tooltip>
+  );
+}
+
+// Spine layer editor: one row per drawable slot, with an eye toggle each.
+// Rows are listed front-most first (Spine draw order runs back-to-front, so the
+// list is reversed) to match the stacking order an image editor shows.
+// `top` shifts the panel below the face dropdown when that one is present.
+export function LayerPanel({ slots, hidden, top = 2, onToggle, onSetAll, onClose }: {
+  slots: string[];
+  hidden: Set<string>;
+  top?: number;
+  onToggle: (slot: string) => void;
+  onSetAll: (visible: boolean) => void;
+  onClose: () => void;
+}) {
+  const [filter, setFilter] = useState('');
+  const query = filter.trim().toLowerCase();
+  const rows = slots.filter((s) => !query || s.toLowerCase().includes(query)).reverse();
+  const visibleCount = slots.reduce((n, s) => hidden.has(s) ? n : n + 1, 0);
+  return (
+    <Flex position="absolute" top={top} left={2} zIndex={2} direction="column"
+      w={{ base: '160px', sm: '200px' }} maxW="60%" maxH="75%"
+      bg="blackAlpha.800" borderRadius="md" overflow="hidden">
+      <Flex align="center" gap={1} pl={2} pr={1} pt={1}>
+        <Text fontSize="xs" fontWeight="bold" color="gray.200" flex="1" whiteSpace="nowrap">
+          Layers {visibleCount}/{slots.length}
+        </Text>
+        <Button size="xs" variant="ghost" h="20px" minW={0} px={1} fontSize="10px"
+          color="gray.300" onClick={() => onSetAll(true)}>All</Button>
+        <Button size="xs" variant="ghost" h="20px" minW={0} px={1} fontSize="10px"
+          color="gray.300" onClick={() => onSetAll(false)}>None</Button>
+        <CloseButton size="sm" color="gray.300" onClick={onClose} />
+      </Flex>
+      <Box px={2} py={1}>
+        <Input size="xs" borderRadius="sm" placeholder="filter" value={filter}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFilter(e.target.value)} />
+      </Box>
+      <Box flex="1" minH={0} overflowY="auto" px={1} pb={1}>
+        {rows.map((s) => {
+          const off = hidden.has(s);
+          return (
+            <Flex as="button" key={s} onClick={() => onToggle(s)} w="100%" align="center" gap={1}
+              px={1} py="2px" borderRadius="sm" textAlign="left" _hover={{ bg: 'whiteAlpha.200' }}>
+              {off
+                ? <ViewOffIcon boxSize="12px" color="gray.500" flexShrink={0} />
+                : <ViewIcon boxSize="12px" color="yellow.300" flexShrink={0} />}
+              <Text fontSize="xs" color={off ? 'gray.500' : 'gray.100'} isTruncated title={s}>{s}</Text>
+            </Flex>
+          );
+        })}
+        {rows.length === 0 && (
+          <Text fontSize="xs" color="gray.500" px={1} py={1}>no match</Text>
+        )}
+      </Box>
+    </Flex>
   );
 }
 

@@ -1,5 +1,4 @@
-// Types + pure helpers for the PixiJS skin viewer (fixed + spine kinds).
-// The third "skinned" kind is handled by the Unity iframe, not here.
+// Types + pure helpers shared by the PixiJS skin viewers.
 
 // A sprite's tight mesh drawn against a shared atlas texture.
 export type Mesh = {
