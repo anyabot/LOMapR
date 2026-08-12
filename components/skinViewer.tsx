@@ -1,22 +1,9 @@
-/**
- * Skin viewer: loads a packed skin archive (<skin>.tar.br, see tools/skin_test/
- * pack.py) and composes it with PixiJS. Two PixiJS layout kinds:
- *   - "fixed"  (export_skin.py): a Unity transform tree of sprite parts;
- *              rebuilt as a Container tree so parent offsets compose.
- *              Supports the R+ variant and ActorPartsView part toggles.
- *   - "spine"  (export_spine.py): a Spine 4.x runtime skeleton.
- *
- * The third kind, old self-rigged "skinned" rigs, is handled separately by the
- * Unity WebGL iframe (UnityViewer below), not PixiJS.
- *
- * Shared by pages/skin-viewer.tsx (standalone dev page) and the unit-detail
- * Skin tab (components/enemyTab-style per-unit embed).
- */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Center, HStack, Image, Spinner, Text, Tooltip, VStack } from '@chakra-ui/react';
 import { loadSkinArchive, revokeSkinUrls, readText, loadTexture, urlFor } from '../lib/skinArchive';
 import {
   IconBtn, FaceSelect, SaveButton, ReloadButton, PlayPauseButton, ZonesButton, variantMeta, VariantStrip,
+  LayersButton, LayerPanel,
 } from './skinViewer/chrome';
 import type { SpriteInfo, SkinNode, FixedFace, Layout } from './skinViewer/types';
 import {
@@ -24,10 +11,7 @@ import {
   mappedSourcePixelScale, meshSourcePixelScale,
 } from './skinViewer/types';
 
-// Unity WebGL iframe viewer for the old skinned-mesh animation rig (the 144
-// skipped skins). The iframe loads /unity-viewer/?model=<skin> and communicates
-// via postMessage. Model bundles are fetched by the Unity app at /models/<skin>
-// relative to the iframe origin (NEXT_PUBLIC_UNITY_VIEWER_URL controls this).
+// Used when a skinned Pixi archive has not been published yet.
 const UNITY_VIEWER_BASE = (
   typeof process !== 'undefined'
     ? process.env.NEXT_PUBLIC_UNITY_VIEWER_URL ?? '/unity-viewer/'
@@ -228,11 +212,207 @@ type SkinViewerProps = {
   hasKr?: boolean; viewRegion?: 'global' | 'kr'; onToggleRegion?: () => void;
 };
 
+function SkinnedPixiViewer(props: SkinViewerProps) {
+  const { skin, height = '70vh', parts = [], hasDam, showDam, onToggleDam } = props;
+  const hostRef = useRef<HTMLDivElement>(null);
+  const appRef = useRef<any>(null);
+  const viewRef = useRef<import('./skinViewer/skinnedPixi').SkinnedView | null>(null);
+  const [doc, setDoc] = useState<import('./skinViewer/skinnedRig').SkinnedDoc | null>(null);
+  const [baseDoc, setBaseDoc] = useState<import('./skinViewer/skinnedRig').SkinnedDoc | null>(null);
+  const [loadState, setLoadState] = useState<'fetching' | 'unpacking' | 'ready' | 'fallback'>('fetching');
+  const [resetKey, setResetKey] = useState(0);
+  const [playing, setPlaying] = useState(true);
+  const [zones, setZones] = useState(false);
+  const [variant, setVariant] = useState('base');
+  const [face, setFace] = useState('');
+  const [toggles, setToggles] = useState<Record<string, boolean>>({});
+  const playingRef = useRef(playing);
+  playingRef.current = playing;
+  const archiveSuffix = baseDoc?.variants?.[variant]?.archive ?? '';
+  const archiveSkin = `${skin}${archiveSuffix}`;
+  const fullVariant = archiveSuffix !== '';
+  const variantRef = useRef(variant);
+  const fullVariantRef = useRef(fullVariant);
+  variantRef.current = variant;
+  fullVariantRef.current = fullVariant;
+
+  useEffect(() => {
+    let destroyed = false;
+    let app: any = null;
+    let detachPanZoom = () => {};
+    setLoadState('fetching');
+    setFace('');
+    (async () => {
+      const filesPromise = loadSkinArchive(archiveSkin);
+      setLoadState('unpacking');
+      const [files, PIXI, module] = await Promise.all([
+        filesPromise,
+        import('pixi.js'),
+        import('./skinViewer/skinnedPixi'),
+      ]);
+      const manifest = JSON.parse(await readText(files, 'skinned.json')) as import('./skinViewer/skinnedRig').SkinnedDoc;
+      const textures: Record<string, any> = {};
+      await Promise.all(manifest.textures.map(async (name) => {
+        const filename = `${name}.png`;
+        if (files.has(filename)) textures[name] = await loadTexture(PIXI, archiveSkin, files, filename);
+      }));
+      if (destroyed || !hostRef.current) return;
+
+      app = new PIXI.Application();
+      await app.init({ backgroundAlpha: 0, antialias: true, resizeTo: hostRef.current });
+      if (destroyed) { app.destroy(true); return; }
+      appRef.current = app;
+      hostRef.current.replaceChildren(app.canvas);
+
+      const view = module.mountSkinnedRig(manifest, textures, 1);
+      viewRef.current = view;
+      app.stage.addChild(view.container);
+      const initialToggles = Object.fromEntries((manifest.toggles ?? []).map((toggle) =>
+        [toggle.key, toggle.default]));
+      setToggles(initialToggles);
+      setDoc(manifest);
+      if (archiveSkin === skin) setBaseDoc(manifest);
+      view.setVariant(fullVariantRef.current ? 'base' : variantRef.current);
+
+      const fit = () => {
+        const bounds = view.container.getLocalBounds();
+        if (!bounds.width || !bounds.height) return;
+        const padding = 40;
+        const scale = Math.min(
+          (app.screen.width - padding) / bounds.width,
+          (app.screen.height - padding) / bounds.height,
+        );
+        view.container.scale.set(scale);
+        view.container.position.set(
+          app.screen.width / 2 - (bounds.x + bounds.width / 2) * scale,
+          app.screen.height / 2 - (bounds.y + bounds.height / 2) * scale,
+        );
+      };
+      fit();
+      app.renderer.on('resize', fit);
+      detachPanZoom = attachPanZoom(app.canvas as HTMLCanvasElement, view.container);
+      app.ticker.add((ticker: any) => {
+        if (playingRef.current) view.update(Math.min(ticker.deltaMS / 1000, 1 / 20));
+      });
+      setLoadState('ready');
+    })().catch(() => {
+      if (!destroyed) setLoadState('fallback');
+    });
+    return () => {
+      destroyed = true;
+      detachPanZoom();
+      viewRef.current?.destroy();
+      viewRef.current = null;
+      appRef.current = null;
+      if (app) app.destroy(true);
+      revokeSkinUrls(archiveSkin);
+    };
+  }, [skin, resetKey, archiveSkin]);
+
+  useEffect(() => { viewRef.current?.setZones(zones); }, [zones]);
+  useEffect(() => { viewRef.current?.setVariant(fullVariant ? 'base' : variant); }, [variant, fullVariant]);
+  useEffect(() => { viewRef.current?.setFace(face); }, [face]);
+  useEffect(() => {
+    for (const [key, value] of Object.entries(toggles)) viewRef.current?.setToggle(key, value);
+  }, [toggles]);
+
+  if (loadState === 'fallback') {
+    return <UnityViewer skin={skin} height={height} parts={parts}
+      hasRplus={props.hasRplus} hasKr={props.hasKr} hasBg={props.hasBg}
+      hasDam={hasDam} showDam={showDam} onToggleDam={onToggleDam} />;
+  }
+
+  const variants = ['base', ...Object.keys(baseDoc?.variants ?? doc?.variants ?? {})];
+  const hasPartsToggle = (doc?.toggles ?? []).some((toggle) => toggle.key === 'parts');
+  const hasBgToggle = (doc?.toggles ?? []).some((toggle) => toggle.key === 'bg');
+  const handleSave = () => {
+    const app = appRef.current, view = viewRef.current;
+    if (!app || !view) return;
+    view.setZones(false);
+    const canvas = app.renderer.extract.canvas({ target: view.container, resolution: 2 }) as HTMLCanvasElement;
+    view.setZones(zones);
+    const anchor = document.createElement('a');
+    anchor.href = canvas.toDataURL('image/png');
+    anchor.download = `${skin}.png`;
+    anchor.click();
+  };
+
+  return (
+    <Box>
+      <Box h={height} bg="gray.800" borderRadius="md" overflow="hidden" position="relative"
+        border="1px solid" borderColor="whiteAlpha.200">
+        <Box ref={hostRef} position="absolute" inset={0} opacity={loadState === 'ready' ? 1 : 0} />
+        {loadState !== 'ready' && (
+          <Center position="absolute" inset={0} color="gray.500" pointerEvents="none"
+            flexDirection="column" gap={2}>
+            <Spinner />
+            <Text fontSize="sm">{loadState === 'unpacking' ? 'unpacking…' : 'fetching…'}</Text>
+          </Center>
+        )}
+
+        {doc && doc.faces && doc.faces.length > 0 && (
+          <FaceSelect value={face} onChange={setFace}
+            options={[{ value: '', label: '(none)' },
+              ...doc.faces.map((item) => ({ value: item.key, label: item.key }))]} />
+        )}
+
+        <VStack position="absolute" top={2} right={2} spacing={1} align="flex-end"
+          bg="blackAlpha.500" borderRadius="md" px={1} py={1}>
+          <PlayPauseButton playing={playing} onToggle={() => setPlaying((value) => !value)} />
+          {(doc?.colliders?.length ?? 0) > 0 && (
+            <ZonesButton shown={zones} onToggle={() => setZones((value) => !value)} />
+          )}
+          <ReloadButton onClick={() => { setVariant('base'); setResetKey((value) => value + 1); }} />
+          <SaveButton onClick={handleSave} />
+        </VStack>
+
+        {parts.length > 0 && (
+          <HStack position="absolute" bottom={2} left={2} spacing={1} pointerEvents="none"
+            bg="blackAlpha.500" borderRadius="md" px={1} py={1}>
+            {parts.map((part) => {
+              const meta = PARTS_META[part];
+              return meta ? (
+                <Tooltip key={part} label={meta.label} fontSize="xs" hasArrow placement="top">
+                  <Image src={meta.icon} alt={meta.label} boxSize="32px" pointerEvents="auto" />
+                </Tooltip>
+              ) : null;
+            })}
+          </HStack>
+        )}
+
+        <HStack position="absolute" bottom={2} right={2} spacing={1} align="flex-end">
+          {variants.length > 1 && (
+            <VariantStrip active={variant} onSelect={setVariant}
+              variants={variants.map((key) => ({ key, ...variantMeta(key, variants.includes('kr')) }))} />
+          )}
+          {(hasPartsToggle || hasBgToggle || hasDam) && (
+            <VStack bg="blackAlpha.500" borderRadius="md" px={1} py={1} spacing={1}>
+              {hasPartsToggle && (
+                <IconBtn src="/images/shop/UI_SkinProp_Parts_N.png" alt="Parts"
+                  label={toggles.parts ? 'Hide parts' : 'Show parts'} active={toggles.parts ?? true}
+                  onClick={() => setToggles((value) => ({ ...value, parts: !(value.parts ?? true) }))} />
+              )}
+              {hasBgToggle && (
+                <IconBtn src="/images/UI_Lobby_Icon_Props_1.png" alt="BG"
+                  label={toggles.bg ? 'Hide BG' : 'Show BG'} active={toggles.bg ?? true}
+                  onClick={() => setToggles((value) => ({ ...value, bg: !(value.bg ?? true) }))} />
+              )}
+              {hasDam && onToggleDam && (
+                <IconBtn src="/images/shop/UI_Icon_ClothBroken.png" alt="Damaged"
+                  label={showDam ? 'Damaged — click for normal' : 'Normal — click for damaged'} active={!!showDam}
+                  onClick={onToggleDam} />
+              )}
+            </VStack>
+          )}
+        </HStack>
+      </Box>
+    </Box>
+  );
+}
+
 export default function SkinViewer(props: SkinViewerProps) {
   if (props.viewerKind === 'skinned') {
-    return <UnityViewer skin={props.skin} height={props.height ?? '70vh'} parts={props.parts ?? []}
-      hasRplus={props.hasRplus} hasKr={props.hasKr} hasBg={props.hasBg}
-      hasDam={props.hasDam} showDam={props.showDam} onToggleDam={props.onToggleDam} />;
+    return <SkinnedPixiViewer {...props} />;
   }
   return <PixiSkinViewer {...props} />;
 }
@@ -253,6 +433,11 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
   const [spineParts, setSpineParts] = useState<Record<string, boolean>>({});
   const [spineBreast, setSpineBreast] = useState<string[]>([]);
   const [spineAvailableSkins, setSpineAvailableSkins] = useState<Set<string> | null>(null);
+  // Spine layer editor: every slot the current composition can draw (skeleton
+  // draw order, back to front) and the subset the user has switched off.
+  const [spineSlots, setSpineSlots] = useState<string[]>([]);
+  const [hiddenSlots, setHiddenSlots] = useState<string[]>([]);
+  const [showLayers, setShowLayers] = useState(false);
   const showBg = toggles['bg'] ?? true;
   const [showZones, setShowZones] = useState(false);
   const zoneOverlayRef = useRef<any>(null);
@@ -285,6 +470,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
         setLoadState('ready');
         setVariant('base');
         setToggles(Object.fromEntries((l.toggles ?? []).map((t) => [t.key, t.default])));
+        setSpineSlots([]); setHiddenSlots([]); setShowLayers(false);
         setFixedFace(''); // fixed faces default to none
         if (l.kind === 'spine') {
           setSpineAnim((l.animations ?? []).includes('Idle_1') ? 'Idle_1' : (l.animations?.[0] ?? ''));
@@ -595,6 +781,12 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
   spineBreastRef.current = spineBreast;
   const spinePartsRef = useRef(spineParts);
   spinePartsRef.current = spineParts;
+  // Read every frame by the per-actor afterUpdateWorldTransforms hook.
+  const hiddenSlotSet = useMemo(() => new Set(hiddenSlots), [hiddenSlots]);
+  const hiddenSlotsRef = useRef(hiddenSlotSet);
+  hiddenSlotsRef.current = hiddenSlotSet;
+  // Recomputes the layer list against the currently active skeleton.
+  const refreshLayersRef = useRef<(() => void) | null>(null);
   const variantRef = useRef(variant);
   variantRef.current = variant;
   useEffect(() => {
@@ -609,6 +801,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
     spinePageTexRef.current = [];
     spineBgTexRef.current = null;
     spinePixelScaleRef.current = () => 1;
+    refreshLayersRef.current = null;
 
     (async () => {
       const PIXI = await import('pixi.js');
@@ -719,7 +912,35 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
 
       const isSfw = variantRef.current === 'sfw';
 
+      // Layer editor: user-hidden layers are cleared per frame, after the
+      // animation state has been applied and before the mesh batch is rebuilt,
+      // because every skin recomposition re-attaches the slots.
+      // `AnimationState.apply()` only re-attaches slots that carry an attachment
+      // timeline, so switching a layer back on has to restore the attachment
+      // explicitly — otherwise a slot cleared once stays empty forever. Each
+      // skeleton tracks the slots this hook cleared, and un-hiding one resolves
+      // its setup-pose attachment against the currently composed skin.
+      // Slots are matched by name so one list covers base, sfw and extra actors.
+      const suppressed = new WeakMap<any, Set<number>>();
+      const applyHiddenSlots = (sp: any) => {
+        const hidden = hiddenSlotsRef.current;
+        let cleared = suppressed.get(sp);
+        if (!cleared) { cleared = new Set<number>(); suppressed.set(sp, cleared); }
+        if (!hidden.size && !cleared.size) return;
+        for (const slot of sp.skeleton.slots) {
+          const index = slot.data.index;
+          if (hidden.has(slot.data.name)) {
+            slot.setAttachment(null);
+            cleared.add(index);
+          } else if (cleared.delete(index) && !slot.getAttachment()) {
+            const setupName = slot.data.attachmentName;
+            slot.setAttachment(setupName ? sp.skeleton.getAttachment(index, setupName) : null);
+          }
+        }
+      };
+
       const spine = new Spine({ skeletonData });
+      spine.afterUpdateWorldTransforms = applyHiddenSlots;
       spineRef.current = spine;
       const startAnim = (layout.animations ?? []).includes('Idle_1')
         ? 'Idle_1' : layout.animations?.[0];
@@ -730,6 +951,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
       let spineSfw: any = null;
       if (sfwSkeletonData) {
         spineSfw = new Spine({ skeletonData: sfwSkeletonData });
+        spineSfw.afterUpdateWorldTransforms = applyHiddenSlots;
         spineSfwRef.current = spineSfw;
         if (startAnim) spineSfw.state.setAnimation(0, startAnim, true);
         spineSfw.visible = isSfw;
@@ -743,6 +965,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
       }
       for (const item of extraActorData) {
         const extra = new Spine({ skeletonData: item.skeletonData });
+        extra.afterUpdateWorldTransforms = applyHiddenSlots;
         const extraStart = item.actor.animations?.includes('Idle_1')
           ? 'Idle_1' : item.actor.animations?.[0];
         if (extraStart) extra.state.setAnimation(0, extraStart, true);
@@ -795,11 +1018,61 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
         makeCompose(a.skeletonData, a.base, a.actor.skinGroups));
 
       // composeSkinRef always targets the active skeleton
-      const activeSkeletonData = () => isSfw && sfwSkeletonData ? sfwSkeletonData : skeletonData;
+      const activeSkeletonData = () =>
+        variantRef.current === 'sfw' && sfwSkeletonData ? sfwSkeletonData : skeletonData;
+
+      // Slots a skeleton can draw under the given composition, in draw order.
+      // Read from the composed skin (plus the skeleton's own default skin)
+      // rather than the live slots, whose attachments the layer editor clears.
+      const drawableSlots = (
+        skelData: any, groups: Layout['skinGroups'],
+        face: string, breast: string[], parts: Record<string, boolean>,
+      ): string[] => {
+        const names = [
+          groups?.base,
+          face,
+          ...breast,
+          ...Object.entries(parts).filter(([, on]) => on).map(([n]) => n),
+        ].filter(Boolean) as string[];
+        const used = new Set<number>();
+        const collect = (sk: any) => {
+          for (const entry of sk.getAttachments()) used.add(entry.slotIndex);
+        };
+        if (skelData.defaultSkin) collect(skelData.defaultSkin);
+        for (const n of names) {
+          const sk = skelData.findSkin(n);
+          if (sk) collect(sk);
+        }
+        return (skelData.slots as any[])
+          .filter((slot) => used.has(slot.index))
+          .map((slot) => slot.name as string);
+      };
+
+      // One list across the visible skeleton and any extra actors; duplicate
+      // names collapse into a single row because hiding matches by name.
+      const layerNames = (face: string, breast: string[], parts: Record<string, boolean>) => {
+        const seen = new Set<string>();
+        const out: string[] = [];
+        const add = (skelData: any, groups: Layout['skinGroups']) => {
+          for (const name of drawableSlots(skelData, groups, face, breast, parts)) {
+            if (seen.has(name)) continue;
+            seen.add(name);
+            out.push(name);
+          }
+        };
+        add(activeSkeletonData(), layout.skinGroups);
+        for (const a of actorInstances.slice(1)) add(a.skeletonData, a.actor.skinGroups);
+        return out;
+      };
+
       composeSkinRef.current = (face, breast, parts) => {
         composeBase(face, breast, parts);
         composeSfw?.(face, breast, parts);
         for (const compose of composeExtras) compose(face, breast, parts);
+        setSpineSlots(layerNames(face, breast, parts));
+      };
+      refreshLayersRef.current = () => {
+        setSpineSlots(layerNames(spineFaceRef.current, spineBreastRef.current, spinePartsRef.current));
       };
 
       // Expose available skins from the active skeleton for UI filtering
@@ -1034,6 +1307,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
       spineBgTexRef.current = null;
       spinePixelScaleRef.current = () => 1;
       composeSkinRef.current = null;
+      refreshLayersRef.current = null;
       reactThenRef.current = null;
       spineStateRef.current = 0;
       zoneOverlayRef.current = null;
@@ -1125,6 +1399,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
         (activeSkelData.skins as any[]).map((s: any) => s.name as string)
       ));
     }
+    refreshLayersRef.current?.();
   }, [layout, variant]);
 
 
@@ -1292,6 +1567,19 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
               ...layout.faces!.map((f) => ({ value: f.key, label: f.key }))]} />
         )}
 
+        {/* Top-left: spine layer editor — stacked under the face dropdown */}
+        {layout?.kind === 'spine' && showLayers && spineSlots.length > 0 && (
+          <LayerPanel
+            slots={spineSlots}
+            hidden={hiddenSlotSet}
+            top={(layout.skinGroups?.faces?.length ?? 0) > 0 ? 12 : 2}
+            onToggle={(slot) => setHiddenSlots((prev) => (
+              prev.includes(slot) ? prev.filter((s) => s !== slot) : [...prev, slot]
+            ))}
+            onSetAll={(visible) => setHiddenSlots(visible ? [] : [...spineSlots])}
+            onClose={() => setShowLayers(false)} />
+        )}
+
         {/* Top-right: breast variants (spine only) + save button */}
         {(() => {
           const isSpine = layout?.kind === 'spine';
@@ -1318,6 +1606,9 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
               {/* spine animates (play/pause) and may have touch zones */}
               {isSpine && <PlayPauseButton playing={playing} onToggle={() => setPlaying((v) => !v)} />}
               {hasZones && <ZonesButton shown={showZones} onToggle={() => setShowZones((v) => !v)} />}
+              {isSpine && spineSlots.length > 0 && (
+                <LayersButton active={showLayers} onToggle={() => setShowLayers((v) => !v)} />
+              )}
               {isSpine && <ReloadButton onClick={() => setResetKey((k) => k + 1)} />}
               <SaveButton onClick={handleSave} />
             </VStack>

@@ -8,7 +8,6 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import Head from 'next/head';
-import { useRouter } from 'next/router';
 import {
   Accordion, AccordionButton, AccordionIcon, AccordionItem, AccordionPanel,
   Badge, Box, Button, ButtonGroup, Center, Flex, HStack, Heading, IconButton, Image,
@@ -36,12 +35,10 @@ import { UnitData } from '@/interfaces/unit';
 // ── shared bits ───────────────────────────────────────────────────────────────
 
 function UnitCell({ unit }: { unit: UnitData | undefined }) {
-  const router = useRouter();
   if (!unit) return <Text fontSize="sm" color="gray.500">?</Text>;
   return (
     <UnitHoverCard unitId={unit.id} inline>
-      <HStack spacing={2} cursor="pointer" minW={0}
-        onClick={() => router.push(`/units/detail?id=${encodeURIComponent(unit.id)}`)}>
+      <HStack spacing={2} cursor="pointer" minW={0}>
         {unit.icon ? (
           <Image src={`/images/icons/${unit.icon}.png`} alt="" boxSize="34px"
             borderRadius="md" objectFit="cover" flexShrink={0} />

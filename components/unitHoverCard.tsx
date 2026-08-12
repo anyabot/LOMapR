@@ -118,7 +118,8 @@ export default function UnitHoverCard({
         {/* span wrapper so any child (even text) is a valid single trigger element.
             inline: a plain inline span (wraps a word mid-sentence); default: a
             full-width inline-block (the reward-chip layout). */}
-        <Box as="span" display={inline ? 'inline' : 'inline-block'} w={inline ? undefined : '100%'}>
+        <Box as={NextLink} href={`/units/detail?id=${encodeURIComponent(unit.id)}`}
+          display={inline ? 'inline' : 'inline-block'} w={inline ? undefined : '100%'}>
           {children}
         </Box>
       </PopoverTrigger>

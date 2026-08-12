@@ -2,7 +2,7 @@
 
 > **MAINTENANCE POLICY: update this doc at the end of any task that adds/moves/
 > removes a page, slice, component, lib module, or data contract.** Verify
-> against the code, don't assume. Last verified against code: **2026-07-25**.
+> against the code, don't assume. Last verified against code: **2026-08-12**.
 
 Next.js **pages router**, deployed to Cloudflare Workers via OpenNext (all
 pages prerendered and served as static assets; the Worker only handles the
@@ -41,7 +41,7 @@ drop chip / gear tile anywhere opens them in place. Unit references share
 |---|---|
 | `layout.tsx` + `layout/` (`navbar`, `navcontent`, `navlink`, `footer`, `scrollTop`) | app shell, nav, region switch, global modals, footer (GitHub links), scroll-to-top |
 | `enemyTab/` (`enemyModal`, `skillTab(+List)`, `skillArea`, `appearance(+List)`, `aiGraph`) | enemy modal internals; AI graph uses dagre |
-| `skinViewer.tsx` + `skinViewer/` (`chrome.tsx`, `types.ts`) | skin viewer: PixiJS (fixed/spine, spine-pixi-v8, brotli-dec-wasm archives via `lib/skinArchive.ts`) + Unity WebGL iframe (skinned) with postMessage variant API |
+| `skinViewer.tsx` + `skinViewer/` | skin viewer: PixiJS fixed, Spine, and reconstructed skinned rigs loaded from brotli archives; shared pan/zoom, PNG download, variants, props/background, pause/reset, and touch controls; structural SFW variants remount a complete `__sfw` rig archive; Unity WebGL remains the automatic fallback when a skinned Pixi archive is unavailable; Spine skins also get a per-slot layer editor |
 | `buffList.tsx` | buff/effect rendering; exports `buffValue`, `BuffCondTags`, `TARGET_LABELS` (reused by misc page) |
 | `statBlock.tsx`, `rewardList.tsx`, `stageGrid.tsx`, `stageTabs.tsx`, `enemyGrid.tsx` | stat tables, reward chips, stage wave grids |
 | `equipModal.tsx`, `unitHoverCard.tsx`, `gameText.tsx`, `eventImage.tsx`, `copyLink.tsx`, `simpleCard.tsx`, `globalLoader.tsx` | equip modal, unit hover card, loc-string renderer, misc UI |
@@ -61,7 +61,7 @@ unit, equip, misc, world`. `regionSlice` holds the active region
 | `strings.ts` | `t()` loc-id resolution against strings.json (raw loc ids are what the data carries) |
 | `rank.ts` | icon resolvers: `roleRankIcon`, `typeIcon`, `roleIcon`, `factionIcon`, `equipIcon` |
 | `buffIcons.ts` | buff icon mapping |
-| `skinArchive.ts` | fetch + brotli-decompress `.tar.br` skin archives |
+| `skinArchive.ts` | revisioned fetch + brotli-decompress `.tar.br` skin archives |
 | `npcs.ts` | curated NPC/enemy illustration catalog, model variants, portrait paths, and lore-group links used by `/npcs` and unit detail |
 | `translationVersion.tsx` | community-translation versioning |
 | `team.ts` | team-builder logic: level/slot gating, stat computation (points + equipment + core links), skill scaling, ally-AoE tile mapping, equip eligibility, share-code encode/decode |

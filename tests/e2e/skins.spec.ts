@@ -28,4 +28,15 @@ test.describe('/skins', () => {
     await categoryRow.getByRole('button', { name: 'Clear' }).click();
     await expect(categoryRow.getByRole('button', { name: 'Clear' })).toBeHidden();
   });
+
+  test('unit name in skin detail links directly to the unit', async ({ page }) => {
+    await page.goto('/skins');
+    await expect(page.getByRole('heading', { name: 'Skins', exact: true })).toBeVisible({ timeout: 15_000 });
+
+    await page.getByPlaceholder('Search skin or unit name').fill(SAMPLE.unit.name);
+    await page.getByText(SAMPLE.unit.name, { exact: true }).first().click();
+
+    await page.getByRole('link', { name: SAMPLE.unit.name, exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`/units/detail\\?id=${SAMPLE.unit.id}`));
+  });
 });
