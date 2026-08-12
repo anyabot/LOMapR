@@ -303,6 +303,8 @@ export function createRig(doc: SkinnedDoc) {
     time: number;
     returnTo: string | null;
     state: number | null;
+    from: SkinnedClip | null;
+    fromTime: number;
   };
 
   const players: Playing[] = doc.animators.map((def) => {
@@ -314,26 +316,43 @@ export function createRig(doc: SkinnedDoc) {
       time: 0,
       returnTo: null,
       state: def.defaultState ?? null,
+      from: null,
+      fromTime: 0,
     };
   });
   const main = players[doc.mainAnimator] ?? players[0];
   // Layers on the same Animator play together and share triggers.
   const mainLayers = players.filter((p) => p.def.node === main?.def.node);
   const transitionDuration = 0.18;
-  let transition: {
-    pos: Float32Array; quat: Float32Array; scale: Float32Array;
-    world: Float32Array; elapsed: number;
-  } | null = null;
+  const sourcePos = new Float32Array(count * 3);
+  const sourceQuat = new Float32Array(count * 4);
+  const sourceScale = new Float32Array(count * 3);
+  let transition: { elapsed: number } | null = null;
 
+  const clearTransition = () => {
+    transition = null;
+    for (const player of players) player.from = null;
+  };
+
+  // The outgoing clips keep playing through the fade, the way Mecanim
+  // crossfades; a frozen source pose reads as a stall.
   const beginTransition = () => {
     if (transition) return;
-    transition = {
-      pos: Float32Array.from(pos),
-      quat: Float32Array.from(quat),
-      scale: Float32Array.from(scale),
-      world: Float32Array.from(world),
-      elapsed: 0,
-    };
+    for (const player of players) {
+      player.from = player.clip;
+      player.fromTime = player.time;
+    }
+    transition = { elapsed: 0 };
+  };
+
+  const stepSource = (dt: number) => {
+    for (const player of players) {
+      const clip = player.from;
+      if (!clip || clip.length <= 0) continue;
+      player.fromTime += dt;
+      if (player.fromTime < clip.length) continue;
+      player.fromTime = clip.loop ? player.fromTime % clip.length : clip.length;
+    }
   };
 
   const blendTransition = () => {
@@ -341,37 +360,27 @@ export function createRig(doc: SkinnedDoc) {
     const t = Math.min(1, transition.elapsed / transitionDuration);
     const smooth = t * t * (3 - 2 * t);
     for (let i = 0; i < pos.length; i += 1) {
-      pos[i] = transition.pos[i] + (pos[i] - transition.pos[i]) * smooth;
+      pos[i] = sourcePos[i] + (pos[i] - sourcePos[i]) * smooth;
     }
     for (let i = 0; i < scale.length; i += 1) {
-      scale[i] = transition.scale[i] + (scale[i] - transition.scale[i]) * smooth;
+      scale[i] = sourceScale[i] + (scale[i] - sourceScale[i]) * smooth;
     }
     for (let i = 0; i < quat.length; i += 4) {
-      const dot = transition.quat[i] * quat[i] + transition.quat[i + 1] * quat[i + 1]
-        + transition.quat[i + 2] * quat[i + 2] + transition.quat[i + 3] * quat[i + 3];
+      const dot = sourceQuat[i] * quat[i] + sourceQuat[i + 1] * quat[i + 1]
+        + sourceQuat[i + 2] * quat[i + 2] + sourceQuat[i + 3] * quat[i + 3];
       const sign = dot < 0 ? -1 : 1;
-      const x = transition.quat[i] + (quat[i] * sign - transition.quat[i]) * smooth;
-      const y = transition.quat[i + 1] + (quat[i + 1] * sign - transition.quat[i + 1]) * smooth;
-      const z = transition.quat[i + 2] + (quat[i + 2] * sign - transition.quat[i + 2]) * smooth;
-      const w = transition.quat[i + 3] + (quat[i + 3] * sign - transition.quat[i + 3]) * smooth;
+      const x = sourceQuat[i] + (quat[i] * sign - sourceQuat[i]) * smooth;
+      const y = sourceQuat[i + 1] + (quat[i + 1] * sign - sourceQuat[i + 1]) * smooth;
+      const z = sourceQuat[i + 2] + (quat[i + 2] * sign - sourceQuat[i + 2]) * smooth;
+      const w = sourceQuat[i + 3] + (quat[i + 3] * sign - sourceQuat[i + 3]) * smooth;
       const length = Math.hypot(x, y, z, w) || 1;
       quat[i] = x / length; quat[i + 1] = y / length;
       quat[i + 2] = z / length; quat[i + 3] = w / length;
     }
+    if (t >= 1) clearTransition();
   };
 
-  const blendWorldTransition = () => {
-    if (!transition) return;
-    const t = Math.min(1, transition.elapsed / transitionDuration);
-    const smooth = t * t * (3 - 2 * t);
-    for (let i = 0; i < world.length; i += 1) {
-      world[i] = transition.world[i] + (world[i] - transition.world[i]) * smooth;
-    }
-    if (t >= 1) transition = null;
-  };
-
-  const applyPlayer = (player: Playing) => {
-    const { clip, time } = player;
+  const applyPlayer = (clip: SkinnedClip | null, time: number) => {
     if (!clip) return;
     for (const track of clip.tracks) {
       const i = track.node;
@@ -433,7 +442,29 @@ export function createRig(doc: SkinnedDoc) {
     }
   };
 
-  const applyClip = () => { for (const player of players) applyPlayer(player); };
+  const applyClip = () => {
+    for (const player of players) applyPlayer(player.clip, player.time);
+  };
+
+  const captureSource = () => {
+    resetPose();
+    for (const player of players) {
+      if (player.from) applyPlayer(player.from, player.fromTime);
+      else applyPlayer(player.clip, player.time);
+    }
+    sourcePos.set(pos);
+    sourceQuat.set(quat);
+    sourceScale.set(scale);
+  };
+
+  const composePose = () => {
+    if (transition) captureSource();
+    resetPose();
+    applyClip();
+    blendTransition();
+    updateWorld();
+    applyIk();
+  };
 
   // A finished one-shot state follows its unconditional exit transition, the
   // way the controller settles an intro into the lobby loop.
@@ -460,9 +491,12 @@ export function createRig(doc: SkinnedDoc) {
     const { clip } = player;
     if (!clip || clip.length <= 0) return;
     player.time += dt;
-    if (player.time < clip.length) return;
+    // The exit fade starts before the last frame, so the outgoing clip is still
+    // moving while it crossfades; a clip that has already ended cannot fade.
+    const lead = Math.min(transitionDuration, clip.length / 2);
     // An exit transition fires after one pass even when the state loops.
-    if (advanceState(player)) return;
+    if (player.time >= clip.length - lead && advanceState(player)) return;
+    if (player.time < clip.length) return;
     if (clip.loop) player.time %= clip.length;
     else player.time = clip.length;
   };
@@ -938,34 +972,20 @@ export function createRig(doc: SkinnedDoc) {
       main.clip = next;
       main.returnTo = null;
       if (restart) main.time = 0;
-      resetPose();
-      applyClip();
-      blendTransition();
-      updateWorld();
-      applyIk();
-      blendWorldTransition();
+      composePose();
       for (const chain of chains) resetChain(chain, view);
       return true;
     },
     seek(seconds: number) {
-      transition = null;
+      clearTransition();
       for (const player of players) player.time = seconds;
-      resetPose();
-      applyClip();
-      blendTransition();
-      updateWorld();
-      applyIk();
+      composePose();
       for (const chain of chains) resetChain(chain, view);
     },
     advance(dt: number) {
-      if (transition) transition.elapsed += dt;
+      if (transition) { transition.elapsed += dt; stepSource(dt); }
       for (const player of players) stepPlayer(player, dt);
-      resetPose();
-      applyClip();
-      blendTransition();
-      updateWorld();
-      applyIk();
-      blendWorldTransition();
+      composePose();
       stepPhysics(dt);
     },
     playOnce(name: string, then?: string) {
@@ -975,12 +995,7 @@ export function createRig(doc: SkinnedDoc) {
       main.returnTo = then ?? null;
       main.clip = next;
       main.time = 0;
-      resetPose();
-      applyClip();
-      blendTransition();
-      updateWorld();
-      applyIk();
-      blendWorldTransition();
+      composePose();
       for (const chain of chains) resetChain(chain, view);
       return true;
     },
@@ -994,27 +1009,24 @@ export function createRig(doc: SkinnedDoc) {
     // Walks the AnimatorController graph: `Tep_1` is a body touch, `breast` a
     // special-zone touch.
     trigger(name: string) {
-      let fired = false;
-      beginTransition();
+      const firing: { player: Playing; dest: number; clip: SkinnedClip }[] = [];
       for (const player of mainLayers) {
         if (player.state == null) continue;
         const dest = player.def.triggers?.[String(player.state)]?.[name];
         if (dest == null) continue;
-        const state = player.def.states?.[String(dest)];
-        if (!state?.clip || !player.byName.has(state.clip)) continue;
+        const clip = player.def.states?.[String(dest)]?.clip;
+        const next = clip ? player.byName.get(clip) : undefined;
+        if (next) firing.push({ player, dest, clip: next });
+      }
+      if (!firing.length) return false;
+      beginTransition();
+      for (const { player, dest, clip } of firing) {
         player.state = dest;
         player.returnTo = null;
-        player.clip = player.byName.get(state.clip)!;
+        player.clip = clip;
         player.time = 0;
-        fired = true;
       }
-      if (!fired) { transition = null; return false; }
-      resetPose();
-      applyClip();
-      blendTransition();
-      updateWorld();
-      applyIk();
-      blendWorldTransition();
+      composePose();
       for (const chain of chains) resetChain(chain, view);
       return true;
     },
@@ -1051,7 +1063,7 @@ export function createRig(doc: SkinnedDoc) {
       if (node < 0 || node >= count) return;
       nodeOverrides[node] = value == null ? -1 : value ? 1 : 0;
     },
-    refreshWorld() { updateWorld(); applyIk(); blendWorldTransition(); },
+    refreshWorld() { updateWorld(); applyIk(); },
     setMeshVariant(index: number, mesh: SkinnedMesh | null) {
       meshOverrides[index] = mesh;
       morphBuffers[index] = null;
