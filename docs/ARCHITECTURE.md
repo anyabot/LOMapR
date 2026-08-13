@@ -43,7 +43,9 @@ for the game.
   (`?id=`, `?zone=`, `?equip=`), never dynamic routes.
 - **Data** (`data/<region>/`, gitignored) — the JSON the app reads, keyed per
   region (`global/`, `kr/`). Mirrored 1:1 to the R2 bucket keys. Not part of a
-  clone; the repo ships the app, not the data.
+  clone; the repo ships the app, not the data. Local release tooling can wait
+  for both regions to become available, complete generation, and only then
+  publish the generated data and skin assets.
 
 Data updates need **no app redeploy** — the browser fetches JSON at runtime.
 App deploys go through `npm run cf:deploy` (OpenNext build → `.open-next/` →

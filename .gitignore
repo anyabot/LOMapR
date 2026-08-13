@@ -36,9 +36,8 @@ yarn-error.log*
 # local env files
 .env*.local
 
-# LOCAL-ONLY: extraction toolchain, generated data, and Firebase reference
-# exports are sensitive (extraction can enable cheating) and must never be
-# committed. Kept strictly on local machines.
+# LOCAL-ONLY: local data toolchain, generated data, and Firebase reference
+# exports. Regenerated artifacts, kept off the repo by policy.
 /tools/
 /data/
 /OLD/
