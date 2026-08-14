@@ -182,6 +182,28 @@ function multiply(out: Float32Array, a: Float32Array, ao: number,
   }
 }
 
+// Row-major 3x3, column-vector convention: out = a * b. Never aliased.
+function multiply3(out: Float32Array, oo: number, a: Float32Array, ao: number,
+                   b: Float32Array, bo: number) {
+  for (let r = 0; r < 3; r += 1) {
+    const a0 = a[ao + r * 3], a1 = a[ao + r * 3 + 1], a2 = a[ao + r * 3 + 2];
+    for (let c = 0; c < 3; c += 1) {
+      out[oo + r * 3 + c] = a0 * b[bo + c] + a1 * b[bo + 3 + c] + a2 * b[bo + 6 + c];
+    }
+  }
+}
+
+function quatMat3(out: Float32Array, o: number,
+                  qx: number, qy: number, qz: number, qw: number) {
+  const x2 = qx + qx, y2 = qy + qy, z2 = qz + qz;
+  const xx = qx * x2, xy = qx * y2, xz = qx * z2;
+  const yy = qy * y2, yz = qy * z2, zz = qz * z2;
+  const wx = qw * x2, wy = qw * y2, wz = qw * z2;
+  out[o] = 1 - (yy + zz); out[o + 1] = xy - wz; out[o + 2] = xz + wy;
+  out[o + 3] = xy + wz; out[o + 4] = 1 - (xx + zz); out[o + 5] = yz - wx;
+  out[o + 6] = xz - wy; out[o + 7] = yz + wx; out[o + 8] = 1 - (xx + yy);
+}
+
 // Unity composes a transform as translate * rotate * scale.
 function compose(out: Float32Array, o: number,
                  px: number, py: number, pz: number,
@@ -252,6 +274,11 @@ export function createRig(doc: SkinnedDoc) {
   const count = doc.nodes.length;
   const local = new Float32Array(count * 16);
   const world = new Float32Array(count * 16);
+  // Unity's Transform.rotation: the product of local rotations, free of the
+  // hierarchy's scale. TransformDirection uses this, never the world matrix.
+  const localRot = new Float32Array(count * 9);
+  const worldRot = new Float32Array(count * 9);
+  const rot3 = new Float32Array(9);
   const selfActive = new Uint8Array(count);
   const visible = new Uint8Array(count);
   const nodeOverrides = new Int8Array(count);
@@ -506,14 +533,18 @@ export function createRig(doc: SkinnedDoc) {
       compose(local, i * 16, pos[i * 3], pos[i * 3 + 1], pos[i * 3 + 2],
               quat[i * 4], quat[i * 4 + 1], quat[i * 4 + 2], quat[i * 4 + 3],
               scale[i * 3], scale[i * 3 + 1], scale[i * 3 + 2]);
+      quatMat3(localRot, i * 9, quat[i * 4], quat[i * 4 + 1],
+               quat[i * 4 + 2], quat[i * 4 + 3]);
       const parent = doc.nodes[i].parent;
       if (parent < 0) {
         world.set(local.subarray(i * 16, i * 16 + 16), i * 16);
+        worldRot.set(localRot.subarray(i * 9, i * 9 + 9), i * 9);
         visible[i] = nodeOverrides[i] >= 0 ? nodeOverrides[i] : selfActive[i];
       } else {
         const out = new Float32Array(16);
         multiply(out, world, parent * 16, local, i * 16);
         world.set(out, i * 16);
+        multiply3(worldRot, i * 9, worldRot, parent * 9, localRot, i * 9);
         const active = nodeOverrides[i] >= 0 ? nodeOverrides[i] : selfActive[i];
         visible[i] = active && visible[parent] ? 1 : 0;
       }
@@ -528,6 +559,7 @@ export function createRig(doc: SkinnedDoc) {
       const out = new Float32Array(16);
       multiply(out, world, node * 16, local, child * 16);
       world.set(out, child * 16);
+      multiply3(worldRot, child * 9, worldRot, node * 9, localRot, child * 9);
       refreshChildren(child);
     }
   };
@@ -536,12 +568,17 @@ export function createRig(doc: SkinnedDoc) {
     compose(local, node * 16, pos[node * 3], pos[node * 3 + 1], pos[node * 3 + 2],
             quat[node * 4], quat[node * 4 + 1], quat[node * 4 + 2], quat[node * 4 + 3],
             scale[node * 3], scale[node * 3 + 1], scale[node * 3 + 2]);
+    quatMat3(localRot, node * 9, quat[node * 4], quat[node * 4 + 1],
+             quat[node * 4 + 2], quat[node * 4 + 3]);
     const parent = doc.nodes[node].parent;
-    if (parent < 0) world.set(local.subarray(node * 16, node * 16 + 16), node * 16);
-    else {
+    if (parent < 0) {
+      world.set(local.subarray(node * 16, node * 16 + 16), node * 16);
+      worldRot.set(localRot.subarray(node * 9, node * 9 + 9), node * 9);
+    } else {
       const out = new Float32Array(16);
       multiply(out, world, parent * 16, local, node * 16);
       world.set(out, node * 16);
+      multiply3(worldRot, node * 9, worldRot, parent * 9, localRot, node * 9);
     }
     refreshChildren(node);
   };
@@ -553,6 +590,9 @@ export function createRig(doc: SkinnedDoc) {
       const x = world[o + column], y = world[o + 4 + column];
       world[o + column] = c * x - s * y;
       world[o + 4 + column] = s * x + c * y;
+      const rx = worldRot[node * 9 + column], ry = worldRot[node * 9 + 3 + column];
+      worldRot[node * 9 + column] = c * rx - s * ry;
+      worldRot[node * 9 + 3 + column] = s * rx + c * ry;
     }
     refreshChildren(node);
   };
@@ -599,6 +639,7 @@ export function createRig(doc: SkinnedDoc) {
         world[n + row * 4 + column] = result[row * 3 + column] * targetScale[column];
       }
     }
+    worldRot.set(result, node * 9);
     refreshChildren(node);
   };
 
@@ -687,6 +728,7 @@ export function createRig(doc: SkinnedDoc) {
     world[o] = matrix[0]; world[o + 1] = matrix[1]; world[o + 2] = matrix[2];
     world[o + 4] = matrix[4]; world[o + 5] = matrix[5]; world[o + 6] = matrix[6];
     world[o + 8] = matrix[8]; world[o + 9] = matrix[9]; world[o + 10] = matrix[10];
+    quatMat3(worldRot, node * 9, rotation[0], rotation[1], rotation[2], rotation[3]);
     refreshChildren(node);
   };
 
@@ -747,6 +789,14 @@ export function createRig(doc: SkinnedDoc) {
 
   const view: RigView = {
     world: (node) => world.subarray(node * 16, node * 16 + 16),
+    dir: (node, v) => {
+      const o = node * 9;
+      return [
+        worldRot[o] * v[0] + worldRot[o + 1] * v[1] + worldRot[o + 2] * v[2],
+        worldRot[o + 3] * v[0] + worldRot[o + 4] * v[1] + worldRot[o + 5] * v[2],
+        worldRot[o + 6] * v[0] + worldRot[o + 7] * v[1] + worldRot[o + 8] * v[2],
+      ];
+    },
     localPos: (node) => [pos[node * 3], pos[node * 3 + 1], pos[node * 3 + 2]],
     parent: (node) => doc.nodes[node].parent,
     childCount: (node) => childrenOf[node].length,
@@ -759,7 +809,6 @@ export function createRig(doc: SkinnedDoc) {
   let chains: Chain[] = buildChains(dynamicDefs, view);
   let physicsEnabled = chains.length > 0;
 
-  const basis = new Float32Array(9);
   const accum = new Map<number, Float32Array>();
 
   // Rotation taking v0 onto v1, as a row-major 3x3.
@@ -790,33 +839,24 @@ export function createRig(doc: SkinnedDoc) {
     return out;
   };
 
-  const mul3 = (out: Float32Array, a: Float32Array, b: Float32Array) => {
-    for (let r = 0; r < 3; r += 1) {
-      for (let c = 0; c < 3; c += 1) {
-        out[r * 3 + c] = a[r * 3] * b[c] + a[r * 3 + 1] * b[3 + c] + a[r * 3 + 2] * b[6 + c];
-      }
-    }
-    return out;
-  };
-
-  // Rotation accumulates down the chain, as mutating transform.rotation does in Unity.
+  // Unity's ApplyParticlesToTransforms writes a scale-free world rotation, so the
+  // turn accumulates on Transform.rotation and the world matrix is recomposed
+  // from the parent's basis. Left-multiplying the world matrix instead skews any
+  // rig whose root carries a non-uniform (flattening) scale.
   const applyChain = (chain: Chain) => {
     const { particles } = chain;
-    accum.clear();
     const identity = new Float32Array([1, 0, 0, 0, 1, 0, 0, 0, 1]);
-    accum.set(0, identity);
     const kids: number[][] = particles.map(() => []);
     particles.forEach((p, i) => { if (p.parent >= 0) kids[p.parent].push(i); });
+    accum.clear();
+    const turns = new Map<number, Float32Array>();
 
     for (let i = 0; i < particles.length; i += 1) {
       const p = particles[i];
       if (p.node < 0) continue;
       const carry = accum.get(i) ?? identity;
-      const m = p.node * 16;
-      basis.set([world[m], world[m + 1], world[m + 2],
-                 world[m + 4], world[m + 5], world[m + 6],
-                 world[m + 8], world[m + 9], world[m + 10]]);
-      const turned = mul3(new Float32Array(9), carry, basis);
+      const turned = new Float32Array(9);
+      multiply3(turned, 0, carry, 0, worldRot, p.node * 9);
 
       let childCarry = carry;
       if (kids[i].length === 1 && childrenOf[p.node].length <= 1) {
@@ -829,15 +869,46 @@ export function createRig(doc: SkinnedDoc) {
         ];
         const v1 = [child.x - p.x, child.y - p.y, child.z - p.z];
         const rot = fromTo(new Float32Array(9), v0, v1);
-        mul3(turned, rot, turned.slice() as Float32Array);
-        childCarry = mul3(new Float32Array(9), rot, carry);
+        multiply3(rot3, 0, rot, 0, turned, 0);
+        turned.set(rot3);
+        childCarry = new Float32Array(9);
+        multiply3(childCarry, 0, rot, 0, carry, 0);
       }
       for (const k of kids[i]) accum.set(k, childCarry);
+      turns.set(p.node, turned);
 
-      world[m] = turned[0]; world[m + 1] = turned[1]; world[m + 2] = turned[2];
-      world[m + 4] = turned[3]; world[m + 5] = turned[4]; world[m + 6] = turned[5];
-      world[m + 8] = turned[6]; world[m + 9] = turned[7]; world[m + 10] = turned[8];
+      const tp = doc.nodes[p.node].parent;
+      const parentTurn = tp >= 0 ? turns.get(tp) : undefined;
+      const q = parentTurn ?? (tp >= 0
+        ? worldRot.subarray(tp * 9, tp * 9 + 9) : identity);
+      // localRotation = inverse(parent world rotation) * world rotation
+      for (let r = 0; r < 3; r += 1) {
+        for (let c = 0; c < 3; c += 1) {
+          rot3[r * 3 + c] = q[r] * turned[c] + q[3 + r] * turned[3 + c]
+            + q[6 + r] * turned[6 + c];
+        }
+      }
+      const m = p.node * 16;
+      const sx = scale[p.node * 3], sy = scale[p.node * 3 + 1], sz = scale[p.node * 3 + 2];
+      for (let r = 0; r < 3; r += 1) {
+        for (let c = 0; c < 3; c += 1) {
+          let sum = 0;
+          if (tp >= 0) {
+            const t = tp * 16;
+            sum = world[t + r * 4] * rot3[c] + world[t + r * 4 + 1] * rot3[3 + c]
+              + world[t + r * 4 + 2] * rot3[6 + c];
+          } else sum = rot3[r * 3 + c];
+          world[m + r * 4 + c] = sum * (c === 0 ? sx : c === 1 ? sy : sz);
+        }
+      }
       world[m + 3] = p.x; world[m + 7] = p.y; world[m + 11] = p.z;
+      for (const child of childrenOf[p.node]) {
+        if (chain.nodes.has(child)) continue;
+        const out = new Float32Array(16);
+        multiply(out, world, m, local, child * 16);
+        world.set(out, child * 16);
+        refreshChildren(child);
+      }
     }
   };
 

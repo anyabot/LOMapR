@@ -40,6 +40,7 @@ type Particle = {
 export type Chain = {
   def: DynamicBoneDef;
   particles: Particle[];
+  nodes: Set<number>;
   time: number;
   objectScale: number;
   prevRootX: number; prevRootY: number; prevRootZ: number;
@@ -49,6 +50,8 @@ export type Chain = {
 export type RigView = {
   /** Animated world matrix of a node, row-major 4x4. */
   world: (node: number) => Float32Array;
+  /** Unity's TransformDirection: the node's world rotation, free of scale. */
+  dir: (node: number, v: [number, number, number]) => [number, number, number];
   /** Animated local position of a node. */
   localPos: (node: number) => [number, number, number];
   parent: (node: number) => number;
@@ -83,13 +86,7 @@ export function buildChains(defs: DynamicBoneDef[], view: RigView): Chain[] {
           offset = inverseVector(m, direction).map((v) => v * def.endLength) as [number, number, number];
         }
       } else {
-        const owner = view.world(def.node);
-        const direction = [
-          owner[0] * def.endOffset[0] + owner[1] * def.endOffset[1] + owner[2] * def.endOffset[2],
-          owner[4] * def.endOffset[0] + owner[5] * def.endOffset[1] + owner[6] * def.endOffset[2],
-          owner[8] * def.endOffset[0] + owner[9] * def.endOffset[1] + owner[10] * def.endOffset[2],
-        ];
-        offset = inverseVector(m, direction);
+        offset = inverseVector(m, view.dir(def.node, def.endOffset));
       }
       const x = m[0] * offset[0] + m[1] * offset[1] + m[2] * offset[2] + m[3];
       const y = m[4] * offset[0] + m[5] * offset[1] + m[6] * offset[2] + m[7];
@@ -119,7 +116,8 @@ export function buildChains(defs: DynamicBoneDef[], view: RigView): Chain[] {
     };
     walk(def.root, -1);
     return {
-      def, particles, time: 0, objectScale: 1,
+      def, particles, nodes: new Set(particles.map((p) => p.node).filter((n) => n >= 0)),
+      time: 0, objectScale: 1,
       prevRootX: 0, prevRootY: 0, prevRootZ: 0, started: false,
     };
   });
@@ -215,9 +213,9 @@ function updateParticles2(chain: Chain, view: RigView) {
     }
 
     if (def.freezeAxis) {
-      const axis = def.freezeAxis - 1;
-      const m = view.world(parent.node);
-      let nx = m[axis], ny = m[4 + axis], nz = m[8 + axis];
+      const axis: [number, number, number] = [0, 0, 0];
+      axis[def.freezeAxis - 1] = 1;
+      let [nx, ny, nz] = view.dir(parent.node, axis);
       const nl = Math.hypot(nx, ny, nz) || 1;
       nx /= nl; ny /= nl; nz /= nl;
       const distance = (p.x - parent.x) * nx + (p.y - parent.y) * ny
