@@ -11,6 +11,11 @@ type RateLimitEnv = CloudflareEnv & {
 
 const RETRY_AFTER_SECONDS = 60;
 
+// Mirrors run_worker_first in wrangler.jsonc; an unscoped matcher makes every page prefetch fetch a data route.
+export const config = {
+  matcher: ['/models/:path*', '/rebuilt/:path*', '/skins/:path+', '/api/:path*'],
+};
+
 /**
  * Protect the relatively small dynamic surface of the site without putting a
  * challenge in front of visitors. In production, Cloudflare's asset-first

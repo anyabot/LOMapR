@@ -72,6 +72,13 @@ export function mountSkinnedRig(
     return { face, mesh };
   });
 
+  const clipDriven = new Set<number>();
+  for (const animator of doc.animators) {
+    for (const clip of animator.clips) {
+      for (const toggle of clip.toggles) clipDriven.add(toggle.node);
+    }
+  }
+
   const applyNodeOverrides = () => {
     const affected = new Set<number>();
     for (const toggle of doc.toggles ?? []) {
@@ -85,7 +92,10 @@ export function mountSkinnedRig(
     for (const node of Array.from(affected)) rig.setNodeOverride(node, null);
     for (const toggle of doc.toggles ?? []) {
       const on = toggleValues.get(toggle.key) ?? toggle.default;
-      for (const node of toggle.members ?? []) rig.setNodeOverride(node, on);
+      // A clip animating m_IsActive owns the node; an enabled parts list must not pin it visible.
+      for (const node of toggle.members ?? []) {
+        rig.setNodeOverride(node, on ? (clipDriven.has(node) ? null : true) : false);
+      }
       for (const node of toggle.swapOn ?? []) rig.setNodeOverride(node, on);
       for (const node of toggle.swapOff ?? []) rig.setNodeOverride(node, !on);
     }
@@ -94,6 +104,24 @@ export function mountSkinnedRig(
     }
     rig.refreshWorld();
   };
+
+  // Mesh-mode systems (m_RenderMode 4) draw the authored mesh, projected to the
+  // viewer's y-down space, instead of a screen-aligned quad.
+  const particleGeometry = emitterDefs.map((def) => {
+    const source = def.mesh ? doc.particleMeshes?.[def.mesh] : undefined;
+    if (!source) return null;
+    const count = source.verts.length / 3;
+    const vertices = new Float32Array(count * 2);
+    for (let i = 0; i < count; i += 1) {
+      vertices[i * 2] = source.verts[i * 3];
+      vertices[i * 2 + 1] = -source.verts[i * 3 + 1];
+    }
+    return {
+      vertices,
+      uvs: new Float32Array(source.uvs),
+      indices: new Uint32Array(source.tris),
+    };
+  });
 
   const particleLayers = emitterDefs.map((def) => {
     const layer = new PIXI.Container();
@@ -118,7 +146,9 @@ export function mountSkinnedRig(
     emitterDefs.forEach((def, index) => {
       const entry = particleLayers[index];
       const run = emitters[index];
-      if (!particlesOn || def.node < 0) { entry.layer.visible = false; return; }
+      if (!particlesOn || def.node < 0 || def.renderMode === 5) {
+        entry.layer.visible = false; return;
+      }
       entry.layer.visible = rig.visible[def.node] === 1;
       if (!entry.layer.visible) return;
 
@@ -138,12 +168,13 @@ export function mountSkinnedRig(
       const count = Math.min(run.particles.length, 600);
       const cols = Math.max(1, def.tiles[0]);
       const rows = Math.max(1, def.tiles[1]);
+      const geometry = particleGeometry[index];
       while (entry.meshes.length < count) {
         const mesh = new PIXI.MeshSimple({
           texture: entry.texture,
-          vertices: PARTICLE_VERTICES.slice(),
-          uvs: new Float32Array(8),
-          indices: PARTICLE_INDICES.slice(),
+          vertices: geometry ? geometry.vertices.slice() : PARTICLE_VERTICES.slice(),
+          uvs: new Float32Array(geometry ? geometry.uvs.length : 8),
+          indices: geometry ? geometry.indices.slice() : PARTICLE_INDICES.slice(),
         });
         mesh.blendMode = def.blend === 'add' ? 'add' : 'normal';
         entry.layer.addChild(mesh);
@@ -168,7 +199,13 @@ export function mountSkinnedRig(
         const u0 = col / cols, u1 = (col + 1) / cols;
         const v0 = row / rows, v1 = (row + 1) / rows;
         const uvs = mesh.geometry.getBuffer('aUV').data as Float32Array;
-        uvs.set([u0, v1, u1, v1, u1, v0, u0, v0]);
+        if (geometry) {
+          const base = geometry.uvs;
+          for (let k = 0; k < base.length; k += 2) {
+            uvs[k] = u0 + base[k] * (u1 - u0);
+            uvs[k + 1] = v0 + base[k + 1] * (v1 - v0);
+          }
+        } else uvs.set([u0, v1, u1, v1, u1, v0, u0, v0]);
         mesh.geometry.getBuffer('aUV').update();
       }
       for (let i = count; i < entry.meshes.length; i += 1) entry.meshes[i].visible = false;

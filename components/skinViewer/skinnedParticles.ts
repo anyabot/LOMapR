@@ -22,6 +22,10 @@ export type EmitterDef = {
   maxParticles: number;
   startDelay: PCurve;
   align: number;
+  // ParticleSystemRenderMode: 0 billboard, 4 mesh (draws `mesh`), 5 none.
+  renderMode?: number;
+  mesh?: string;
+  pivot?: [number, number, number];
   start: {
     lifetime: PCurve; speed: PCurve; size: PCurve; sizeY: PCurve | null;
     rotation: PCurve; color: PGradient; gravity: PCurve; flipRotation: number;
