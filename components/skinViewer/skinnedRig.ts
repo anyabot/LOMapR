@@ -87,6 +87,7 @@ export type SkinnedDoc = {
   dynamicBones?: DynamicBoneDef[];
   puppetIk?: PuppetIkDef[];
   particles?: EmitterDef[];
+  particleMeshes?: Record<string, { verts: number[]; uvs: number[]; tris: number[] }>;
   colliders?: SkinnedCollider[];
   toggles?: SkinnedToggle[];
   variants?: Record<string, SkinnedVariant>;
