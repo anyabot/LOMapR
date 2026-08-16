@@ -19,7 +19,11 @@ const nextConfig = {
   // resolved server-side). /skins/* is proxied for dev convenience only — the
   // browser fetches skin archives from NEXT_PUBLIC_SKIN_ARCHIVE_BASE directly.
   async rewrites() {
-    const base = (process.env.NEXT_PUBLIC_SKIN_ARCHIVE_BASE ?? '').replace(/\/skins\/?$/, '').replace(/\/$/, '');
+    // Derive from the bucket URL: dev:local repoints the archive base at a local
+    // route, and stripping /skins off that would break the model proxies.
+    const base = (process.env.NEXT_PUBLIC_R2_PUBLIC_URL
+      ?? (process.env.NEXT_PUBLIC_SKIN_ARCHIVE_BASE ?? '').replace(/\/skins\/?$/, ''))
+      .replace(/\/$/, '');
     if (!base) return [];
     return [
       { source: '/models/:path*',  destination: `${base}/models/:path*`  },

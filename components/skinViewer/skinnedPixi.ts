@@ -8,6 +8,15 @@ const PARTICLE_VERTICES = new Float32Array([
 ]);
 const PARTICLE_INDICES = new Uint32Array([0, 1, 2, 0, 2, 3]);
 
+// Unity front faces are clockwise on screen, and projecting through Pixi's
+// y-down space and back to clip space preserves that, so `_Cull` 2 (Back) keeps
+// the clockwise half and `_Cull` 1 (Front) keeps the other.
+function applyCull(mesh: PIXI.Mesh, cull: number | undefined) {
+  if (!cull) return;
+  mesh.state.culling = true;
+  mesh.state.clockwiseFrontFace = cull === 2;
+}
+
 export type SkinnedView = {
   rig: Rig;
   container: PIXI.Container;
@@ -38,10 +47,13 @@ export function mountSkinnedRig(
       indices: new Uint32Array(renderer.mesh.tris),
     });
     mesh.label = renderer.name;
-    if (renderer.kind === 'sprite') {
+    // Every renderer kind carries its material's blend and colour; none of them
+    // can be assumed to be plain alpha-blended white.
+    if (renderer.blend && renderer.blend !== 'normal') mesh.blendMode = renderer.blend;
+    if (renderer.color) {
       const [r, g, b] = renderer.color;
-      mesh.tint = (Math.round(r * 255) << 16) | (Math.round(g * 255) << 8)
-        | Math.round(b * 255);
+      mesh.tint = (Math.round(Math.min(r, 1) * 255) << 16)
+        | (Math.round(Math.min(g, 1) * 255) << 8) | Math.round(Math.min(b, 1) * 255);
     }
     container.addChild(mesh);
     return mesh;
@@ -110,14 +122,9 @@ export function mountSkinnedRig(
   const particleGeometry = emitterDefs.map((def) => {
     const source = def.mesh ? doc.particleMeshes?.[def.mesh] : undefined;
     if (!source) return null;
-    const count = source.verts.length / 3;
-    const vertices = new Float32Array(count * 2);
-    for (let i = 0; i < count; i += 1) {
-      vertices[i * 2] = source.verts[i * 3];
-      vertices[i * 2 + 1] = -source.verts[i * 3 + 1];
-    }
     return {
-      vertices,
+      verts: new Float32Array(source.verts),
+      vertices: new Float32Array((source.verts.length / 3) * 2),
       uvs: new Float32Array(source.uvs),
       indices: new Uint32Array(source.tris),
     };
@@ -147,9 +154,10 @@ export function mountSkinnedRig(
       const entry = particleLayers[index];
       const run = emitters[index];
       if (!particlesOn || def.node < 0 || def.renderMode === 5) {
-        entry.layer.visible = false; return;
+        entry.layer.visible = false; entry.layer.measurable = false; return;
       }
       entry.layer.visible = rig.visible[def.node] === 1;
+      entry.layer.measurable = entry.layer.visible;
       if (!entry.layer.visible) return;
 
       const m = def.node * 16;
@@ -166,8 +174,10 @@ export function mountSkinnedRig(
       // Billboards collapse to screen-aligned quads under an orthographic camera.
       const scale = Math.hypot(w[m], w[m + 4], w[m + 8]);
       const count = Math.min(run.particles.length, 600);
-      const cols = Math.max(1, def.tiles[0]);
-      const rows = Math.max(1, def.tiles[1]);
+      // tilesX/tilesY only apply while the texture-sheet module is enabled; with it
+      // off Unity samples the whole texture regardless of what the fields say.
+      const cols = def.uv ? Math.max(1, def.tiles[0]) : 1;
+      const rows = def.uv ? Math.max(1, def.tiles[1]) : 1;
       const geometry = particleGeometry[index];
       while (entry.meshes.length < count) {
         const mesh = new PIXI.MeshSimple({
@@ -176,7 +186,10 @@ export function mountSkinnedRig(
           uvs: new Float32Array(geometry ? geometry.uvs.length : 8),
           indices: geometry ? geometry.indices.slice() : PARTICLE_INDICES.slice(),
         });
-        mesh.blendMode = def.blend === 'add' ? 'add' : 'normal';
+        mesh.blendMode = def.blend && def.blend !== 'normal' ? def.blend : 'normal';
+        // Unity generates billboard quads already facing the camera, so `_Cull`
+        // can only remove geometry on mesh-mode systems.
+        applyCull(mesh, geometry ? def.cull : 0);
         entry.layer.addChild(mesh);
         entry.meshes.push(mesh);
       }
@@ -187,9 +200,37 @@ export function mountSkinnedRig(
         const cx = w[m] * p.x + w[m + 1] * p.y + w[m + 2] * p.z + w[m + 3];
         const cy = -(w[m + 4] * p.x + w[m + 5] * p.y + w[m + 6] * p.z + w[m + 7]);
         mesh.visible = true;
-        mesh.position.set(cx, cy);
-        mesh.scale.set(p.size * scale, p.sizeY * scale);
-        mesh.rotation = p.angle;
+        if (geometry) {
+          // Mesh particles are oriented by the scale-free world rotation and a
+          // uniform scale. Using the node's basis would apply the rig root's
+          // 1000:1 z flattening and squash the mesh into a smear.
+          const target = mesh.geometry.getBuffer('aPosition').data as Float32Array;
+          const src = geometry.verts;
+          const r = rig.worldRot;
+          const q = def.node * 9;
+          // Unity's Euler order applies Z, then X, then Y.
+          const cz = Math.cos(p.angle), sz2 = Math.sin(p.angle);
+          const cx2 = Math.cos(p.angleX), sx2 = Math.sin(p.angleX);
+          const cy2 = Math.cos(p.angleY), sy2 = Math.sin(p.angleY);
+          for (let k = 0, j = 0; k < src.length; k += 3, j += 2) {
+            const bx = src[k] * p.size, by = src[k + 1] * p.sizeY, bz = src[k + 2] * p.sizeZ;
+            const zx = bx * cz - by * sz2, zy = bx * sz2 + by * cz;
+            const ry = zy * cx2 - bz * sx2, rz = zy * sx2 + bz * cx2;
+            const sx = (zx * cy2 + rz * sy2) * scale;
+            const sy = ry * scale;
+            const sz = (-zx * sy2 + rz * cy2) * scale;
+            target[j] = cx + r[q] * sx + r[q + 1] * sy + r[q + 2] * sz;
+            target[j + 1] = cy - (r[q + 3] * sx + r[q + 4] * sy + r[q + 5] * sz);
+          }
+          mesh.geometry.getBuffer('aPosition').update();
+          mesh.position.set(0, 0);
+          mesh.scale.set(1, 1);
+          mesh.rotation = 0;
+        } else {
+          mesh.position.set(cx, cy);
+          mesh.scale.set(p.size * scale, p.sizeY * scale);
+          mesh.rotation = p.angle;
+        }
         mesh.tint = (Math.round(p.r * 255) << 16) | (Math.round(p.g * 255) << 8)
           | Math.round(p.b * 255);
         mesh.alpha = p.a;
@@ -275,9 +316,15 @@ export function mountSkinnedRig(
       const mesh = meshes[index];
       const shown = rig.isVisible(index);
       mesh.visible = shown;
+      // Hidden renderers must not count towards getLocalBounds, or off-centre
+      // gizmos and spare backgrounds shrink the fit.
+      mesh.measurable = shown;
       if (!shown) return;
       mesh.zIndex = position;
       mesh.alpha = rig.alpha[index];
+      mesh.tint = (Math.round(Math.min(rig.tint[index * 3], 1) * 255) << 16)
+        | (Math.round(Math.min(rig.tint[index * 3 + 1], 1) * 255) << 8)
+        | Math.round(Math.min(rig.tint[index * 3 + 2], 1) * 255);
       const baseTexture = rig.textureName(index);
       mesh.texture = textures[variant?.textures?.[baseTexture] ?? baseTexture]
         ?? PIXI.Texture.WHITE;
@@ -290,6 +337,7 @@ export function mountSkinnedRig(
     });
     for (const { face, mesh } of faceMeshes) {
       mesh.visible = face.key === activeFace && rig.visible[face.node] === 1;
+      mesh.measurable = mesh.visible;
       if (!mesh.visible) continue;
       const m = face.node * 16;
       const source = face.mesh.verts;
