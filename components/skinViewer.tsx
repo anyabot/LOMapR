@@ -8,7 +8,7 @@ import {
 import type { SpriteInfo, SkinNode, FixedFace, Layout } from './skinViewer/types';
 import {
   baseSkinKey, layoutHasVariant, zAngle, attachPanZoom,
-  mappedSourcePixelScale, meshSourcePixelScale,
+  mappedSourcePixelScale, meshSourcePixelScale, fixBlendAlpha,
 } from './skinViewer/types';
 
 // Used when a skinned Pixi archive has not been published yet.
@@ -212,6 +212,28 @@ type SkinViewerProps = {
   hasKr?: boolean; viewRegion?: 'global' | 'kr'; onToggleRegion?: () => void;
 };
 
+// getLocalBounds counts hidden children, so spare backgrounds, camera-boundary
+// sprites and rig gizmos shrink the model. Measure only what is drawn.
+function visibleBounds(container: any) {
+  const scale = container.scale.x;
+  const px = container.position.x;
+  const py = container.position.y;
+  container.scale.set(1);
+  container.position.set(0, 0);
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const child of container.children) {
+    if (!child.visible || typeof child.getBounds !== 'function') continue;
+    const b = child.getBounds();
+    if (!isFinite(b.minX) || !b.width || !b.height) continue;
+    minX = Math.min(minX, b.minX); maxX = Math.max(maxX, b.maxX);
+    minY = Math.min(minY, b.minY); maxY = Math.max(maxY, b.maxY);
+  }
+  container.scale.set(scale);
+  container.position.set(px, py);
+  if (!isFinite(minX)) return null;
+  return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+}
+
 function SkinnedPixiViewer(props: SkinViewerProps) {
   const { skin, height = '70vh', parts = [], hasDam, showDam, onToggleDam } = props;
   const hostRef = useRef<HTMLDivElement>(null);
@@ -260,6 +282,7 @@ function SkinnedPixiViewer(props: SkinViewerProps) {
 
       app = new PIXI.Application();
       await app.init({ backgroundAlpha: 0, antialias: true, resizeTo: hostRef.current });
+      fixBlendAlpha(app.renderer);
       if (destroyed) { app.destroy(true); return; }
       appRef.current = app;
       hostRef.current.replaceChildren(app.canvas);
@@ -275,8 +298,8 @@ function SkinnedPixiViewer(props: SkinViewerProps) {
       view.setVariant(fullVariantRef.current ? 'base' : variantRef.current);
 
       const fit = () => {
-        const bounds = view.container.getLocalBounds();
-        if (!bounds.width || !bounds.height) return;
+        const bounds = visibleBounds(view.container);
+        if (!bounds || !bounds.width || !bounds.height) return;
         const padding = 40;
         const scale = Math.min(
           (app.screen.width - padding) / bounds.width,
@@ -547,6 +570,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
 
       app = new PIXI.Application();
       await app.init({ backgroundAlpha: 0, antialias: true, resizeTo: hostRef.current! });
+      fixBlendAlpha(app.renderer);
       appReady = true;
       if (destroyed) {
         app.destroy(true);
@@ -891,6 +915,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
 
       app = new PIXI.Application();
       await app.init({ backgroundAlpha: 0, antialias: true, resizeTo: hostRef.current! });
+      fixBlendAlpha(app.renderer);
       appReady = true;
       if (destroyed) { app.destroy(true); return; }
       appRef.current = app;

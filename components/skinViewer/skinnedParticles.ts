@@ -13,7 +13,9 @@ export type EmitterDef = {
   node: number;
   tex: string | null;
   order: number;
-  blend: 'add' | 'normal';
+  blend: 'add' | 'multiply' | 'screen' | 'normal';
+  // Unity `_Cull`: 0 Off, 1 Front, 2 Back.
+  cull?: number;
   tiles: [number, number];
   duration: number;
   looping: boolean;
@@ -28,7 +30,9 @@ export type EmitterDef = {
   pivot?: [number, number, number];
   start: {
     lifetime: PCurve; speed: PCurve; size: PCurve; sizeY: PCurve | null;
-    rotation: PCurve; color: PGradient; gravity: PCurve; flipRotation: number;
+    sizeZ: PCurve | null;
+    rotation: PCurve; rotationX: PCurve | null; rotationY: PCurve | null;
+    color: PGradient; gravity: PCurve; flipRotation: number;
   };
   emission?: { rate: PCurve; bursts: { t: number; n: PCurve; cycles: number; interval: number; probability: number }[] };
   shape?: {
@@ -38,18 +42,18 @@ export type EmitterDef = {
     scale: [number, number, number];
     randomDirection: number; sphericalDirection: number; alignToDirection: boolean;
   };
-  size?: { curve: PCurve; y: PCurve; separateAxes: boolean };
+  size?: { curve: PCurve; y: PCurve; z?: PCurve; separateAxes: boolean };
   color?: { gradient: PGradient };
   velocity?: { x: PCurve; y: PCurve; radial: PCurve; speedModifier: PCurve; inWorldSpace: boolean };
-  spin?: { curve: PCurve };
+  spin?: { curve: PCurve; x?: PCurve; y?: PCurve; separateAxes?: boolean };
   force?: { x: PCurve; y: PCurve; randomizePerFrame: boolean };
   uv?: { frame: PCurve; startFrame: PCurve; cycles: number; animationType: number; rowMode: number; rowIndex: number };
 };
 
 export type Particle = {
   x: number; y: number; z: number;
-  size: number; sizeY: number;
-  angle: number;
+  size: number; sizeY: number; sizeZ: number;
+  angle: number; angleX: number; angleY: number;
   r: number; g: number; b: number; a: number;
   frame: number;
 };
@@ -58,7 +62,7 @@ type Live = Particle & {
   age: number; lifetime: number;
   vx: number; vy: number; vz: number;
   ax: number; ay: number; az: number;
-  size0: number; sizeY0: number; spin: number; frame0: number;
+  size0: number; sizeY0: number; sizeZ0: number; spin: number; frame0: number;
   color0: [number, number, number, number];
   rolls: number[];
 };
@@ -250,6 +254,7 @@ export function createEmitter(def: EmitterDef, seed: number): EmitterRun {
     const speed = valueAt(def.start.speed, t01, rolls[ROLL_SPEED]);
     const size = valueAt(def.start.size, t01, rolls[ROLL_SIZE]);
     const sizeY = def.start.sizeY ? valueAt(def.start.sizeY, t01, rolls[ROLL_SIZE]) : size;
+    const sizeZ = def.start.sizeZ ? valueAt(def.start.sizeZ, t01, rolls[ROLL_SIZE]) : size;
     const color = colorAt(def.start.color, t01, rolls[ROLL_COLOR]);
     const flip = def.start.flipRotation > 0 && roll() < def.start.flipRotation ? -1 : 1;
     live.push({
@@ -258,8 +263,10 @@ export function createEmitter(def: EmitterDef, seed: number): EmitterRun {
       lifetime: Math.max(0.0001, valueAt(def.start.lifetime, t01, rolls[ROLL_LIFETIME])),
       vx: point.dx * speed, vy: point.dy * speed, vz: point.dz * speed,
       ax: 0, ay: 0, az: 0,
-      size, sizeY, size0: size, sizeY0: sizeY,
+      size, sizeY, sizeZ, size0: size, sizeY0: sizeY, sizeZ0: sizeZ,
       angle: valueAt(def.start.rotation, t01, rolls[ROLL_ROTATION]) * flip,
+      angleX: def.start.rotationX ? valueAt(def.start.rotationX, t01, rolls[ROLL_ROTATION]) : 0,
+      angleY: def.start.rotationY ? valueAt(def.start.rotationY, t01, rolls[ROLL_ROTATION]) : 0,
       spin: flip,
       r: color[0], g: color[1], b: color[2], a: color[3],
       color0: color,
@@ -341,8 +348,16 @@ export function createEmitter(def: EmitterDef, seed: number): EmitterRun {
         p.size = p.size0 * scale;
         p.sizeY = p.sizeY0 * (def.size.separateAxes
           ? valueAt(def.size.y, t, p.rolls[ROLL_SIZE_OL]) : scale);
+        p.sizeZ = p.sizeZ0 * (def.size.separateAxes && def.size.z
+          ? valueAt(def.size.z, t, p.rolls[ROLL_SIZE_OL]) : scale);
       }
-      if (def.spin) p.angle += valueAt(def.spin.curve, t, p.rolls[ROLL_SPIN]) * p.spin * step;
+      if (def.spin) {
+        p.angle += valueAt(def.spin.curve, t, p.rolls[ROLL_SPIN]) * p.spin * step;
+        if (def.spin.separateAxes) {
+          p.angleX += valueAt(def.spin.x, t, p.rolls[ROLL_SPIN]) * p.spin * step;
+          p.angleY += valueAt(def.spin.y, t, p.rolls[ROLL_SPIN]) * p.spin * step;
+        }
+      }
       if (def.color) {
         const tint = colorAt(def.color.gradient, t, p.rolls[ROLL_COLOR_OL]);
         p.r = p.color0[0] * tint[0];

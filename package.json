@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start",
     "sync:local-data": "node scripts/sync-local-data.js",
-    "dev:local": "npm run sync:local-data && cross-env NEXT_PUBLIC_DATA_SOURCE=local next dev",
+    "dev:local": "npm run sync:local-data && cross-env NEXT_PUBLIC_DATA_SOURCE=local NEXT_PUBLIC_SKIN_ARCHIVE_BASE=/api/local-skin next dev",
     "dev:bucket": "cross-env NEXT_PUBLIC_DATA_SOURCE=bucket next dev",
     "lint": "next lint",
     "test:e2e": "playwright test",

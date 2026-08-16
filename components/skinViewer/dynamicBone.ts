@@ -1,4 +1,5 @@
 export type DynamicBoneDef = {
+  name?: string;
   node: number;
   root: number;
   enabled: boolean;

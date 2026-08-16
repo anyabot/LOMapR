@@ -27,18 +27,30 @@ export type SkinnedMesh = {
 
 export type SpriteMesh = { verts: number[]; uvs: number[]; tris: number[] };
 
+export type BlendMode = 'add' | 'multiply' | 'screen' | 'normal';
+
 export type SkinnedRenderer =
   | {
       kind: 'skinned';
       name: string; node: number; tex: string; material: string | null;
-      enabled: boolean; order: number; mesh: SkinnedMesh;
+      blend?: BlendMode; color?: [number, number, number, number];
+      enabled: boolean; order: number; layer?: number; mesh: SkinnedMesh;
     }
   | {
       kind: 'sprite';
-      name: string; node: number; tex: string; enabled: boolean; order: number;
+      name: string; node: number; tex: string; blend?: BlendMode;
+      enabled: boolean; order: number; layer?: number;
       color: [number, number, number, number]; flip: [boolean, boolean];
       ppu: number; mesh: SpriteMesh;
+    }
+  | {
+      kind: 'mesh';
+      name: string; node: number; tex: string; material: string | null;
+      blend?: BlendMode; color?: [number, number, number, number];
+      enabled: boolean; order: number; layer?: number; mesh: RigidMesh;
     };
+
+export type RigidMesh = { verts: number[]; uvs: number[]; tris: number[] };
 
 export type SkinnedTrack = {
   node: number;
@@ -51,6 +63,11 @@ export type SkinnedTrack = {
 export type RendererTrack = {
   renderer: number;
   alpha?: SkinnedCurve;
+  red?: SkinnedCurve;
+  green?: SkinnedCurve;
+  blue?: SkinnedCurve;
+  order?: SkinnedCurve;
+  flipX?: SkinnedCurve;
   enabled?: SkinnedCurve;
   shapes?: { slot: number; curve: SkinnedCurve }[];
   object?: { t: number[]; frames: ({ tex?: string; mesh?: SpriteMesh } | null)[] };
@@ -60,6 +77,7 @@ export type SkinnedClip = {
   name: string;
   length: number;
   loop: boolean;
+  events?: { t: number; chain: string }[];
   tracks: SkinnedTrack[];
   toggles: { node: number; curve: SkinnedCurve }[];
   renderers: RendererTrack[];
@@ -143,12 +161,15 @@ export type PuppetIkDef = {
 
 export type AnimatorState = {
   name: string; clip: string | null; loop: boolean; exit: number | null;
+  speed?: number; cycleOffset?: number; exitTime?: number | null; fade?: number;
 };
 
 export type SkinnedAnimator = {
   node: number;
   name: string;
   layer: number;
+  weight?: number;
+  additive?: boolean;
   clips: SkinnedClip[];
   default: string | null;
   defaultState: number | null;
@@ -290,6 +311,8 @@ export function createRig(doc: SkinnedDoc) {
   const scale = new Float32Array(count * 3);
 
   const alpha = new Float32Array(doc.renderers.length);
+  const tint = new Float32Array(doc.renderers.length * 3);
+  const sortOrder = new Float32Array(doc.renderers.length);
   const enabled = new Uint8Array(doc.renderers.length);
   const objectVisible = new Uint8Array(doc.renderers.length);
   const objectTexture: (string | null)[] = doc.renderers.map(() => null);
@@ -301,7 +324,11 @@ export function createRig(doc: SkinnedDoc) {
 
   const resetPose = () => {
     doc.renderers.forEach((r, i) => {
-      alpha[i] = r.kind === 'sprite' ? r.color[3] : 1;
+      alpha[i] = r.color ? r.color[3] : 1;
+      tint[i * 3] = r.color ? r.color[0] : 1;
+      tint[i * 3 + 1] = r.color ? r.color[1] : 1;
+      tint[i * 3 + 2] = r.color ? r.color[2] : 1;
+      sortOrder[i] = r.order;
       enabled[i] = r.enabled ? 1 : 0;
       objectVisible[i] = 1;
       objectTexture[i] = null;
@@ -443,6 +470,10 @@ export function createRig(doc: SkinnedDoc) {
     }
     for (const track of clip.renderers) {
       if (track.alpha) alpha[track.renderer] = evalCurve(track.alpha, time);
+      if (track.red) tint[track.renderer * 3] = evalCurve(track.red, time);
+      if (track.green) tint[track.renderer * 3 + 1] = evalCurve(track.green, time);
+      if (track.blue) tint[track.renderer * 3 + 2] = evalCurve(track.blue, time);
+      if (track.order) sortOrder[track.renderer] = evalCurve(track.order, time);
       if (track.enabled) {
         enabled[track.renderer] = evalCurve(track.enabled, time) > 0.5 ? 1 : 0;
       }
@@ -470,8 +501,46 @@ export function createRig(doc: SkinnedDoc) {
     }
   };
 
+  // Unity skips a zero-weight layer entirely, blends a fractional one toward the
+  // pose beneath it, and adds an additive layer's delta from its own first frame.
+  const layerPos = new Float32Array(pos.length);
+  const layerQuat = new Float32Array(quat.length);
+  const layerScale = new Float32Array(scale.length);
+
   const applyClip = () => {
-    for (const player of players) applyPlayer(player.clip, player.time);
+    for (const player of players) {
+      const weight = player.def.weight ?? 1;
+      if (weight <= 0) continue;
+      const additive = player.def.additive === true;
+      if (weight >= 1 && !additive) { applyPlayer(player.clip, player.time); continue; }
+      layerPos.set(pos); layerQuat.set(quat); layerScale.set(scale);
+      if (additive) {
+        applyPlayer(player.clip, 0);
+        const basePos = pos.slice(), baseQuat = quat.slice(), baseScale = scale.slice();
+        pos.set(layerPos); quat.set(layerQuat); scale.set(layerScale);
+        applyPlayer(player.clip, player.time);
+        for (let i = 0; i < pos.length; i += 1) {
+          pos[i] = layerPos[i] + (pos[i] - basePos[i]) * weight;
+          scale[i] = layerScale[i] + (scale[i] - baseScale[i]) * weight;
+        }
+        for (let i = 0; i < quat.length; i += 1) {
+          quat[i] = layerQuat[i] + (quat[i] - baseQuat[i]) * weight;
+        }
+      } else {
+        applyPlayer(player.clip, player.time);
+        for (let i = 0; i < pos.length; i += 1) {
+          pos[i] = layerPos[i] + (pos[i] - layerPos[i]) * weight;
+          scale[i] = layerScale[i] + (scale[i] - layerScale[i]) * weight;
+        }
+        for (let i = 0; i < quat.length; i += 1) {
+          quat[i] = layerQuat[i] + (quat[i] - layerQuat[i]) * weight;
+        }
+      }
+      for (let i = 0; i < quat.length; i += 4) {
+        const len = Math.hypot(quat[i], quat[i + 1], quat[i + 2], quat[i + 3]) || 1;
+        quat[i] /= len; quat[i + 1] /= len; quat[i + 2] /= len; quat[i + 3] /= len;
+      }
+    }
   };
 
   const captureSource = () => {
@@ -515,15 +584,37 @@ export function createRig(doc: SkinnedDoc) {
     return true;
   };
 
+  // Every animation event in the catalogue is EventDynamicBone(<chain name>),
+  // which re-seeds the named chain at that point in the clip.
+  const fireEvents = (clip: SkinnedClip, from: number, to: number) => {
+    if (!clip.events?.length) return;
+    for (const event of clip.events) {
+      if (event.t <= from || event.t > to) continue;
+      for (const chain of chains) {
+        if (chain.def.name === event.chain) resetChain(chain, view);
+      }
+    }
+  };
+
+  const stateOf = (player: Playing) =>
+    (player.state == null ? undefined : player.def.states?.[String(player.state)]);
+
   const stepPlayer = (player: Playing, dt: number) => {
     const { clip } = player;
     if (!clip || clip.length <= 0) return;
-    player.time += dt;
+    const previous = player.time;
+    player.time += dt * (stateOf(player)?.speed ?? 1);
+    fireEvents(clip, previous, player.time);
     // The exit fade starts before the last frame, so the outgoing clip is still
     // moving while it crossfades; a clip that has already ended cannot fade.
-    const lead = Math.min(transitionDuration, clip.length / 2);
-    // An exit transition fires after one pass even when the state loops.
-    if (player.time >= clip.length - lead && advanceState(player)) return;
+    const state = stateOf(player);
+    // Unity's authored exit time is normalised; the fade is already in seconds.
+    const exitAt = state?.exitTime != null
+      ? state.exitTime * clip.length
+      : clip.length - Math.min(transitionDuration, clip.length / 2);
+    const fade = state?.fade ?? transitionDuration;
+    const lead = Math.min(Math.max(fade, 0), clip.length / 2);
+    if (player.time >= Math.min(exitAt, clip.length - lead) && advanceState(player)) return;
     if (player.time < clip.length) return;
     if (clip.loop) player.time %= clip.length;
     else player.time = clip.length;
@@ -925,8 +1016,8 @@ export function createRig(doc: SkinnedDoc) {
   const skinMats = doc.renderers.map((r) =>
     (r.kind === 'skinned' ? new Float32Array(r.mesh.bones.length * 16) : null));
   const outputs = doc.renderers.map((r) =>
-    new Float32Array((r.kind === 'skinned'
-      ? r.mesh.verts.length / 3 : r.mesh.verts.length / 2) * 2));
+    new Float32Array((r.kind === 'sprite'
+      ? r.mesh.verts.length / 2 : r.mesh.verts.length / 3) * 2));
   const depths = new Float32Array(doc.renderers.length);
   const morphBuffers: (Float32Array | null)[] = doc.renderers.map(() => null);
   const meshOverrides: (SkinnedMesh | null)[] = doc.renderers.map(() => null);
@@ -948,6 +1039,18 @@ export function createRig(doc: SkinnedDoc) {
         const y = v[i * 2 + 1] * fy;
         out[i * 2] = world[m] * x + world[m + 1] * y + world[m + 3];
         out[i * 2 + 1] = -(world[m + 4] * x + world[m + 5] * y + world[m + 7]);
+      }
+      return out;
+    }
+    if (renderer.kind === 'mesh') {
+      // A MeshRenderer prop is rigid: its mesh rides its node's transform whole.
+      const m = renderer.node * 16;
+      const v = renderer.mesh.verts;
+      for (let i = 0, n = v.length / 3; i < n; i += 1) {
+        const x = v[i * 3], y = v[i * 3 + 1], z = v[i * 3 + 2];
+        out[i * 2] = world[m] * x + world[m + 1] * y + world[m + 2] * z + world[m + 3];
+        out[i * 2 + 1] = -(world[m + 4] * x + world[m + 5] * y + world[m + 6] * z
+          + world[m + 7]);
       }
       return out;
     }
@@ -1021,7 +1124,10 @@ export function createRig(doc: SkinnedDoc) {
       order.push(i);
     });
     order.sort((a, b) => {
-      const layer = doc.renderers[a].order - doc.renderers[b].order;
+      // Unity sorts by sorting layer before sorting order.
+      const band = (doc.renderers[a].layer ?? 0) - (doc.renderers[b].layer ?? 0);
+      if (band !== 0) return band;
+      const layer = sortOrder[a] - sortOrder[b];
       if (layer !== 0) return layer;
       if (depths[a] !== depths[b]) return depths[b] - depths[a];
       return a - b;
@@ -1032,6 +1138,7 @@ export function createRig(doc: SkinnedDoc) {
   return {
     doc,
     world,
+    worldRot,
     visible,
     get clipName() { return main?.clip?.name ?? null; },
     get time() { return main?.time ?? 0; },
@@ -1131,6 +1238,7 @@ export function createRig(doc: SkinnedDoc) {
       return best;
     },
     alpha,
+    tint,
     setNodeOverride(node: number, value: boolean | null) {
       if (node < 0 || node >= count) return;
       nodeOverrides[node] = value == null ? -1 : value ? 1 : 0;

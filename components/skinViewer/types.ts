@@ -238,3 +238,22 @@ export function attachPanZoom(canvas: HTMLCanvasElement, root: any, zoneLayer?: 
     canvas.removeEventListener('pointercancel', onPointerUp);
   };
 }
+
+// Only straight compositing may write coverage. The canvas is premultiplied and
+// transparent, so the page shows `canvas.rgb + page.rgb * (1 - canvas.a)`: a
+// light/tint blend has to change rgb and leave alpha alone, which reproduces what
+// Unity gets against its opaque camera target and makes a zero-contribution draw a
+// true no-op. Pixi ships `add` as the two-argument `blendFunc(ONE, ONE)`, so its
+// alpha accumulates and an emitter the animation has tinted to black paints opaque
+// black; `multiply` and `screen` write coverage too and blacken the empty canvas
+// they extend over.
+export function fixBlendAlpha(renderer: unknown) {
+  const gl = (renderer as { gl?: WebGLRenderingContext })?.gl;
+  const map = (renderer as { state?: { blendModesMap?: Record<string, number[]> } })
+    ?.state?.blendModesMap;
+  if (!gl || !map) return;
+  for (const mode of ['add', 'add-npm', 'multiply', 'screen', 'screen-npm']) {
+    const factors = map[mode];
+    if (factors) map[mode] = [factors[0], factors[1], gl.ZERO, gl.ONE];
+  }
+}
