@@ -7,6 +7,8 @@ const PARTICLE_VERTICES = new Float32Array([
   -0.5, -0.5, 0.5, -0.5, 0.5, 0.5, -0.5, 0.5,
 ]);
 const PARTICLE_INDICES = new Uint32Array([0, 1, 2, 0, 2, 3]);
+// Coplanar nodes carry up to 1e-6 of matrix noise; authored offsets start at 1e-4.
+const FACE_DEPTH_EPSILON = 1e-5;
 
 // Unity front faces are clockwise on screen, and projecting through Pixi's
 // y-down space and back to clip space preserves that, so `_Cull` 2 (Back) keeps
@@ -348,8 +350,13 @@ export function mountSkinnedRig(
         target[i] = rig.world[m] * x + rig.world[m + 1] * y + rig.world[m + 3];
         target[i + 1] = -(rig.world[m + 4] * x + rig.world[m + 5] * y + rig.world[m + 7]);
       }
-      mesh.zIndex = order.reduce((position, renderer) =>
-        position + (doc.renderers[renderer].order <= face.order ? 1 : 0), 0) - 0.5;
+      // Tied on sorting order and depth, the face sprite draws behind the mesh.
+      const depth = rig.world[m + 11];
+      mesh.zIndex = order.reduce((position, renderer) => {
+        const { order: rank, node } = doc.renderers[renderer];
+        if (rank !== face.order) return position + (rank < face.order ? 1 : 0);
+        return position + (rig.world[node * 16 + 11] > depth + FACE_DEPTH_EPSILON ? 1 : 0);
+      }, 0) - 0.5;
       mesh.geometry.getBuffer('aPosition').update();
     }
     syncParticles(order);
