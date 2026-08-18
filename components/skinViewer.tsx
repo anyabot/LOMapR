@@ -261,6 +261,10 @@ function SkinnedPixiViewer(props: SkinViewerProps) {
   useEffect(() => {
     let destroyed = false;
     let app: any = null;
+    // Destroying an Application whose init() has not resolved throws inside
+    // ResizePlugin (`this._cancelResize is not a function`) and takes the page
+    // down; unmounting mid-init has to leave the teardown to the init path.
+    let appReady = false;
     let detachPanZoom = () => {};
     setLoadState('fetching');
     setFace('');
@@ -282,8 +286,9 @@ function SkinnedPixiViewer(props: SkinViewerProps) {
 
       app = new PIXI.Application();
       await app.init({ backgroundAlpha: 0, antialias: true, resizeTo: hostRef.current });
+      appReady = true;
       fixBlendAlpha(app.renderer);
-      if (destroyed) { app.destroy(true); return; }
+      if (destroyed) { app.destroy(true); app = null; return; }
       appRef.current = app;
       hostRef.current.replaceChildren(app.canvas);
 
@@ -327,7 +332,7 @@ function SkinnedPixiViewer(props: SkinViewerProps) {
       viewRef.current?.destroy();
       viewRef.current = null;
       appRef.current = null;
-      if (app) app.destroy(true);
+      if (app && appReady) { app.destroy(true); app = null; }
       revokeSkinUrls(archiveSkin);
     };
   }, [skin, resetKey, archiveSkin]);
