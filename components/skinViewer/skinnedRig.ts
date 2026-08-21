@@ -104,6 +104,7 @@ export type SkinnedDoc = {
   mainAnimator: number;
   dynamicBones?: DynamicBoneDef[];
   puppetIk?: PuppetIkDef[];
+  puppetSpline?: PuppetSplineDef[];
   particles?: EmitterDef[];
   particleMeshes?: Record<string, { verts: number[]; uvs: number[]; tris: number[] }>;
   colliders?: SkinnedCollider[];
@@ -157,6 +158,14 @@ export type PuppetIkDef = {
   up: [number, number, number];
   offsetScale: [number, number, number];
   offset: [number, number, number, number];
+};
+
+export type PuppetSplineDef = {
+  node: number;
+  enabled: boolean;
+  ctrls: number[];
+  samples: number;
+  bones: number[];
 };
 
 export type AnimatorState = {
@@ -560,6 +569,7 @@ export function createRig(doc: SkinnedDoc) {
     applyClip();
     blendTransition();
     updateWorld();
+    applySpline();
     applyIk();
   };
 
@@ -824,6 +834,65 @@ export function createRig(doc: SkinnedDoc) {
     refreshChildren(node);
   };
 
+  const setWorldPos = (node: number, point: number[]) => {
+    const o = node * 16;
+    world[o + 3] = point[0]; world[o + 7] = point[1]; world[o + 11] = point[2];
+    refreshChildren(node);
+  };
+
+  const worldPos = (node: number): number[] =>
+    [world[node * 16 + 3], world[node * 16 + 7], world[node * 16 + 11]];
+
+  // Puppet2D's Catmull-Rom basis, evaluated per axis.
+  const pointOnCurve = (p0: number[], p1: number[], p2: number[], p3: number[],
+                        t: number): number[] => {
+    const t0 = ((-t + 2) * t - 1) * t * 0.5;
+    const t1 = (((3 * t - 5) * t) * t + 2) * 0.5;
+    const t2 = ((-3 * t + 4) * t + 1) * t * 0.5;
+    const t3 = ((t - 1) * t * t) * 0.5;
+    return [0, 1, 2].map((k) => p0[k] * t0 + p1[k] * t1 + p2[k] * t2 + p3[k] * t3);
+  };
+
+  // Puppet2D_SplineControl.Run: bones are placed along a Catmull-Rom through the
+  // control transforms, so a strap skinned to them is dead geometry without it.
+  const applySpline = () => {
+    for (const spline of doc.puppetSpline ?? []) {
+      const ctrls = spline.ctrls ?? [];
+      if (!spline.enabled || ctrls.length < 4 || ctrls.some((c) => c < 0)) continue;
+      const samples = Math.max(1, spline.samples);
+      const points: number[][] = [];
+      for (let n = 1; n < ctrls.length - 2; n += 1) {
+        for (let i = 0; i < samples; i += 1) {
+          points.push(pointOnCurve(worldPos(ctrls[n - 1]), worldPos(ctrls[n]),
+                                   worldPos(ctrls[n + 1]), worldPos(ctrls[n + 2]),
+                                   i / samples));
+        }
+      }
+      points.push(worldPos(ctrls[ctrls.length - 2]));
+      // Unity's eulerAngles decompose as Y * X * Z, so Y is the matrix's XZ turn.
+      const o = spline.node >= 0 ? spline.node * 9 : -1;
+      const yaw = o < 0 ? 0 : Math.atan2(worldRot[o + 2], worldRot[o + 8]);
+      const angleOffset: Quat = [0, Math.sin(yaw / 2), 0, Math.cos(yaw / 2)];
+      const last = points.length - 1;
+      for (let i = 0; i < points.length; i += 1) {
+        const bone = spline.bones[i];
+        if (bone == null || bone < 0) continue;
+        setWorldPos(bone, points[i]);
+        if (i === last) {
+          setWorldQuat(bone, worldQuat(ctrls[ctrls.length - 2]));
+        } else if (i === 0 && points.length > 2) {
+          setWorldQuat(bone, worldQuat(ctrls[1]));
+        } else {
+          const aim = [points[i][0] - points[i + 1][0],
+                       points[i][1] - points[i + 1][1],
+                       points[i][2] - points[i + 1][2]];
+          setWorldQuat(bone, quatMul(quatMul(
+            lookRotation(aim, [0, 0, 1]), angleAxis(90, [-1, 0, 0])), angleOffset));
+        }
+      }
+    }
+  };
+
   const applyIk = () => {
     for (const ik of doc.puppetIk ?? []) {
       if (!ik.enabled || ik.node < 0) continue;
@@ -897,6 +966,7 @@ export function createRig(doc: SkinnedDoc) {
 
   applyClip();
   updateWorld();
+  applySpline();
   applyIk();
   let chains: Chain[] = buildChains(dynamicDefs, view);
   let physicsEnabled = chains.length > 0;
@@ -1243,7 +1313,7 @@ export function createRig(doc: SkinnedDoc) {
       if (node < 0 || node >= count) return;
       nodeOverrides[node] = value == null ? -1 : value ? 1 : 0;
     },
-    refreshWorld() { updateWorld(); applyIk(); },
+    refreshWorld() { updateWorld(); applySpline(); applyIk(); },
     setMeshVariant(index: number, mesh: SkinnedMesh | null) {
       meshOverrides[index] = mesh;
       morphBuffers[index] = null;
