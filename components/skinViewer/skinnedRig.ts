@@ -971,6 +971,33 @@ export function createRig(doc: SkinnedDoc) {
   let chains: Chain[] = buildChains(dynamicDefs, view);
   let physicsEnabled = chains.length > 0;
 
+  // Walks the AnimatorController graph: `Tep_1` is a body touch, `breast` a special-zone touch.
+  const fireTrigger = (name: string, fade = true) => {
+    const firing: { player: Playing; dest: number; clip: SkinnedClip }[] = [];
+    for (const player of mainLayers) {
+      if (player.state == null) continue;
+      const dest = player.def.triggers?.[String(player.state)]?.[name];
+      if (dest == null) continue;
+      const clip = player.def.states?.[String(dest)]?.clip;
+      const next = clip ? player.byName.get(clip) : undefined;
+      if (next) firing.push({ player, dest, clip: next });
+    }
+    if (!firing.length) return false;
+    if (fade) beginTransition();
+    for (const { player, dest, clip } of firing) {
+      player.state = dest;
+      player.returnTo = null;
+      player.clip = clip;
+      player.time = 0;
+    }
+    composePose();
+    for (const chain of chains) resetChain(chain, view);
+    return true;
+  };
+
+  // The game's Actor.Start() fires Face_On as soon as the rig loads.
+  fireTrigger('Face_On', false);
+
   const accum = new Map<number, Float32Array>();
 
   // Rotation taking v0 onto v1, as a row-major 3x3.
@@ -1255,30 +1282,7 @@ export function createRig(doc: SkinnedDoc) {
     },
     chainCount: () => chains.length,
     colliders: doc.colliders ?? [],
-    // Walks the AnimatorController graph: `Tep_1` is a body touch, `breast` a
-    // special-zone touch.
-    trigger(name: string) {
-      const firing: { player: Playing; dest: number; clip: SkinnedClip }[] = [];
-      for (const player of mainLayers) {
-        if (player.state == null) continue;
-        const dest = player.def.triggers?.[String(player.state)]?.[name];
-        if (dest == null) continue;
-        const clip = player.def.states?.[String(dest)]?.clip;
-        const next = clip ? player.byName.get(clip) : undefined;
-        if (next) firing.push({ player, dest, clip: next });
-      }
-      if (!firing.length) return false;
-      beginTransition();
-      for (const { player, dest, clip } of firing) {
-        player.state = dest;
-        player.returnTo = null;
-        player.clip = clip;
-        player.time = 0;
-      }
-      composePose();
-      for (const chain of chains) resetChain(chain, view);
-      return true;
-    },
+    trigger: (name: string) => fireTrigger(name),
     triggerNames: () => {
       const names = new Set<string>();
       for (const map of Object.values(main?.def.triggers ?? {})) {
