@@ -550,6 +550,19 @@ export function createRig(doc: SkinnedDoc) {
         quat[i] /= len; quat[i + 1] /= len; quat[i + 2] /= len; quat[i + 3] /= len;
       }
     }
+    clampShapeWeights();
+  };
+
+  // Unity's runtime clamps blend-shape weights to [0, 100];
+  const clampShapeWeights = () => {
+    for (const weights of shapeWeights) {
+      if (!weights) continue;
+      for (let i = 0; i < weights.length; i += 1) {
+        const w = weights[i];
+        if (w < 0) weights[i] = 0;
+        else if (w > 100) weights[i] = 100;
+      }
+    }
   };
 
   const captureSource = () => {
