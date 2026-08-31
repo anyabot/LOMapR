@@ -1,9 +1,5 @@
-// Fetches a packed skin archive (<skin>.tar.br: a tar of the exported skin
-// folder, brotli-compressed as one solid stream — see tools/skin_test/pack.py),
-// decompresses it client-side, and untars it into a Map<filename, Blob> the
-// viewer can build blob: URLs from. Brotli has no reliable native browser
-// decoder (DecompressionStream doesn't support it), so we use a small WASM
-// decoder (brotli-dec-wasm) instead.
+// Fetches a packed skin archive (<skin>.tar.br), decompresses and untars it into a
+// Map<filename, Blob>. Brotli needs a WASM decoder: DecompressionStream lacks it.
 
 const ARCHIVE_BASE = (process.env.NEXT_PUBLIC_SKIN_ARCHIVE_BASE ?? '').replace(/\/$/, '');
 const LOCAL_SKIN_DIR = process.env.NEXT_PUBLIC_LOCAL_SKIN_DIR === '1';
@@ -16,10 +12,7 @@ function loadBrotli(): Promise<{ decompress: (data: Uint8Array) => Uint8Array }>
   return brotliModPromise!;
 }
 
-// Minimal USTAR reader: fixed 512-byte header records (name @0 len100, size as
-// octal ASCII @124 len12), content padded to the next 512-byte boundary, two
-// all-zero blocks terminate the archive. We control both producer (Python
-// stdlib tarfile) and consumer, so this covers everything pack.py emits.
+// Minimal USTAR reader; we control both producer (Python tarfile) and consumer.
 function untar(bytes: Uint8Array): Map<string, Blob> {
   const files = new Map<string, Blob>();
   const BLOCK = 512;
@@ -42,16 +35,13 @@ function untar(bytes: Uint8Array): Map<string, Blob> {
 
 const archiveCache = new Map<string, Promise<Map<string, Blob>>>();
 
-// Fetch + decompress + untar a skin's archive (cached per skin name).
-// With NEXT_PUBLIC_LOCAL_SKIN_DIR=1, try an unpacked /public/skin_test/<skin>/
-// export first. The override is opt-in so ordinary dev sessions do not generate
-// one expected 404 per archived skin while probing a directory that is absent.
+// Cached per skin name. The unpacked-directory override is opt-in so ordinary dev
+// sessions do not generate one 404 per archived skin.
 export function loadSkinArchive(skin: string): Promise<Map<string, Blob>> {
   let p = archiveCache.get(skin);
   if (!p) {
     p = (async () => {
-      // Local dev override for explicitly staged unpacked exports. loadLocalSkinDir
-      // understands both Spine's spine.json and fixed/skinned layout.json.
+      // loadLocalSkinDir understands both Spine's spine.json and fixed/skinned layout.json
       if (process.env.NODE_ENV !== 'production' && LOCAL_SKIN_DIR) {
         try {
           return await loadLocalSkinDir(skin);
@@ -72,8 +62,7 @@ export function loadSkinArchive(skin: string): Promise<Map<string, Blob>> {
   return p;
 }
 
-// Blob URLs created per archive, so they can all be revoked together when a
-// skin is no longer needed (see revokeSkinUrls).
+// Per-archive blob URLs, so they can all be revoked together (see revokeSkinUrls).
 const urlCache = new Map<string, Map<string, string>>();
 
 export function urlFor(skin: string, files: Map<string, Blob>, filename: string): string {
@@ -92,9 +81,7 @@ export function urlFor(skin: string, files: Map<string, Blob>, filename: string)
   return url;
 }
 
-// Load a skin from a local /skin_test/<skin>/ static directory instead of a
-// .tar.br archive. Reads spine.json/layout.json to discover filenames, then
-// fetches each file and builds the same Map<string, Blob> the viewer expects.
+// Reads spine.json/layout.json to discover filenames, then builds the same Map.
 const localCache = new Map<string, Promise<Map<string, Blob>>>();
 export function loadLocalSkinDir(skin: string): Promise<Map<string, Blob>> {
   let p = localCache.get(skin);
@@ -159,9 +146,8 @@ export async function readText(files: Map<string, Blob>, filename: string): Prom
   return blob.text();
 }
 
-// PIXI's texture loader picks a parser by file extension (PIXI.Assets.load),
-// but blob: URLs have none, so the default dispatch finds no matching parser
-// and silently returns no texture. Force the image-texture parser explicitly.
+// blob: URLs carry no extension, so PIXI.Assets finds no parser and silently returns
+// no texture unless the image parser is forced.
 export async function loadTexture(PIXI: any, skin: string, files: Map<string, Blob>, filename: string): Promise<any> {
   return PIXI.Assets.load({ src: urlFor(skin, files, filename), loadParser: 'loadTextures' });
 }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Modal, ModalOverlay, ModalContent, ModalHeader, ModalCloseButton, ModalBody,
   Box, HStack, VStack, Image, Text, Tag, Button, ButtonGroup, Center, Spinner,
@@ -15,6 +15,7 @@ import { selectUnits, fetchUnitsAsync } from '@/store/unitSlice';
 import { EquipRank } from '@/interfaces/equip';
 import { t } from '@/lib/strings';
 import { rankTag, rankColor, typeIcon, roleIcon, equipIcon, EXCHANGE_META, unitDisplayName } from '@/lib/rank';
+import { STAT_PER_POINT } from '@/lib/team';
 import { StatRow, StatSection } from '@/components/statBlock';
 import BuffList from '@/components/buffList';
 import UnitHoverCard from '@/components/unitHoverCard';
@@ -27,8 +28,7 @@ function statText(value: number, pct: boolean): string {
   return `${sign}${Math.abs(value)}`;
 }
 
-// Stat icon per equip attr (same icon set the enemy stat box uses). RES attrs reuse
-// the element icons; an attr with no icon here just renders label-only.
+// RES attrs reuse the element icons; an attr with no icon renders label-only.
 const STAT_ICON: Record<string, string> = {
   ATK: '/images/icon_ATK.png', DEF: '/images/icon_DEF.png', HP: '/images/icon_HP.png',
   ACC: '/images/icon_ACC.png', EVA: '/images/icon_EVA.png', CRIT: '/images/icon_CRIT.png',
@@ -37,17 +37,7 @@ const STAT_ICON: Record<string, string> = {
   'Lightning RES': '/images/electric.png',
 };
 
-// Stat-point conversion: how much of each stat one allocation point grants (in the
-// stat's STORED units — fractions for the pct stats, e.g. ACC 1.5% -> 0.015). Lets
-// players see how much "pure stat" an equip is worth (handy for plain chips with no
-// effects). Stats not listed here (SPD, RES) have no point value and are skipped.
-const STAT_PER_POINT: Record<string, number> = {
-  ATK: 1.5, DEF: 1.25, HP: 8,
-  ACC: 0.015, EVA: 0.004, CRIT: 0.004,
-};
-
-// A stat's worth in allocation points (value / per-point), or null if not
-// convertible. Negative stats yield negative points (they net against the total).
+// Negative stats yield negative points, netting against the total; null if not convertible.
 function statPoints(attr: string, value: number): number | null {
   const per = STAT_PER_POINT[attr];
   if (per == null) return null;
@@ -62,6 +52,8 @@ const fmtPoints = (n: number): string => {
 
 export default function EquipModal() {
   const dispatch = useAppDispatch();
+  // Focus the dialog, not the first control, which would ring and open its tooltip.
+  const contentRef = useRef<HTMLDivElement>(null);
   const id     = useAppSelector(selectActiveEquip);
   const full   = useAppSelector((s) => (id ? selectEquipFull(s, id) : null));
   const status = useAppSelector((s) => (id ? selectEquipFullStatus(s, id) : null));
@@ -84,8 +76,7 @@ export default function EquipModal() {
   const rank: EquipRank | undefined = full?.ranks[safeRankIdx];
   const lvl = rank?.levels[Math.min(level, (rank?.levels.length ?? 1) - 1)];
 
-  // Drop location for the selected rank; if it has none, fall back to the nearest
-  // LOWER rank that does (and flag it so the UI can note the fallback).
+  // falls back to the nearest LOWER rank with a source, flagged so the UI can note it
   let dropSrc = rank?.source;
   let dropFallbackRank: EquipRank | undefined;
   if (full && rank && (!dropSrc || Object.keys(dropSrc).length === 0)) {

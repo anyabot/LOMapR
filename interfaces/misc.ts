@@ -1,7 +1,7 @@
 import { SkillBuff } from './skill';
 
-// Entries produced by tools/transform/build/misc.py (data/<region>/misc.json +
-// split/misc/buff_<type>.json). All name fields are raw loc IDs (resolve via t()).
+// From build/misc.py. All name fields are raw loc IDs.
+
 
 export interface MiscSkillMeta {
   unit: string;       // unit id (Char_*) — resolve name/icon via the unit list
@@ -34,9 +34,8 @@ export interface MiscBuffTypeMeta {
   count: number;      // total entries of this BUFFEFFECT_TYPE ordinal
   attrs: number[];    // BUFF_ATTR_TYPEs seen among the entries
   units: number;      // distinct units applying it
-  // compact per-entry signature [unitIdx, attr, targetType, valueDirection], where
-  // direction is -1 / 0 / 1 at skill level 10. unitIdx indexes MiscIndex.units.
-  // This lets the picker split +/- values and compute filter-aware counts.
+  // [unitIdx, attr, targetType, valueDirection at skill level 10]; unitIdx indexes
+  // MiscIndex.units. Lets the picker split +/- values and compute filter-aware counts.
   sig: [number, number, number, -1 | 0 | 1][];
 }
 

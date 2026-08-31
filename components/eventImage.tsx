@@ -4,18 +4,13 @@ import { Box, Image, Center } from '@chakra-ui/react';
 interface Props {
   src?: string;
   alt: string;
-  // 'contain' preserves the image's true aspect ratio (letterboxed, never
-  // cropped/stretched). 'cover' fills the frame. Defaults to contain.
+  // 'contain' letterboxes and never crops; 'cover' fills the frame
   fit?: 'contain' | 'cover';
   borderRadius?: string;
 }
 
-/**
- * Event banner / icon image with a "?" placeholder shown until the image loads
- * (or if it fails). No external placeholder URL — the fallback is rendered
- * locally so nothing has to round-trip the network to show the empty state.
- * Fills its parent; wrap in an AspectRatio or fixed box to size it.
- */
+// Fills its parent, so wrap it in an AspectRatio or fixed box to size it. The
+// until-loaded placeholder is rendered locally, with no external URL.
 export default function EventImage({ src, alt, fit = 'contain', borderRadius }: Props) {
   const [status, setStatus] = useState<'loading' | 'ok' | 'error'>('loading');
 

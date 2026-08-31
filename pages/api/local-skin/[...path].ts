@@ -2,16 +2,14 @@ import fs from 'fs';
 import path from 'path';
 import type { NextApiRequest, NextApiResponse } from 'next';
 
-// Dev-only: serve packed skin archives straight from the local pipeline output so
-// `dev:local` reflects a fresh export instead of whatever is published on R2.
-// Anything not built locally falls back to the remote archive base.
+// Dev-only: serve packed skin archives from the local pipeline output, falling back
+// to the remote base for anything not built locally.
 const LOCAL_DIRS = [
   path.join(process.cwd(), 'tools', 'skin_test', 'pixi_dist'),
   path.join(process.cwd(), 'tools', 'skin_test', 'dist'),
 ];
 
-// dev:local overrides NEXT_PUBLIC_SKIN_ARCHIVE_BASE, so the remote falls back to the
-// bucket URL, which it does not touch.
+// dev:local overrides NEXT_PUBLIC_SKIN_ARCHIVE_BASE, so this remote stays untouched.
 const REMOTE = process.env.NEXT_PUBLIC_R2_PUBLIC_URL
   ? `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL.replace(/\/$/, '')}/skins`
   : '';

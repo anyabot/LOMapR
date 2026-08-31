@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import styles from "@/styles/custom.module.css"
 import {
   Modal,
@@ -42,14 +42,15 @@ import { selectImage, fetchImageAsync } from '@/store/imageSlice';
 import { fetchEnemySkillsAsync } from '@/store/skillSlice';
 import { fetchEnemyAIAsync } from '@/store/aiSlice';
 
-// Enemy rank is a letter (C/B/A/S/SS/SSS); map to the official rank color (C has
-// none — falls back to the default badge). Reuses RANK_COLOR keyed by grade number.
+// Enemy rank is a letter; C has no official colour and falls back to the default badge.
 const ENEMY_RANK_COLOR: Record<string, string> = {
   B: RANK_COLOR[2], A: RANK_COLOR[3], S: RANK_COLOR[4], SS: RANK_COLOR[5], SSS: RANK_COLOR[6],
 };
 
 export default function EnemyModal() {
   useTranslationVersion();
+  // Focus the dialog itself, so no control opens with a focus ring and its tooltip.
+  const contentRef = useRef<HTMLDivElement>(null);
   const activeEnemy = useAppSelector(selectActiveEnemy);
   const initialLevel = useAppSelector(selectActiveLevel);
   const imagelink = useAppSelector(selectImage);
@@ -90,8 +91,7 @@ export default function EnemyModal() {
     enemy? realEnemy? Object.keys(enemy).map(e => enemy[e].name == realEnemy.name ? ret.push(e) : null) : null : null
     return ret
   }
-  // Label a variant by the part that distinguishes it from its siblings (the
-  // shared base name is dropped). Falls back to the full key.
+  // Labels a variant by what distinguishes it from its siblings; falls back to the key.
   function variantLabel(key: string) {
     const sibs = duplicate()
     if (sibs.length < 2) return key
@@ -107,18 +107,21 @@ export default function EnemyModal() {
 
   return (
     <Modal isOpen={doShow()} onClose={hide} isCentered scrollBehavior="inside"
+      initialFocusRef={contentRef}
       aria-labelledby="contained-modal-title-vcenter">
       <ModalOverlay bg="blackAlpha.700" backdropFilter="blur(2px)" />
-      {realEnemy && fullStatus === 'idle' && realEnemy.HP ? (
-        <>
-          <ModalContent
-            bg="surface.elevated"
-            color="white"
-            borderWidth="1px"
-            borderColor="surface.border"
-            mx={4}
-            maxW={["container.sm", "container.sm", "container.md", "container.lg", "container.xl"]}
-          >
+      <ModalContent
+        ref={contentRef}
+        bg="surface.elevated"
+        color="white"
+        borderWidth="1px"
+        borderColor="surface.border"
+        mx={4}
+        maxW={["container.sm", "container.sm", "container.md", "container.lg", "container.xl"]}
+      >
+        <ModalCloseButton />
+        {realEnemy && fullStatus === 'idle' && realEnemy.HP ? (
+          <>
             <ModalHeader pb={2} pr={12}>
               <HStack spacing={3} align="center">
                 <Text fontSize="xl">{t(realEnemy.name)}</Text>
@@ -128,7 +131,6 @@ export default function EnemyModal() {
                 {activeEnemy}
               </Text>
             </ModalHeader>
-            <ModalCloseButton />
             <ModalBody pb={6} overflowY="auto" maxH="75vh">
               {duplicate().length > 1 ? (
                 <Select value={activeEnemy} size="sm" mb={3}
@@ -233,20 +235,16 @@ export default function EnemyModal() {
               <Divider my={4}/>
               <ApperanceList used={realEnemy.used} usedSanctum={realEnemy.usedSanctum}/>
             </ModalBody>
-          </ModalContent>
-        </>
-      ) : (
-        <ModalContent bg="surface.elevated" color="white" borderWidth="1px" borderColor="surface.border" mx={4}>
-          <ModalCloseButton />
+          </>
+        ) : (
           <Center py={20}>
             {fullStatus === 'failed'
               ? <Text color="red.300">Failed to load enemy data.</Text>
               : <Spinner size="xl" color="yellow.400" thickness="3px" speed="0.7s" emptyColor="whiteAlpha.200" />
             }
           </Center>
-        </ModalContent>
-      )
-    }
+        )}
+      </ModalContent>
     </Modal>
   );
 }

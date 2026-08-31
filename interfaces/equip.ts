@@ -1,23 +1,19 @@
 import { SkillBuff } from './skill';
 
-// One unit-applied stat on an equip at a given level. value is flat for
-// ATK/DEF/HP/MaxHP/SPD; percent (×100) when pct is true (EVA/CRIT/ACC/RES).
+// value is flat for ATK/DEF/HP/MaxHP/SPD, percent (x100) when pct (EVA/CRIT/ACC/RES).
 export interface EquipStat {
   attr: string;
   value: number;
   pct: boolean;
 }
 
-// One equip level (0..10): the unit-applied stats + the on-equip buff effects
-// (same SkillBuff shape as skills, so the buff renderer is reused).
+// Buffs share the SkillBuff shape, so the buff renderer is reused.
 export interface EquipLevel {
   stats: EquipStat[];
   buffs: SkillBuff[];
 }
 
-// One rank (tier) of an equip family — a single Table_ItemEquip row.
-// Restriction labels: classLimit Light/Heavy/Air, roleLimit Defender/Attacker/
-// Supporter (null = no limit / all); pcLimit = a Char_* key the equip is locked to.
+// One rank (tier) of an equip family - a single Table_ItemEquip row.
 export interface EquipRank {
   key: string;          // row id (Equip_..._T<n>) — used to match drop sources
   tier: number;
@@ -31,14 +27,12 @@ export interface EquipRank {
   pcLimit: string;
   levelLimit: number;
   levels: EquipLevel[]; // 11 entries, level 0..10
-  // where THIS rank drops: worldId -> [zoneNum, stageTitle, farm][]. farm=true =>
-  // repeatable wave drop; false => one-time clear/mission reward. Absent => the
+  // farm=true is a repeatable wave drop, false a one-time reward; absent means the
   // frontend falls back to a lower rank's source (shown with a note).
   source?: { [worldId: string]: [number, string, boolean][] };
 }
 
-// Light list entry (equip.json) — what the equipment list page shows. The full
-// per-rank/level data lives in split/equip/<id>.json (EquipFull).
+// Light list entry; the full per-rank/level data is EquipFull in split/equip/<id>.json.
 export interface EquipData {
   id: string;
   name: string;         // highest-rank name (loc id)

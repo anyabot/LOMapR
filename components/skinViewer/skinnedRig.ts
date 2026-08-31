@@ -305,8 +305,7 @@ export function createRig(doc: SkinnedDoc) {
   const count = doc.nodes.length;
   const local = new Float32Array(count * 16);
   const world = new Float32Array(count * 16);
-  // Unity's Transform.rotation: the product of local rotations, free of the
-  // hierarchy's scale. TransformDirection uses this, never the world matrix.
+  // Transform.rotation is scale-free; TransformDirection uses it, not the world matrix.
   const localRot = new Float32Array(count * 9);
   const worldRot = new Float32Array(count * 9);
   const rot3 = new Float32Array(9);
@@ -358,8 +357,7 @@ export function createRig(doc: SkinnedDoc) {
   };
   resetPose();
 
-  // Every Animator plays at once: the model rig plus the looping effect rigs,
-  // each over its own subtree.
+  // Every Animator plays at once, each over its own subtree.
   type Playing = {
     def: SkinnedAnimator;
     byName: Map<string, SkinnedClip>;
@@ -398,8 +396,7 @@ export function createRig(doc: SkinnedDoc) {
     for (const player of players) player.from = null;
   };
 
-  // The outgoing clips keep playing through the fade, the way Mecanim
-  // crossfades; a frozen source pose reads as a stall.
+  // Mecanim keeps the outgoing clips playing through the fade; a frozen pose stalls.
   const beginTransition = () => {
     if (transition) return;
     for (const player of players) {
@@ -510,8 +507,7 @@ export function createRig(doc: SkinnedDoc) {
     }
   };
 
-  // Unity skips a zero-weight layer entirely, blends a fractional one toward the
-  // pose beneath it, and adds an additive layer's delta from its own first frame.
+  // Unity skips a zero-weight layer, blends a fractional one, and adds an additive delta.
   const layerPos = new Float32Array(pos.length);
   const layerQuat = new Float32Array(quat.length);
   const layerScale = new Float32Array(scale.length);
@@ -586,8 +582,7 @@ export function createRig(doc: SkinnedDoc) {
     applyIk();
   };
 
-  // A finished one-shot state follows its unconditional exit transition, the
-  // way the controller settles an intro into the lobby loop.
+  // A finished one-shot follows its unconditional exit transition.
   const advanceState = (player: Playing) => {
     if (player.returnTo) {
       const next = player.byName.get(player.returnTo);
@@ -607,8 +602,7 @@ export function createRig(doc: SkinnedDoc) {
     return true;
   };
 
-  // Every animation event in the catalogue is EventDynamicBone(<chain name>),
-  // which re-seeds the named chain at that point in the clip.
+  // Every animation event is EventDynamicBone(<chain name>) and re-seeds that chain.
   const fireEvents = (clip: SkinnedClip, from: number, to: number) => {
     if (!clip.events?.length) return;
     for (const event of clip.events) {
@@ -628,8 +622,7 @@ export function createRig(doc: SkinnedDoc) {
     const previous = player.time;
     player.time += dt * (stateOf(player)?.speed ?? 1);
     fireEvents(clip, previous, player.time);
-    // The exit fade starts before the last frame, so the outgoing clip is still
-    // moving while it crossfades; a clip that has already ended cannot fade.
+    // The exit fade starts before the last frame; a clip that has ended cannot fade.
     const state = stateOf(player);
     // Unity's authored exit time is normalised; the fade is already in seconds.
     const exitAt = state?.exitTime != null
@@ -866,8 +859,7 @@ export function createRig(doc: SkinnedDoc) {
     return [0, 1, 2].map((k) => p0[k] * t0 + p1[k] * t1 + p2[k] * t2 + p3[k] * t3);
   };
 
-  // Puppet2D_SplineControl.Run: bones are placed along a Catmull-Rom through the
-  // control transforms, so a strap skinned to them is dead geometry without it.
+  // Puppet2D_SplineControl.Run places bones along a Catmull-Rom through the ctrls.
   const applySpline = () => {
     for (const spline of doc.puppetSpline ?? []) {
       const ctrls = spline.ctrls ?? [];
@@ -1041,10 +1033,8 @@ export function createRig(doc: SkinnedDoc) {
     return out;
   };
 
-  // Unity's ApplyParticlesToTransforms writes a scale-free world rotation, so the
-  // turn accumulates on Transform.rotation and the world matrix is recomposed
-  // from the parent's basis. Left-multiplying the world matrix instead skews any
-  // rig whose root carries a non-uniform (flattening) scale.
+  // ApplyParticlesToTransforms writes a scale-free world rotation; left-multiplying
+  // the world matrix instead skews any rig root with a flattening scale.
   const applyChain = (chain: Chain) => {
     const { particles } = chain;
     const identity = new Float32Array([1, 0, 0, 0, 1, 0, 0, 0, 1]);

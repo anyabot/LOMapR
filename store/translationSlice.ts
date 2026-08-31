@@ -1,9 +1,8 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { RootState } from '../store';
 
-// Translation layers — each is an independent toggle.
-// official is always on (base layer, can't be disabled).
-// Precedence (highest wins): community > krMtl > mtl > official.
+// Independent toggles over the always-on official layer. Precedence is
+// region-dependent - see .ai/knowledge/project.md.
 export interface TranslationState {
   mtl:           boolean;   // Global MTL (machine-translated global skills)
   krMtl:         boolean;   // Missing KR MTL (KR-only skills not in global)

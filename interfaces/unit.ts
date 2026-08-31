@@ -1,9 +1,4 @@
-// Playable unit (character) combat data, built from the Table_PC* tables by
-// tools/transform/build_data.py (build_unit). Profile fields (height/weapon/
-// country/cv/...) aren't carried yet — this is the combat-data pass.
-
-// One material requirement: a raw item/consumable id + quantity. Display name +
-// icon resolve through the item lookup table (selectItems), same as RewardEntry.
+// Display name + icon resolve through the item lookup table, same as RewardEntry.
 export interface UnitReq {
   id: string;
   count: number;
@@ -23,17 +18,14 @@ export interface UnitLvLimit {
   items: UnitReq[];
 }
 
-// One core-link bonus. `desc` is a loc-id template with a {0} placeholder; fill it
-// with value*100 (a percent) when pct, else the flat value.
+// `desc` is a loc-id template; fill {0} with value*100 when pct, else the flat value.
 export interface LinkBonus {
   desc: string;
   value: number;
   pct: boolean;
 }
 
-// Collection/profile info (Table_CharCollection). engName/height/weight are
-// literals; weapons & desc are loc ids (resolve with t()). chart = the in-game
-// radar-hexagon values [ATK, ATK rate, SPD, HP, DEF, Assist].
+// engName/height/weight are literals; weapons & desc are loc ids.
 export interface UnitProfile {
   engName: string;
   number: number;
@@ -44,8 +36,7 @@ export interface UnitProfile {
   chart: number[];
 }
 
-// One grade's stat block. HP/ATK/DEF are [base@lv1, max@lv100]; the rest are
-// scalars at lv1 (level growth only affects HP/ATK/DEF). resist is whole-percent.
+// HP/ATK/DEF are [base@lv1, max@lv100]; the rest are lv1 scalars. resist is whole-percent.
 export interface UnitStat {
   HP: [number, number];
   ATK: [number, number];
@@ -57,11 +48,7 @@ export interface UnitStat {
   resist: { fire: number; ice: number; lightning: number };
 }
 
-// One skin entry (Table_CharSkin row, or the unit's own base look when key === '').
-// model/modelDam are 2D-model asset keys (PC2DModelID*) — lowercase them to match
-// the skin-viewer archive name (<key>.tar.br, or <key>__global.tar.br/<key>__kr.tar.br
-// when that specific asset is diverged). viewerKind is which export pipeline (if any)
-// can render it; undefined means mass_pipeline.py hasn't processed this asset yet.
+// One Table_CharSkin row, or the unit's own base look when key === ''.
 export interface UnitSkin {
   key: string;
   name: string;      // loc id — SkinPackName_* (pack/event title, from CharSkin table)
@@ -85,13 +72,7 @@ export interface UnitSkin {
   viewerKind?: 'fixed' | 'spine' | 'skinned';
 }
 
-// A unit record. The build splits each unit into a LIGHT list record (the always-
-// present fields below, in split/units/unit_list.json — grid + hover card) and a
-// per-unit bundle split/units/<id>.json = { skills, detail } that carries the HEAVY
-// detail fields (marked optional here). selectUnitFull merges the two; on the list /
-// hover card only the light fields exist, so detail fields read as undefined until
-// the bundle loads. In the light list, `profile` is trimmed to {engName, number};
-// the full UnitProfile arrives with the detail bundle.
+// Split across a light list record and a heavy detail bundle; see docs/WEB.md.
 export interface UnitData {
   // ── light list fields (always present) ──────────────────────────────────────
   id: string;
@@ -104,24 +85,18 @@ export interface UnitData {
   body: string;        // AGS / Bioroid (ActorBodyType)
   icon: string;        // FormationIcon_* portrait key — PNG at /images/icons/<icon>.png
   invenIcon: string;   // InvenIcon_* fallback (used when the portrait is missing)
-  // collection profile (Table_CharCollection); null if none. In the LIGHT list only
-  // {engName, number} are populated — the full profile rides in the detail bundle.
+  // Trimmed to {engName, number} in the light list; null if none.
   profile: UnitProfile | null;
-  // squad/faction this unit belongs to (Table_TroopCategory); null if squad-less.
-  // name/desc are loc ids (resolve with t()); icon is a UI_TroopIcon_* key
-  // (PNG at /images/common/<icon>.png).
+  // Table_TroopCategory; name/desc are loc ids, icon is a UI_TroopIcon_* key.
   faction: { name: string; desc: string; icon: string } | null;
-  // Overlapping lore/story groups which are not official icon-bearing troop
-  // factions. A unit may belong to more than one (for example, Lemonade Alpha
-  // is both Squad 21 and a Secretary Lemonade).
+  // Unofficial story groups, no icon; a unit can be in more than one.
   loreGroups?: { key: string; name: string }[];
   // exclusive gear locked to this unit (equip family ids, via the equip's pcLimit).
   exclusiveEquip?: string[];
 
   // ── heavy detail fields (present only after the per-unit bundle merges) ──────
   skills?: string[];    // skill keys (resolve via the unit skill bundle)
-  // second ("change") form's skill set — a transform with its own active skills,
-  // sharing the base unit's stats/grade. Empty for single-form units.
+  // The "change" form's own active skills; empty for single-form units.
   skillsCh?: string[];
   favor?: {             // favor-gain ratios for the various sources
     clear: number;
@@ -135,25 +110,19 @@ export interface UnitData {
   secretRoom?: string;  // secret-room CG type: 'Adult' | 'Child' | 'AGS' | 'Sengoku' | ''
   // the 4 equipment slots (lv 20/40/60/80 unlocks), each Chip / OS / Item.
   equip?: { type: 'Chip' | 'OS' | 'Item'; level: number }[];
-  // core-link bonuses. linkBonus = normal bonuses applied per link (stack up to
-  // 5×); fullLinkBonus = the 5 options selectable at 500% link. Each entry's
-  // `desc` is a loc-id template ("HP+{0}%"); fill {0} with value*100 when pct,
-  // else the flat value.
+  // linkBonus applies per link (stacks to 5x); fullLinkBonus are the 500% options.
   linkBonus?: LinkBonus[];
   fullLinkBonus?: LinkBonus[];
   stat?: UnitStat[];    // one block per attainable grade (rarity..maxGrade)
   promotions?: UnitPromotion[];
   lvLimits?: UnitLvLimit[];
-  // worldId -> [[zoneNum, stageTitle, farm], ...] stages that grant this unit.
-  // farm=true: drops from a wave (repeatable); farm=false: one-time clear reward.
+  // farm=true drops from a wave (repeatable); farm=false is a one-time clear reward.
   source?: { [worldId: string]: [number, string, boolean][] };
   // [base look, ...purchasable skins]. base.key === ''.
   skins?: UnitSkin[];
 }
 
-// A unit with its detail bundle merged in — every heavy field guaranteed present.
-// Use as the prop type for detail-page sub-components rendered only after the bundle
-// loads (selectUnitFull + the detailLoaded gate guarantee this at runtime).
+// Guaranteed-complete unit, for components rendered only behind the detailLoaded gate.
 export type FullUnitData = UnitData & Required<Pick<UnitData,
   'skills' | 'skillsCh' | 'favor' | 'craft' | 'marriage' | 'affection' |
   'secretRoom' | 'equip' | 'linkBonus' | 'fullLinkBonus' | 'stat' |

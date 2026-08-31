@@ -18,9 +18,7 @@ export interface EnemyData {
   resist: [number, number, number];
   info: string;
   skills: string[];
-  // pointer to the enemy id that OWNS this enemy's deduped skill / AI bundle
-  // (split/<sub>/<ownerId>.json). Set at build time only when the bundle is
-  // shared with another enemy; absent means the enemy owns its own file (use id).
+  // owner of this enemy's deduped skill/AI bundle; absent means it owns its own file
   skillsRef?: string;
   aiRef?: string;
 }

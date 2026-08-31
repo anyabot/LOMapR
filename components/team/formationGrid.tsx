@@ -4,8 +4,7 @@ import { Team } from '@/interfaces/team';
 import { UnitData } from '@/interfaces/unit';
 import { unitDisplayName } from '@/lib/rank';
 
-// The 3x3 formation map in the in-game ten-key layout (789/456/123, front =
-// right column, enemy to the right). `highlight` marks skill-AoE tiles.
+// The 3x3 map in the in-game ten-key layout (789/456/123), front = right column.
 
 interface Props {
   team: Team;

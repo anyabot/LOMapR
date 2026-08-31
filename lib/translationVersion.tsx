@@ -1,8 +1,7 @@
 import { createContext, useContext } from 'react';
 
-// Incremented in _app.tsx whenever translation flags toggle or string data arrives.
-// Components that call t()/tAny()/tKr() must call useTranslationVersion() so they
-// re-render when the resolved text would change. No remounting needed.
+// Components calling t()/tAny()/tKr() must use this, so they re-render in place when
+// the resolved text would change. Bumped in _app.tsx.
 export const TranslationVersionContext = createContext(0);
 
 export function useTranslationVersion() {

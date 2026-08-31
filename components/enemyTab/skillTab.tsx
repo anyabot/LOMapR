@@ -17,8 +17,7 @@ export default function SkillTab({
 }) {
   useTranslationVersion();
   const splitTag = (str: string) => {
-    // The game's source text uses `&n` for an in-line newline; normalize it (and any
-    // literal "\n") to a <br> tag so the tokenizer below turns it into a real break.
+    // the source text uses `&n` for an in-line newline
     str = str.replace(/&n|\\n/g, "<br>");
     var count = 0;
     let r = str
@@ -56,8 +55,7 @@ export default function SkillTab({
     if (inline && inline[1]) {
       copy = copy.replace(/\$\(\d+\.*\d*\)/g, dmg(parseFloat(inline[1])));
     }
-    // Official table text uses a positional {0} placeholder; fill it with the
-    // skill's SkillAttackRate.
+    // official table text uses a positional {0} placeholder for SkillAttackRate
     if (skill.rate) {
       copy = copy.replace(/\{0\}/g, dmg(skill.rate));
     }

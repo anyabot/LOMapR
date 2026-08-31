@@ -16,8 +16,7 @@ import Head from 'next/head';
 const TYPES = ['Light', 'Air', 'Heavy'] as const;
 const ROLES = ['Attacker', 'Defender', 'Supporter'] as const;
 const BODIES = ['Bioroid', 'AGS'] as const;
-// No SSS (grade 6) units exist, so the grid stops at SS. Tags/colors come from
-// lib/rank (the official rank colors).
+// No SSS (grade 6) units exist, so the grid stops at SS.
 const GRADES = [2, 3, 4, 5] as const;  // B -> SS, top row first is SS below
 
 type TypeKey = (typeof TYPES)[number];
@@ -64,8 +63,7 @@ export default function Units() {
   }
 
   const shown = Object.values(units).filter(matches);
-  // active rows/cols follow the toggles, so a filtered-out type/role/grade drops
-  // its whole table / column / row from the grid.
+  // a filtered-out type/role/grade drops its whole table / column / row
   const activeRoles = ROLES.filter((r) => filterValueAllowed(r, roles));
   const activeGrades = [...GRADES].filter((g) => filterValueAllowed(g, grades)).reverse();  // SS at top
 

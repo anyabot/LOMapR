@@ -3,11 +3,8 @@ import { Stage, StageSubType, STAGE_ICON_SRC } from '@/interfaces/world';
 import { t } from '@/lib/strings';
 import { useTranslationVersion } from '@/lib/translationVersion';
 
-// Canvas-rendered stage map. Stages are laid out in rows by subtype
-// (Side / Main / Ex), ordered by `pos` within each row. Each stage is a small
-// icon sitting over a short banner that carries the stage name. Progression
-// links (`next`) are drawn as connector lines behind the icons. Click selects a
-// stage; hover highlights it. Fixed cell size with horizontal scroll.
+// Canvas-rendered stage map: rows by subtype, ordered by `pos`, with `next`
+// progression links drawn behind the icons. Fixed cell size, horizontal scroll.
 
 const ICON = 40;          // stage icon size (px) — smaller than the cell
 const BANNER_H = 28;       // banner height (px)
@@ -20,8 +17,7 @@ const PAD = 20;            // canvas padding
 // Row order (top -> bottom) and the subtypes each row holds.
 const ROWS: StageSubType[][] = [["Side"], ["Main", "Story"], ["Ex"]];
 
-// Side and Ex rows are shifted half a cell to the right so they sit between the
-// Main stages rather than directly above/below them.
+// Side and Ex rows sit half a cell right, between the Main stages rather than above.
 const ROW_X_OFFSET = [CELL_W / 2, 0, CELL_W / 2];
 
 interface Placed {
@@ -54,9 +50,7 @@ export default function StageGrid({ stages, selected, onSelect }: Props) {
     });
   }, []);
 
-  // Lay stages into rows. Each ROW band gets the stages whose subtype is in it,
-  // ordered by pos; Side/Ex rows are nudged right by ROW_X_OFFSET. `x`/`y` is the
-  // icon top-left. Returns placements + canvas dimensions.
+  // `x`/`y` is the icon top-left. Returns placements + canvas dimensions.
   function layout(): { placed: Placed[]; width: number; height: number } {
     const placed: Placed[] = [];
     let maxRight = 0;
@@ -168,9 +162,7 @@ export default function StageGrid({ stages, selected, onSelect }: Props) {
         ctx.restore();
       }
 
-      // stage-map icon art: story (no-battle) stages always get the Story icon,
-      // otherwise use the subtype's art
-      const iconSrc = stage.waves.length ? (STAGE_ICON_SRC[stage.subtype] ?? STAGE_ICON_SRC.Main) : STAGE_ICON_SRC.Story;
+      const iconSrc = STAGE_ICON_SRC[stage.subtype] ?? STAGE_ICON_SRC.Main;
       const img = imagesRef.current[iconSrc];
       if (img && img.complete && img.naturalWidth) {
         ctx.drawImage(img, x, y, ICON, ICON);
@@ -207,9 +199,8 @@ export default function StageGrid({ stages, selected, onSelect }: Props) {
   function toLocal(e: React.MouseEvent): [number, number] {
     const canvas = canvasRef.current!;
     const rect = canvas.getBoundingClientRect();
-    // The canvas may be scaled down by `maxWidth: 100%`, so its displayed size
-    // (rect) differs from its layout coordinate size. Map the pointer back into
-    // layout coordinates so hit-testing lines up with what's drawn.
+    // `maxWidth: 100%` can scale the canvas, so map the pointer back into layout
+    // coordinates or hit-testing misses what is drawn.
     const { width: layoutW, height: layoutH } = layout();
     const sx = layoutW / rect.width;
     const sy = layoutH / rect.height;

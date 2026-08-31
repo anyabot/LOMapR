@@ -1,13 +1,7 @@
 import { useEffect, useRef } from 'react';
 
-// Canvas render of a skill's area of effect as TWO stacked, skewed 3x3 grids.
-// The whole grid is skewed (skewX) so the CELLS themselves shear into
-// parallelograms — one cohesive leaning shape, like the original CSS
-// `transform: skewX(-10deg)` table. Cell numbering is row-major from the TOP
-// (phone-keypad): 1-3 = top/back row, 7-9 = bottom/front row, center = cell 5
-// (verified in-game: Salamancer A2 hits cells 2/3/5/6 = numpad 8/9/5/6).
-//   - base grid: all 9 cells dark, center highlighted teal
-//   - AoE grid: the hit cells (colored by damage), offset to the LEFT of center
+// Two stacked 3x3 grids, skewed so the cells shear into parallelograms. Cells are
+// numbered row-major from the TOP: 1-3 back row, 7-9 front row, 5 center.
 interface Props {
   area: number[];
   center: number;

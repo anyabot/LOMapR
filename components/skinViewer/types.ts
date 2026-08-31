@@ -32,8 +32,7 @@ export type SkinNode = {
 };
 // A fixed-model face expression overlay (mesh against its own face PNG).
 export type FixedFace = { key: string; tex: string; verts: number[]; uvs: number[]; indices: number[] };
-// An in-game parts/costume toggle: shows/hides a set of nodes (ActorPartsView).
-// kind "swap": mutually exclusive — swapOn visible when ON, swapOff when OFF.
+// An ActorPartsView toggle. kind "swap": swapOn visible when ON, swapOff when OFF.
 export type Toggle = { key: string; default: boolean } & (
   | { kind?: undefined; members: string[] }
   | { kind: 'swap'; swapOn: string[]; swapOff: string[] }
@@ -75,11 +74,8 @@ export type Layout = {
   };
 };
 
-// region-diverged skins are packed as two archives (<key>__global / <key>__kr,
-// see tools/skin_test/pack.py) but layout.json's embedded `skin` field always
-// carries the bare, un-suffixed key (the exporter doesn't know about regions) —
-// strip the suffix before comparing so the stale-layout guard doesn't always
-// reject a freshly loaded diverged skin.
+// layout.json's embedded `skin` is always the bare key, so strip any region suffix
+// before comparing, or the stale-layout guard rejects a freshly loaded diverged skin.
 export function baseSkinKey(skin: string): string {
   return skin.replace(/__(global|kr)$/, '');
 }
@@ -92,18 +88,14 @@ export function layoutHasVariant(layout: Layout, key: 'rplus' | 'kr' | 'sfw'): b
   return (layout.nodes ?? []).some(walk);
 }
 
-// Z rotation (radians) from a Unity quaternion — fixed-skin nodes are 2D, so
-// only the z component of the rotation matters.
+// Fixed-skin nodes are 2D, so only the z component of the rotation matters.
 export function zAngle(q: [number, number, number, number]): number {
   const [x, y, z, w] = q;
   return Math.atan2(2 * (w * z + x * y), 1 - 2 * (y * y + z * z));
 }
 
-// Largest root-local distance covered by one source-texture pixel for a mesh.
-// Sprite meshes can have a pixels-per-unit ratio that compensates for very
-// large Unity transforms, so transform scale alone is not a native-resolution
-// measurement. Measure every non-degenerate triangle because weighted Spine
-// meshes can have a different affine mapping across the current pose.
+// Transform scale alone is not a native-resolution measurement, and a weighted mesh
+// can map differently per triangle in the current pose, so measure every triangle.
 export function mappedSourcePixelScale(
   verts: ArrayLike<number>,
   uvs: ArrayLike<number>,
@@ -156,9 +148,8 @@ export function meshSourcePixelScale(
   );
 }
 
-// Wire wheel-zoom + drag-pan + two-finger pinch on a PixiJS canvas, panning/
-// scaling `root` (and an optional `zoneLayer` kept in lockstep). Returns a
-// cleanup that removes the listeners. Shared by the fixed and spine viewers.
+// Wheel-zoom + drag-pan + pinch, panning `root` and an optional `zoneLayer` in
+// lockstep. Returns a cleanup that removes the listeners.
 export function attachPanZoom(canvas: HTMLCanvasElement, root: any, zoneLayer?: any): () => void {
   const pointers = new Map<number, { x: number; y: number }>();
   let dragging = false;
@@ -239,14 +230,8 @@ export function attachPanZoom(canvas: HTMLCanvasElement, root: any, zoneLayer?: 
   };
 }
 
-// Only straight compositing may write coverage. The canvas is premultiplied and
-// transparent, so the page shows `canvas.rgb + page.rgb * (1 - canvas.a)`: a
-// light/tint blend has to change rgb and leave alpha alone, which reproduces what
-// Unity gets against its opaque camera target and makes a zero-contribution draw a
-// true no-op. Pixi ships `add` as the two-argument `blendFunc(ONE, ONE)`, so its
-// alpha accumulates and an emitter the animation has tinted to black paints opaque
-// black; `multiply` and `screen` write coverage too and blacken the empty canvas
-// they extend over.
+// Only straight compositing may write coverage: on a premultiplied transparent canvas
+// a light/tint blend must change rgb and leave alpha alone.
 export function fixBlendAlpha(renderer: unknown) {
   const gl = (renderer as { gl?: WebGLRenderingContext })?.gl;
   const map = (renderer as { state?: { blendModesMap?: Record<string, number[]> } })

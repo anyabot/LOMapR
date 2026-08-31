@@ -2,8 +2,7 @@ import { useEffect, useState } from 'react';
 import { IconButton } from '@chakra-ui/react';
 import { ArrowUpIcon } from '@chakra-ui/icons';
 
-// Floating "back to top" button, rendered on every page via Layout. Hidden until
-// the page is scrolled down a bit.
+// Floating "back to top" button; hidden until the page is scrolled down a bit.
 export default function ScrollTop() {
   const [show, setShow] = useState(false);
 

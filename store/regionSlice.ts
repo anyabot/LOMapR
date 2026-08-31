@@ -9,9 +9,7 @@ export interface RegionState {
 
 export const STORAGE_KEY = 'lomapr.region';
 
-// Read the persisted region (localStorage). Returns null when unavailable (SSR)
-// or unset, so callers can decide. NOT used for initialState — the store must
-// start at the same value on server and client to avoid hydration mismatches;
+// NOT used for initialState: the store must start identical on server and client, so
 // the persisted value is applied after mount (see RegionSync in _app).
 export function loadRegion(): Region | null {
   try {

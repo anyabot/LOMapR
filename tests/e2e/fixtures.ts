@@ -1,6 +1,4 @@
-// Known-good sample records from the committed local data (public/local-data).
-// If a rename in the game data breaks one of these, update the constant —
-// the values are display names resolved through strings.json (en).
+// Display names resolved through strings.json (en); update if the game data renames one.
 export const SAMPLE = {
   unit: { id: 'Char_3P_ConstantiaS2_N', name: 'Constantia S2' },
   equip: { id: 'Equip_Chip_Atk', name: 'Attack Chip EX' },

@@ -1,11 +1,8 @@
 import { test, expect, Page } from '@playwright/test';
 
-// The skin viewer streams packed .tar.br archives from the live R2 CDN
-// (NEXT_PUBLIC_SKIN_ARCHIVE_BASE) — these tests need network access, unlike
-// the rest of the suite. Archives are a few MB, so timeouts are generous.
-//
-// One representative skin per PixiJS layout kind. The third kind ("skinned",
-// Unity WebGL iframe) is not covered: it needs the /models proxy + Unity build.
+// These stream archives from the live CDN, so unlike the rest of the suite they need
+// network access. One skin per PixiJS layout kind; the Unity kind is not covered.
+
 const FIXED = { unit: 'Constantia S2', skin: 'Guardsman Waiting Only for You' };
 const SPINE = { unit: 'Lindwurm', skin: '520 520 Wo Ai Ni: Black & White Qipao' };
 

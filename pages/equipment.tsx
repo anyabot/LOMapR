@@ -14,9 +14,7 @@ import { rankTag, rankColor, equipIcon, EXCHANGE_META, filterModeProps,
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 
-// Slot type = the family key prefix. Chip / OS (System) / Item (Sub) — the three
-// equip slots (from the data's `slot`, derived from ItemType — the key prefix is
-// unreliable). Icons match the unit equip-slot icons (Equip_Chip/OS/Item in common/).
+// The three equip slots, from the data's `slot` (the key prefix is unreliable).
 const SLOTS: { label: 'Chip' | 'OS' | 'Item'; icon: string }[] = [
   { label: 'Chip', icon: 'Chip' },
   { label: 'OS', icon: 'OS' },
@@ -24,8 +22,7 @@ const SLOTS: { label: 'Chip' | 'OS' | 'Item'; icon: string }[] = [
 ];
 const GRADES = [6, 5, 4, 3, 2] as const;   // SSS..B
 const EXCHANGES = ['Sanctum', 'IW'] as const;
-// Type filter: the three slots + Exclusive (unit-locked, pcLimit set). Exclusive
-// cuts across slots, so it's a filter rather than its own list section.
+// Exclusive (pcLimit set) cuts across slots, so it is a filter, not a list section.
 const TYPES = ['Chip', 'OS', 'Item', 'Exclusive'] as const;
 type TypeFilter = typeof TYPES[number];
 const isExclusive = (e: EquipData) => !!e.pcLimit;

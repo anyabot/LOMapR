@@ -14,8 +14,7 @@ export interface ItemInfo {
 
 export type ItemMap = { [id: string]: ItemInfo };
 
-// Per-region buckets, mirroring enemySlice — region switch keeps each region's
-// map so flipping back is instant.
+// Per-region buckets, never wiped on a region switch - see enemySlice.
 interface RegionBucket {
   items: ItemMap;
   status: 'idle' | 'loading' | 'failed';

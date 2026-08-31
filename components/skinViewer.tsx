@@ -69,10 +69,7 @@ function UnityViewer({ skin, height, parts, hasRplus, hasKr, hasBg, hasDam, show
     return () => window.removeEventListener('message', handler);
   }, [skin]);
 
-  // A remounted iframe (skin change or reset) starts fresh: reset per-model UI
-  // state so it matches the new instance. `playing` is deliberately preserved —
-  // a reload while paused stays paused (the pause postMessage effect re-sends the
-  // current state to the new iframe). Matches the spine viewer's reload behavior.
+  // A remount starts a fresh instance; `playing` is deliberately not reset here.
   useEffect(() => {
     setFaceList([]); setHasParts(false); setAvailableVariants([]);
     setFace(''); setShowParts(true); setShowBg(true); setShowZones(false); setVariant('base');
@@ -88,8 +85,7 @@ function UnityViewer({ skin, height, parts, hasRplus, hasKr, hasBg, hasDam, show
     send({ type: 'variant', variant: variant === 'base' ? '' : variant });
   }, [variant]);
 
-  // Ask Unity to render + crop the current model; the PNG comes back via the
-  // 'screenshot' message above and downloads there. Guard against double-clicks.
+  // The PNG comes back through the 'screenshot' message above and downloads there.
   const handleSave = () => {
     if (saving) return;
     setSaving(true);
@@ -193,8 +189,6 @@ function UnityViewer({ skin, height, parts, hasRplus, hasKr, hasBg, hasDam, show
   );
 }
 
-// height defaults to a tall fill (standalone page usage); pass a smaller fixed
-// height for compact embeds (e.g. the unit-detail Skin tab).
 const PARTS_META: Record<string, { icon: string; label: string }> = {
   LOBBY_ANIMATION:        { icon: '/images/shop/UI_ShopL2DIcon.png',        label: 'Live 2D lobby animation' },
   VOICE:                  { icon: '/images/shop/UI_ShopVoiceIcon.png',       label: 'Voice' },
@@ -212,8 +206,7 @@ type SkinViewerProps = {
   hasKr?: boolean; viewRegion?: 'global' | 'kr'; onToggleRegion?: () => void;
 };
 
-// getLocalBounds counts hidden children, so spare backgrounds, camera-boundary
-// sprites and rig gizmos shrink the model. Measure only what is drawn.
+// getLocalBounds counts hidden children, which would shrink the model.
 function visibleBounds(container: any) {
   const scale = container.scale.x;
   const px = container.position.x;
@@ -261,9 +254,7 @@ function SkinnedPixiViewer(props: SkinViewerProps) {
   useEffect(() => {
     let destroyed = false;
     let app: any = null;
-    // Destroying an Application whose init() has not resolved throws inside
-    // ResizePlugin (`this._cancelResize is not a function`) and takes the page
-    // down; unmounting mid-init has to leave the teardown to the init path.
+    // destroy() before init() resolves throws in ResizePlugin and kills the page.
     let appReady = false;
     let detachPanZoom = () => {};
     setLoadState('fetching');
@@ -461,8 +452,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
   const [spineParts, setSpineParts] = useState<Record<string, boolean>>({});
   const [spineBreast, setSpineBreast] = useState<string[]>([]);
   const [spineAvailableSkins, setSpineAvailableSkins] = useState<Set<string> | null>(null);
-  // Spine layer editor: every slot the current composition can draw (skeleton
-  // draw order, back to front) and the subset the user has switched off.
+  // Every slot the composition can draw (skeleton draw order), and those hidden.
   const [spineSlots, setSpineSlots] = useState<string[]>([]);
   const [hiddenSlots, setHiddenSlots] = useState<string[]>([]);
   const [showLayers, setShowLayers] = useState(false);
@@ -523,18 +513,13 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
   }, [skin, resetKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const nodesByIdRef = useRef<Record<string, any>>({});
-  // mirror of `playing` so the async spine build can apply the current pause
-  // state to a freshly built spine (e.g. after a reload while paused) — the
-  // [playing]-only pause effect won't re-fire when only resetKey changed.
+  // The [playing]-only pause effect won't re-fire when only resetKey changed.
   const playingRef = useRef(playing);
   playingRef.current = playing;
   const fixedFaceRef = useRef<string>('');
   fixedFaceRef.current = fixedFace;
   const setFixedFaceRef = useRef<((key: string | null) => void) | null>(null);
-  // fixed-kind leaf meshes, flattened out of the transform tree for global
-  // draw-order sorting (see the comment above `flatMeshes` in the build
-  // effect) — toggle visibility must therefore drive mesh.renderable
-  // directly instead of the (now-empty) anchor container's `visible`.
+  // Flattened out of the transform tree, so toggles must drive `renderable`.
   const flatMeshesRef = useRef<{ mesh: any; wrapper: any; order: number; chain: string[]; sprite: SpriteInfo }[]>([]);
   const texturesRef = useRef<Record<string, any>>({});
   const togglesRef = useRef<Record<string, boolean>>({});
@@ -586,28 +571,14 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
 
       const ppu = layout.ppu || 100;
       const byId: Record<string, any> = {};
-      // Unity's SortingOrder is compared scene-wide across every sprite, not
-      // just among direct siblings — PixiJS zIndex only sorts within one
-      // parent's children, so two sprites at different nesting depths (e.g.
-      // "BG/Part1" vs "Parts/Part1") can never be ordered correctly via
-      // container nesting alone. Build the transform tree as normal (so
-      // position/scale/rotation compose, and toggle visibility still works
-      // via each node's own container), but draw every leaf mesh through a
-      // flat, globally-sorted layer instead of leaving it parented in place.
-      // Each flat entry carries: the mesh itself (with flipX/Y already on it),
-      // the wrapper container that will be added to root (holding the composed
-      // world matrix so the mesh renders in the right place/scale/rotation),
-      // the sort order, and the ancestor chain for visibility recompute.
+      // Unity sorts scene-wide but zIndex sorts per parent, so leaves draw flat.
       const flatMeshes: { mesh: any; wrapper: any; order: number; chain: string[]; sprite: SpriteInfo; pixelScale: number; isBody: boolean }[] = [];
-      // Captured during build: the empty face node's world matrix + ancestor chain,
-      // so we can overlay the chosen face-expression mesh at that exact spot.
+      // The empty face node, to overlay the chosen expression mesh at that spot.
       let faceAnchorMat: any = null;
       let faceAnchorChain: string[] = [];
       let faceAnchorOrder = 0;
 
-      // Build a container tree for visibility/toggle tracking, and compute each
-      // node's world matrix explicitly (parentMat × nodeLocalMat) so we don't
-      // depend on PixiJS's lazy worldTransform (only valid after a render pass).
+      // World matrices are explicit: PixiJS worldTransform is only valid post-render.
       const build = (n: SkinNode, ancestorChain: string[], parentMat: any): any => {
         const node = new PIXI.Container();
         node.label = n.name;
@@ -641,11 +612,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
           else if (n.sprite.shader === 'add') { mesh.blendMode = 'add'; console.log('[shader]', n.name, 'add'); }
           else if (n.sprite.shader === 'screen') { mesh.blendMode = 'screen'; console.log('[shader]', n.name, 'screen'); }
           else if (n.sprite.shader === 'mask') { console.log('[shader]', n.name, 'mask (unhandled)'); }
-          // 'mask' (Smile_Mark stencil) — no PixiJS equivalent; rendered normally
-          // Wrapper placed under root; its local matrix = the node's world
-          // matrix so the mesh (a child of wrapper) renders at the right
-          // world-space position/scale/rotation. The mesh keeps its own flip
-          // since setFromMatrix on the wrapper (not the mesh) is never called.
+          // The wrapper carries the world matrix; the mesh keeps its own flip.
           const wrapper = new PIXI.Container();
           wrapper.setFromMatrix(worldMat);
           wrapper.addChild(mesh);
@@ -672,10 +639,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
       (layout.nodes ?? []).forEach((n) => root.addChild(build(n, [], identity)));
       app.stage.addChild(root);
       rootRef.current = root;
-      // Measure the canonical body sprite's complete UV-pixel -> root-local
-      // mapping. Effects and letterbox sprites are intentionally enlarged and
-      // must not determine the figure's export resolution. Older/nonstandard
-      // layouts without a `body` sprite retain the established `_root` fallback.
+      // Only `body` sets export resolution; effect/letterbox sprites are oversized.
       const rootNode = Object.values(byId).find((c: any) => c.label?.endsWith('_root')) as any;
       const bodyPixelScale = flatMeshes.reduce(
         (max, { pixelScale, isBody }) => isBody ? Math.max(max, pixelScale) : max,
@@ -687,10 +651,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
       nodesByIdRef.current = byId;
       flatMeshesRef.current = flatMeshes;
 
-      // Add every wrapper (holding a leaf mesh at its correct world-space
-      // transform) directly under root, sorted by Unity's scene-wide order.
-      // Apply the current toggle state now so initial visibility is correct
-      // even though the toggle useEffect fired before this async build finished.
+      // Toggles are applied here: their effect fired before this async build ended.
       if (flatMeshes.length) {
         root.sortableChildren = true;
         // Recompute byId visibility with the current toggle state.
@@ -721,8 +682,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
         root.sortChildren();
       }
 
-      // Fixed-model face overlay: render the chosen face-expression mesh at the
-      // empty face node. Default = none. applyFace(null) clears it.
+      // Face overlay at the empty face node; applyFace(null) clears it.
       if (faceAnchorMat && (layout.faces?.length ?? 0) > 0) {
         const faceByKey: Record<string, FixedFace> = {};
         for (const f of layout.faces!) faceByKey[f.key] = f;
@@ -868,8 +828,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
       const baseAtlas = await loadAtlas(layout.atlas);
       if (destroyed) return;
 
-      // If sfw textures differ but skel is same, pre-load sfw textures for instant swap
-      // If sfw skel differs, load a full separate atlas for it
+      // A differing sfw skeleton needs its own atlas; differing textures only preload.
       let sfwAtlas: any = null;
       if (sfwMeta) {
         if (sfwMeta.atlas) {
@@ -898,9 +857,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
       const sjson = new SkeletonJson(new AtlasAttachmentLoader(baseAtlas));
       const skeletonData = sjson.readSkeletonData(baseSkelJson);
 
-      // A few Unity prefabs contain multiple SkeletonMecanim GameObjects and
-      // swap between them. Load every secondary actor as its own Spine object;
-      // the normal top-level fields remain actor zero for old archives.
+      // Some prefabs hold several SkeletonMecanim objects; actor zero stays top-level.
       const extraActorData = await Promise.all((layout.actors ?? []).slice(1).map(async (actor) => {
         const atlas = await loadAtlas(actor.atlas);
         const skelJson = JSON.parse(await readText(files, actor.skel));
@@ -942,15 +899,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
 
       const isSfw = variantRef.current === 'sfw';
 
-      // Layer editor: user-hidden layers are cleared per frame, after the
-      // animation state has been applied and before the mesh batch is rebuilt,
-      // because every skin recomposition re-attaches the slots.
-      // `AnimationState.apply()` only re-attaches slots that carry an attachment
-      // timeline, so switching a layer back on has to restore the attachment
-      // explicitly — otherwise a slot cleared once stays empty forever. Each
-      // skeleton tracks the slots this hook cleared, and un-hiding one resolves
-      // its setup-pose attachment against the currently composed skin.
-      // Slots are matched by name so one list covers base, sfw and extra actors.
+      // Clearing a slot is not self-reversible; track what to restore on un-hide.
       const suppressed = new WeakMap<any, Set<number>>();
       const applyHiddenSlots = (sp: any) => {
         const hidden = hiddenSlotsRef.current;
@@ -1006,8 +955,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
         a.actor.id, { base: a.base, sfw: a.sfw, meta: a.actor },
       ]));
 
-      // Honor the current pause state on the freshly built spine(s) — a reload
-      // while paused must stay paused (the [playing]-only effect won't re-fire).
+      // The [playing]-only effect won't re-fire for a build triggered by resetKey.
       if (!playingRef.current) {
         spine.state.timeScale = 0;
         if (spineSfw) spineSfw.state.timeScale = 0;
@@ -1051,9 +999,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
       const activeSkeletonData = () =>
         variantRef.current === 'sfw' && sfwSkeletonData ? sfwSkeletonData : skeletonData;
 
-      // Slots a skeleton can draw under the given composition, in draw order.
-      // Read from the composed skin (plus the skeleton's own default skin)
-      // rather than the live slots, whose attachments the layer editor clears.
+      // Read from the composed skin: the layer editor clears the live slots.
       const drawableSlots = (
         skelData: any, groups: Layout['skinGroups'],
         face: string, breast: string[], parts: Record<string, boolean>,
@@ -1078,8 +1024,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
           .map((slot) => slot.name as string);
       };
 
-      // One list across the visible skeleton and any extra actors; duplicate
-      // names collapse into a single row because hiding matches by name.
+      // Duplicate names collapse into one row, because hiding matches by name.
       const layerNames = (face: string, breast: string[], parts: Record<string, boolean>) => {
         const seen = new Set<string>();
         const out: string[] = [];
@@ -1202,10 +1147,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
         zoneLayer.addChild(hit);
         hit.on('pointertap', (e: any) => {
           const p = zoneLayer.toLocal(e.global);
-          // Find which zone the tap landed in. Body is the large zone; special
-          // zones are smaller and sit inside it. Pick the smallest hit zone so
-          // that tapping the special area doesn't also count as body. Only fire
-          // if the tap actually lands inside a zone (no reaction outside all zones).
+          // Special zones sit inside the body zone, so the smallest hit wins.
           let best: typeof zones[number] | null = null;
           for (const z of zones) {
             const halfW = (z.w * u2px) / 2, halfH = (z.h * u2px) / 2;
@@ -1254,8 +1196,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
         if (zoneLayer) {
           zoneLayer.scale.set(s);
           zoneLayer.position.copyFrom(root.position);
-          // Rebuild hit areas as individual zone rects (not full figure bounds)
-          // so cursor/events only fire when the pointer is actually over a zone.
+          // Per-zone rects, not figure bounds, so events fire only over a zone.
           const g = zoneLayer.children[0] as any;
           g.clear();
           for (const z of zones) {
@@ -1273,9 +1214,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
       spine.update(0);
       fit();
 
-      // Measure source-atlas pixels in the current composed pose. Unlike the
-      // old atlas-width heuristic, this works for packed parts, mesh
-      // attachments, bone scaling, multiple actors, and optional backgrounds.
+      // Measure source-atlas pixels in the currently composed pose.
       const attachmentScale = (sp: any): number => {
         if (!sp?.visible) return 0;
         let max = 0;
@@ -1442,8 +1381,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
     const byId = nodesByIdRef.current;
 
     const hidden = new Set<string>();
-    // swap-toggle "active" side: force visible even if n.active=false in scene.
-    // plain toggle ON also forces members visible (they may have active=false in scene).
+    // A toggle that is on forces its members visible, overriding scene n.active.
     const forced = new Set<string>();
     for (const t of layout.toggles ?? []) {
       const on = toggles[t.key] ?? t.default;
@@ -1462,19 +1400,14 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
       n.children.forEach(apply);
     };
     (layout.nodes ?? []).forEach(apply);
-    // leaf meshes were flattened out of the transform tree for global
-    // draw-order sorting (see the build effect) — their anchor's `visible`
-    // no longer cascades to them since they're no longer its child, so
-    // recompute renderable directly from each ancestor's visibility
-    // (just set above by `apply`, which already folds in n.active + hidden).
+    // Flattened leaves get no `visible` cascade; recompute from the ancestor chain.
     for (const { wrapper, chain } of flatMeshesRef.current) {
       wrapper.renderable = chain.every((id) => byId[id]?.visible);
     }
     if (bgSpriteRef.current) {
       bgSpriteRef.current.visible = toggles['bg'] ?? true;
     }
-    // The same Unity GameObject IDs can identify whole SkeletonMecanim actors.
-    // Apply normal/swap toggles to those Spine containers too.
+    // A Unity GameObject id can also name a whole SkeletonMecanim actor.
     for (const [id, actor] of Array.from(spineActorsRef.current.entries())) {
       let visible = actor.meta.active;
       for (const t of layout.toggles ?? []) {
@@ -1504,9 +1437,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
       const overlayWasVisible = zoneOverlayRef.current?.visible ?? false;
       if (zoneOverlayRef.current) zoneOverlayRef.current.visible = false;
 
-      // fitScale: how many screen-px per skeleton unit (set by fit()).
-      // u2px: how many atlas-pixels per skeleton unit.
-      // exportScale = u2px / fitScale scales the screen render up to atlas resolution.
+      // u2px / fitScale scales the screen render up to atlas resolution.
       const fitScale = root.scale.x;
       const u2px = layout?.kind === 'spine'
         ? 1 / spinePixelScaleRef.current()
@@ -1667,8 +1598,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
             : (fixedHasKr || fixedHasSfw || fixedHasRplus)
               ? ['base', fixedHasKr && 'kr', fixedHasSfw && 'sfw', fixedHasRplus && 'rplus'].filter(Boolean) as string[]
               : [];
-          // `base` icon depends on whether a KR build exists: spine reads the hasKr
-          // prop; fixed reads its own kr-variant presence.
+          // Spine learns of a KR build from the prop; fixed from its own variants.
           const baseHasKr = isSpine ? !!hasKr : fixedHasKr;
           const variants = variantKeys.map((k) => {
             const meta = variantMeta(k, baseHasKr);

@@ -1,10 +1,8 @@
 // Official unit rank (StartGrade) tags + colors, shared by the unit list/detail.
-// Grade enum: 2=B, 3=A, 4=S, 5=SS, 6=SSS (no SSS units exist yet, kept for safety).
 
 export const RANK_TAG: Record<number, string> = { 2: 'B', 3: 'A', 4: 'S', 5: 'SS', 6: 'SSS' };
 
-// The game's official rank colors:
-//   B  green/brown   A  light blue   S  orange   SS  gold/yellow   SSS  red
+// The game's official rank colors.
 export const RANK_COLOR: Record<number, string> = {
   2: '#5bbf6a', // B  — green
   3: '#5bb8e6', // A  — light blue
@@ -16,10 +14,7 @@ export const RANK_COLOR: Record<number, string> = {
 export const rankTag = (g: number): string => RANK_TAG[g] ?? String(g);
 export const rankColor = (g: number): string => RANK_COLOR[g] ?? '#9aa0aa';
 
-// Official combined role+rank badge sprite (UI_Icon_CHA_<Class><Rank>_Big), sliced
-// to /images/icons/. The class symbol encodes the role — Sword=Attacker,
-// Shield=Defender, Gear=Supporter — and the rank (B/A/S/SS) is baked into the art
-// with its official color. Returns null for roles/ranks with no badge (e.g. SSS).
+// Official role+rank badge sprite (UI_Icon_CHA_<Class><Rank>_Big); null when none exists.
 const ROLE_SYMBOL: Record<string, string> = {
   Attacker: 'Sword',
   Defender: 'Shield',
@@ -33,8 +28,7 @@ export function roleRankIcon(role: string, grade: number): string | null {
   return `UI_Icon_CHA_${sym}${tag}_Big`;
 }
 
-// Plain class-type / role icons in public/images/common/ (shared by unit + enemy
-// pages). Type covers Light / Heavy / Air (ActorClassType; MOBILITY shows as Air).
+// Plain class-type / role icons; ActorClassType MOBILITY shows as Air.
 const TYPE_FILE: Record<string, string> = { Light: 'Type_Light', Heavy: 'Type_Heavy', Air: 'Type_Air' };
 const ROLE_FILE: Record<string, string> = {
   Attacker: 'Role_Attacker', Defender: 'Role_Defender', Supporter: 'Role_Supporter',
@@ -53,11 +47,8 @@ const BODY_FILE: Record<string, string> = {
 export const bodyIcon = (body: string): string | null =>
   BODY_FILE[body] ? `/images/${BODY_FILE[body]}.png` : null;
 
-// Active-state overrides for a toolbar filter <Button>. The ButtonGroup carries
-// `variant="outline"` + `colorScheme` (so the border + isAttached dividers stay
-// visible on every button). Both states stay outline-only (no fill) to keep the
-// dark theme calm: ACTIVE = full-opacity colored outline; INACTIVE = faded/dimmed
-// so it reads as deselected without a glaring fill. Spread over a <Button>.
+// Both states stay outline-only so the dark theme reads calm: active is a
+// full-opacity coloured outline, inactive is dimmed. Spread over a <Button>.
 export const filterActiveProps = (colorScheme: string, active: boolean) =>
   active
     ? { opacity: 1 }
@@ -85,13 +76,11 @@ const EQUIP_FILE: Record<string, string> = { Chip: 'Equip_Chip', OS: 'Equip_OS',
 export const equipIcon = (kind: string): string | null =>
   EQUIP_FILE[kind] ? `/images/common/${EQUIP_FILE[kind]}.png` : null;
 
-// Faction (squad) icon: the Squad_Icon key is a UI_TroopIcon_* sprite sliced to
-// public/images/common/. Pass the raw key; returns its public path.
+// Pass the raw Squad_Icon (UI_TroopIcon_*) key; returns its public path.
 export const factionIcon = (key: string): string | null =>
   key ? `/images/common/${key}.png` : null;
 
-// Canonical display name for a unit. canonName is hand-curated (unit_names.json)
-// and is the top-priority source; falls back to the loc id resolved by t().
+// canonName (unit_names.json) is hand-curated and wins over the loc id.
 import { t } from '@/lib/strings';
 import type { UnitData } from '@/interfaces/unit';
 export const unitDisplayName = (u: { canonName?: string; name: string; profile?: { engName?: string } | null }): string =>

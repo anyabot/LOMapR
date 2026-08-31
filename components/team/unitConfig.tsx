@@ -34,8 +34,7 @@ import { buildSimInputs, buildEnemySimInputs, isEnemyWaveCell } from '@/lib/simI
 import { solveAutoPoints } from '@/lib/autoStats';
 import EquipPicker from './equipPicker';
 
-// Per-tile config: level/grade, links, stat points, equipment, skill levels
-// (click icon = AoE preview) and the resulting stat block.
+// Per-tile config: level/grade, links, stat points, equipment, skill levels.
 
 interface Props {
   tile: number;
@@ -63,7 +62,6 @@ const STAT_ICON: Record<string, string> = {
   SPD: '/images/icon_SPD.png',
 };
 
-// Game-style stat tiles: name + point input on top, value (+bonus) below.
 // ptIdx indexes TeamSlot.points ([ATK, DEF, HP, ACC, EVA, CRIT]); SPD has none.
 const STAT_CELLS: { key: StatKey; label: string; suffix: string; ptIdx: number | null; span: number }[] = [
   { key: 'HP', label: 'HP', suffix: '', ptIdx: 2, span: 2 },
@@ -102,8 +100,7 @@ export default function UnitConfig({ tile, slot, unit, team, enemyWave, onChange
   const [pickerSlot, setPickerSlot] = useState<number | null>(null);
   const [openEqSlot, setOpenEqSlot] = useState<number | null>(null);
 
-  // auto-stat: solve points for 100% round-1 CRIT (+ optional ACC floor,
-  // either manual or derived from the enemy wave's highest EVA)
+  // auto-stat: solve points for 100% round-1 CRIT, plus an optional ACC floor
   const [autoStat, setAutoStat] = useState(false);
   const [accTarget, setAccTarget] = useState(0);
   const [accFromEnemies, setAccFromEnemies] = useState(false);
@@ -129,8 +126,7 @@ export default function UnitConfig({ tile, slot, unit, team, enemyWave, onChange
     }
   }, [detail, skillKeys.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // While auto-stat is on, re-solve whenever anything feeding the round-1 sim
-  // changes (equipment, level, links, teammates, …) and write the points back.
+  // re-solve whenever anything feeding the round-1 sim changes, then write points back
   const simBuild = useMemo(
     () => (autoStat && detail ? buildSimInputs(team, state) : null),
     [autoStat, detail, team, state],

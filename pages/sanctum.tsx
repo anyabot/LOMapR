@@ -66,8 +66,7 @@ export default function Home() {
     dispatch(fetchUnitsAsync());   // suitable/banned unit names + icons via the unit list
   }, [dispatch]);
 
-  // Deep link: ?area=EW01&floor=<idx>&diff=<0-2> selects that floor once data is
-  // loaded. floor/diff are array indices (clamped by the slice reducers).
+  // Deep link ?area&floor&diff; floor/diff are array indices, clamped by the reducers.
   useEffect(() => {
     if (!router.isReady || Object.keys(sanctum).length === 0) return;
     const { area, floor, diff } = router.query;
@@ -87,8 +86,7 @@ export default function Home() {
     }
   }, [sanctum, floorData, wave]);
 
-  // shared style for segmented toggle buttons (area / difficulty): subtle yellow
-  // when active, plain gray outline otherwise — matches the rest of the UI.
+  // segmented toggle buttons (area / difficulty): subtle yellow when active
   const toggleProps = (active: boolean) => ({
     size: 'sm' as const,
     variant: 'outline' as const,
@@ -109,10 +107,8 @@ export default function Home() {
 
   const DIFF_LABEL = ["Easy", "Normal", "Extreme"];
 
-  // A single suitable-unit name badge — icon + name, sized to its content (no
-  // rank tag, no fixed width), wrapped in the unit hover card. Name resolves via
-  // the unit list (unitDisplayName) — NOT the item map, whose item-grant name id
-  // often lacks EN and would show Korean.
+    // Name resolves via the unit list, NOT the item map, whose item-grant name id
+    // often lacks EN and would show Korean.
   function unitBadge(id: string) {
     const u = units[id];
     return (
@@ -132,9 +128,7 @@ export default function Home() {
     );
   }
 
-  // A banned squad chip: squad icon + name; hovering reveals its member units
-  // (resolved at build time, max 5). Tolerates stale data where a squad ban is
-  // still a raw key string (no units) — then it just shows the key, no popover.
+    // Tolerates stale data where a squad ban is still a raw key string: no popover then.
   function bannedSquadChip(sq: SquadGroup | string) {
     if (typeof sq === "string" || !Array.isArray(sq.units)) {
       const key = typeof sq === "string" ? sq : sq.key;
@@ -164,8 +158,7 @@ export default function Home() {
     );
   }
 
-  // One banned-unit rule: attribute parts ("AGS · Air · Supporter") stay
-  // descriptive; squad bans render as a hover-to-list chip.
+    // Attribute parts stay descriptive; squad bans render as a hover-to-list chip.
   function prohibitionRow(p: Prohibition, i: number) {
     const attrs = [p.filter.body, p.filter.type, p.filter.role].filter(Boolean) as string[];
     const squads = Array.isArray(p.filter.squads) ? p.filter.squads : [];
@@ -184,8 +177,7 @@ export default function Home() {
     );
   }
 
-  // One suitable group: optional squad header(s) + content-sized unit badges
-  // that wrap freely. Buffs render separately.
+    // Optional squad header(s) + content-sized badges that wrap freely.
   function suitabilityRow(s: Suitability, i: number) {
     return (
       <Box key={i} w="100%">
@@ -206,8 +198,7 @@ export default function Home() {
     );
   }
 
-  // Resource gain for the CURRENT floor, one row per difficulty variant, plus a
-  // total across the floor's difficulties.
+    // One row per difficulty variant of the current floor, plus a total.
   function gainRows(): { label: string; gain: Floor["gain"] }[] {
     const floor = sanctum[activeArea]?.[activeFloor] || [];
     return floor.map((f, i) => ({ label: DIFF_LABEL[i] ?? `Diff ${i}`, gain: f.gain }));

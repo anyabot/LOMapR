@@ -2,7 +2,7 @@
 
 > **MAINTENANCE POLICY: update this doc at the end of any task that adds/moves/
 > removes a page, slice, component, lib module, or data contract.** Verify
-> against the code, don't assume. Last verified against code: **2026-08-12**.
+> against the code, don't assume. Last verified against code: **2026-08-31**.
 
 Next.js **pages router**, deployed to Cloudflare Workers via OpenNext (all
 pages prerendered and served as static assets; the Worker only handles the
@@ -53,6 +53,19 @@ drop chip / gear tile anywhere opens them in place. Unit references share
 unit, equip, misc, world`. `regionSlice` holds the active region
 (`global | kr`); slices lazily fetch via `lib/fetchData.ts` thunks.
 
+**Selectors must return referentially stable values.** A selector that builds a
+new object or array on each call gives every `useSelector` consumer a changed
+value on every dispatch, and any effect depending on it re-fires each render.
+Two patterns cover the cases in this store:
+
+- Derived/merged records: `createSelector` with `memoizeOptions: { maxSize }`,
+  keyed on the per-id records rather than the whole map so one unit's update
+  does not invalidate the others — `selectUnitFull` (`store/unitSlice.ts`),
+  `selectFloorData` (`store/sanctumSlice.ts`).
+- Empty fallbacks: return a shared module-level constant, never a fresh `{}` /
+  `[]` literal — `EMPTY_SKILLS` in `store/unitSlice.ts` (exported, so call sites
+  guarding on a missing id use the same reference) and `store/skillSlice.ts`.
+
 ## Lib
 
 | file | what |
@@ -84,6 +97,14 @@ unit.json, equip.json, misc.json, strings.json, images.json` plus
 `equip/<fam>.json`, `skills/`, `ai/`, `world/`, `skins/`, `misc/`, `strings/`,
 `gacha/`, `enemy_appearances.json`. Name/desc fields are **raw loc ids**
 resolved at render time via `t()`.
+
+Each unit is split in two: `split/units/unit_list.json` holds the LIGHT record
+(the always-present fields, enough for the grid and hover card), and
+`split/units/<id>.json` = `{ skills, detail }` holds the HEAVY fields, which are
+optional in `UnitData`. `selectUnitFull` merges the two, so on the list and hover
+card the heavy fields read as `undefined` until the bundle loads — the detail page
+gates stat-dependent UI on `detailLoaded`. In the light record `profile` is trimmed
+to `{engName, number}`; the full `UnitProfile` arrives with the detail bundle.
 
 ## npm scripts (package.json, verified)
 
@@ -132,7 +153,10 @@ wins, no raw numeric loc-ids on the KR grid, and the past-bug regression:
 switching region on an open unit detail must refetch, not hang on the
 spinner/overlay), `skin-viewer` (one fixed + one spine skin fetched from the
 live R2 CDN and rendered to a PixiJS canvas — the ONLY specs needing network;
-skinned/Unity kind not covered). `fixtures.ts` holds known-good
+skinned/Unity kind not covered). `modal-focus.spec.ts` asserts the enemy and
+equipment modals open with focus on the dialog rather than on a control (a focused
+Share link button shows a focus ring and opens its tooltip) and stay keyboard
+operable. `fixtures.ts` holds known-good
 sample ids/names from the committed local data (Constantia S2, Attack Chip EX,
 Knight Chick, Story zone 1, Colossus_01) — update it if a data rename breaks it.
 

@@ -33,13 +33,10 @@ import UnitConfig from '@/components/team/unitConfig';
 import SimulatePanel from '@/components/team/simulatePanel';
 import WavePicker from '@/components/team/wavePicker';
 
-// /team — team builder on the 3x3 formation map + round-1 battle simulation,
-// with share codes (?t=) and localStorage persistence. Multiple team slots are
-// kept locally; loading a code (paste or ?t=) lands in its own slot.
+// /team - team builder on the 3x3 formation map plus round-1 battle simulation.
 
 const STORAGE_KEY = 'lomapr.team.v1';          // legacy single-team key, migrated once
-// { active, teams: string[], waves: (WaveRef|null)[] } — team codes + the enemy
-// wave picked for each slot
+// { active, teams: string[], waves: (WaveRef|null)[] }
 const STORAGE_KEY_MULTI = 'lomapr.teams.v1';
 const EMPTY_TEAM: Team = Array(9).fill(null);
 
@@ -92,8 +89,7 @@ export default function TeamBuilder() {
 
   useEffect(() => { dispatch(fetchUnitsAsync()); dispatch(fetchEquipAsync()); }, [dispatch]);
 
-  // fetch bundles / equip records only when the SET of ids changes (not on
-  // every slot tweak — the pending actions would re-render the whole page)
+  // keyed on the SET of ids: refetching on every slot tweak would re-render the page
   const teamUnitIds = team.filter((s): s is TeamSlot => !!s && !!units[s.unitId])
     .map((s) => s.unitId).sort().join('|');
   const teamEquipIds = team
@@ -108,9 +104,8 @@ export default function TeamBuilder() {
     for (const id of teamEquipIds.split('|')) if (id) dispatch(fetchEquipFullAsync(id));
   }, [teamEquipIds, region, dispatch]);
 
-  // one-time restore. A ?t= code lands in its own slot (or re-activates the
-  // slot that already holds the same team) instead of overwriting anything;
-  // a ?w= wave link attaches to whichever slot ends up active.
+  // One-time restore. A ?t= code lands in its own slot (or re-activates the slot that
+  // already holds that team); a ?w= wave link attaches to whichever slot ends up active.
   useEffect(() => {
     if (restored.current || !router.isReady) return;
     restored.current = true;

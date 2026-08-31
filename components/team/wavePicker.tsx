@@ -13,17 +13,15 @@ import {
 } from '@/store/worldSlice';
 import { selectSanctum, selectSanctumStatus, fetchSanctumAsync } from '@/store/sanctumSlice';
 import { selectIW, selectIWStatus, fetchIWAsync } from '@/store/IWSlice';
-import { EnemyIndex, Stage, World } from '@/interfaces/world';
+import { EnemyIndex, Stage, World, isBattleStage } from '@/interfaces/world';
 import { WaveRef } from '@/interfaces/team';
 import { t } from '@/lib/strings';
 import { isEnemyWaveCell } from '@/lib/simInputs';
 import { useTranslationVersion } from '@/lib/translationVersion';
 import EnemyGrid from '@/components/enemyGrid';
 
-// Pick an enemy wave to simulate, from one of three sources:
-//   World — world → stage → wave;  Sanctum — area → floor → difficulty → wave;
-//   Infinite War — boss → stage.  The wave's enemy grid is previewed before
-// confirming (clicking a previewed enemy opens the global enemy modal).
+// Pick an enemy wave to simulate from a world stage, a Sanctum floor, or an
+// Infinite War boss stage. The enemy grid is previewed before confirming.
 
 type Src = WaveRef['src'];
 
@@ -35,7 +33,7 @@ function stageList(world: World | undefined): { stage: Stage; zone: string }[] {
   for (const zone of world.zones ?? []) {
     const groups = zone.subzones ?? [zone.stages];
     for (const stages of groups) {
-      for (const s of stages ?? []) if (s.waves?.length) out.push({ stage: s, zone: zone.title });
+      for (const s of stages ?? []) if (isBattleStage(s)) out.push({ stage: s, zone: zone.title });
     }
   }
   return out;

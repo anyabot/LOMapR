@@ -1,17 +1,15 @@
-import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
+import { createAsyncThunk, createSelector, createSlice } from '@reduxjs/toolkit';
 import { RootState } from '../store';
 import { UnitData } from '@/interfaces/unit';
 import { Skill } from '@/interfaces/skill';
 import { Region } from './regionSlice';
 import { fetchUnitList, fetchUnitBundle } from '@/lib/fetchData';
 
-// The heavy detail half of a unit bundle: everything kept out of the light list.
-// Mirrors UnitData's detail-only fields; merged with the list record by selectUnit.
+// The heavy detail half of a unit bundle; merged with the list record by selectUnitFull.
 type UnitDetail = Partial<UnitData>;
 
-// Per-region bucket, mirroring enemySlice / itemSlice — a region switch keeps each
-// region's data so flipping back is instant (no refetch). Holds the light list plus
-// the per-unit bundles (skills + heavy detail), all region-specific.
+// Per-region bucket: the light list plus the per-unit bundles (skills + heavy detail).
+// A region switch keeps every region's data, so flipping back needs no refetch.
 interface RegionBucket {
   units: { [id: string]: UnitData };
   status: 'idle' | 'loading' | 'failed';
@@ -63,16 +61,14 @@ export const fetchUnitBundleAsync = createAsyncThunk<
       return { region, unitId, skills: bucket.skills[unitId], detail: bucket.details[unitId] ?? {} };
     }
     try {
-      // bundle is per-unit, named after the unit id, and carries both forms' skills
-      // plus the heavy detail fields.
+      // one bundle per unit, carrying both forms' skills plus the heavy detail
       const bundle = await fetchUnitBundle(unitId, region);
       return { region, unitId, skills: bundle?.skills || {}, detail: bundle?.detail || {} };
     } catch {
       return thunkApi.rejectWithValue({ region, unitId, skills: {}, detail: {} }) as any;
     }
   },
-  // stamp the active region onto the pending action so its loading flag lands in
-  // the correct region bucket.
+  // stamp the active region so the pending loading flag lands in the right bucket
   { getPendingMeta: (_base, { getState }) => ({ region: (getState() as RootState).region.region }) }
 );
 
@@ -113,16 +109,25 @@ export const selectUnits = (state: RootState) => bucketOf(state).units;
 export const selectUnitStatus = (state: RootState) => bucketOf(state).status;
 // Light list record (grid/hover). Use selectUnitFull on the detail page.
 export const selectUnit = (state: RootState, id: string) => bucketOf(state).units[id] ?? null;
-// Full record = light list fields + fetched heavy detail. Falls back to the light
-// record until the bundle loads (detail fields read as undefined meanwhile).
-export const selectUnitFull = (state: RootState, id: string): UnitData | null => {
-  const b = bucketOf(state);
-  const base = b.units[id];
-  if (!base) return null;
-  const detail = b.details[id];
-  return detail ? ({ ...base, ...detail } as UnitData) : base;
-};
-export const selectUnitSkills = (state: RootState, id: string) => bucketOf(state).skills[id] ?? {};
+
+// Shared empty map so a not-yet-loaded id returns a stable reference.
+export const EMPTY_SKILLS: { [key: string]: Skill } = {};
+
+// Falls back to the light record until the bundle loads.
+export const selectUnitFull: (state: RootState, id: string) => UnitData | null = createSelector(
+  [
+    (state: RootState, id: string) => bucketOf(state).units[id],
+    (state: RootState, id: string) => bucketOf(state).details[id],
+  ],
+  (base, detail): UnitData | null => {
+    if (!base) return null;
+    return detail ? ({ ...base, ...detail } as UnitData) : base;
+  },
+  { memoizeOptions: { maxSize: 12 } },
+);
+
+export const selectUnitSkills = (state: RootState, id: string) =>
+  bucketOf(state).skills[id] ?? EMPTY_SKILLS;
 export const selectUnitSkillStatus = (state: RootState, id: string) =>
   bucketOf(state).skillStatus[id] ?? 'idle';
 

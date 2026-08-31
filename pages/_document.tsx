@@ -1,13 +1,10 @@
 import { Html, Head, Main, NextScript } from 'next/document';
 import { ColorModeScript } from '@chakra-ui/react';
 
-// Force Chakra into dark mode app-wide so all components (buttons, inputs,
-// selects, addons, steppers...) use dark-appropriate defaults instead of the
-// light-mode defaults that render as white/black-on-dark.
+// Force Chakra dark app-wide, so components use dark-appropriate defaults.
 export default function Document() {
   return (
-    // data-theme/color-scheme are baked into the static HTML so the FIRST paint is
-    // dark on every host — no storage/system flip, no light flash on F5/deploy.
+    // baked into the static HTML so the FIRST paint is dark: no light flash on F5
     <Html lang="en" data-theme="dark" style={{ colorScheme: 'dark' }}>
       <Head>
         <link rel="icon" type="image/png" href="/images/icons/Ev_Consumable_BADKSticker.png" />

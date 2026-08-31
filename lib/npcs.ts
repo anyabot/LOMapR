@@ -33,9 +33,8 @@ const npc = (
   loreGroups: extra.loreGroups,
 });
 
-// Only complete, non-NDL, non-prop renders are listed here. MP Vargr is
-// deliberately absent: its textures are the playable BR Vargr art with only a
-// small face-region difference, so presenting it as a separate NPC is misleading.
+// Complete, non-NDL, non-prop renders only. MP Vargr is deliberately absent: its
+// textures are the playable BR Vargr art with only a small face-region difference.
 export const NPCS: NpcEntry[] = [
   npc('phatima', 'NPC_NAME_PHATIMA', 'character', '2dmodel_3p_phatima_n'),
   npc('mr-alfred', 'NPC_NAME_MR_ALFRED', 'character', '2dmodel_ags_mralfred_n'),

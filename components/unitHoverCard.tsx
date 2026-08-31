@@ -10,26 +10,16 @@ import { t } from '@/lib/strings';
 import { useTranslationVersion } from '@/lib/translationVersion';
 import { rankTag, rankColor, roleRankIcon, typeIcon, roleIcon, bodyIcon, factionIcon, unitDisplayName } from '@/lib/rank';
 
-/**
- * Reusable unit hover-card. Wrap any trigger (a reward chip, a name, an icon) and
- * pass the unit's id (`Char_*`). On hover it shows a popover with the unit's
- * portrait, name, rank+role badge, type/role/faction. If the id isn't a known
- * playable unit (e.g. a filtered-out char), it renders the children unchanged with
- * no popover. The card links to the unit detail page.
- *
- *   <UnitHoverCard unitId={entry.char}><MyChip/></UnitHoverCard>
- */
+// An unknown id (e.g. a filtered-out char) renders the children unchanged, no popover.
 export default function UnitHoverCard({
   unitId, children, inModal = false, inline = false,
 }: {
   unitId: string | undefined;
   children: React.ReactNode;
-  // when used INSIDE a Chakra Modal, skip the body Portal so the popover inherits
-  // the modal's stacking context (a body-portaled popover renders BEHIND the modal
-  // overlay and is invisible).
+  // inside a Chakra Modal, skip the body Portal: a body-portaled popover renders
+  // BEHIND the modal overlay and is invisible
   inModal?: boolean;
-  // inline trigger (no full-width block) so the card can wrap a word inside a
-  // sentence without forcing a line break. Default is the full-width chip wrapper.
+  // inline trigger, so the card can wrap a word mid-sentence without a line break
   inline?: boolean;
 }) {
   useTranslationVersion();

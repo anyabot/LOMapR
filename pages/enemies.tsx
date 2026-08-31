@@ -33,8 +33,7 @@ export default function Home() {
     dispatch(fetchImageAsync());
   }, [dispatch]);
 
-  // Deep link: ?enemy=<id> (optionally &lv=<n>) opens that enemy's popup once the
-  // data is loaded. Runs when the query or the loaded set changes.
+  // Deep link ?enemy=<id>&lv=<n>; runs when the query or the loaded set changes.
   useEffect(() => {
     if (!router.isReady) return;
     const id = router.query.enemy as string | undefined;
@@ -81,8 +80,7 @@ export default function Home() {
     const dupe = new Set<string>();
     for (const key in list) {
       const val = list[key];
-      // dedup on the name loc-id (not the resolved text) so different enemies
-      // that happen to resolve to the same string are NOT collapsed together.
+      // dedup on the name loc-id, so enemies resolving to the same text stay separate
       if (!dupe.has(val.name) && filterUsed(val) && filterName(val) && filterButton(val)) {
         dupe.add(val.name);
         out.push(val);

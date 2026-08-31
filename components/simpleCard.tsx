@@ -15,11 +15,7 @@ interface Props {
   ratio?: number,
 }
 
-/**
- * Poster-style card: image fills a fixed-ratio frame with the title rendered as
- * a gradient caption across the bottom. Used across the world / zone / enemy /
- * IW grids for a consistent look.
- */
+// Poster-style card: image in a fixed-ratio frame, title as a gradient caption.
 export default function SimpleCard({
   img, alt, children, onClick, headingSize = ['sm', 'sm', 'md'], ratio = 1,
 }: Props) {

@@ -6,8 +6,7 @@ import type { StringChunk } from '@/lib/strings';
 interface StringsState {
   // which chunks are loaded per region
   loaded: Record<Region, Partial<Record<StringChunk, boolean>>>;
-  // true while the core (common) chunks for the active region are loading
-  // — used to show the region-switch transition overlay
+  // true while the active region's common chunks load; drives the switch overlay
   transitioning: boolean;
 }
 

@@ -3,8 +3,7 @@ import { RootState } from '../store';
 import { Region } from './regionSlice';
 import { fetchImages } from '@/lib/fetchData';
 
-// Per-region image-link buckets. Region switching keeps each region's bucket
-// (no wipe), so flipping back to a loaded region is instant — see enemySlice.
+// Per-region image-link buckets, never wiped on a region switch - see enemySlice.
 interface RegionBucket {
   imagelink: {[key: string]: string};
   status: 'idle' | 'loading' | 'failed';
@@ -60,8 +59,7 @@ export const ImageSlice = createSlice({
   },
 });
 
-// rejected here carries no payload (the catch returns fulfilled-empty), but keep
-// a safe extractor for symmetry.
+// rejected carries no payload (the catch returns fulfilled-empty); kept for symmetry.
 function thunkRegion(action: { payload?: unknown }): Region | undefined {
   const p = action.payload as { region?: Region } | undefined;
   return p?.region;

@@ -76,8 +76,7 @@ export default function Home() {
       </VStack>
     );
 
-  // wide banner card (permanent events)
-  // permanent-event banners are 320x156 (~2.05:1)
+  // permanent-event banners are 320x156
   const BANNER_RATIO = 320 / 156;
   const BannerCard = (w: World) => (
     <Box
