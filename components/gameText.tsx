@@ -1,11 +1,9 @@
 import React from 'react';
 import { Text as ChakraText } from '@chakra-ui/react';
 
-// Parses the game's inline color markup into colored spans:
-//   [c][RRGGBB]coloured text[-][/c]
-// where [c]…[/c] wraps a coloured region, [RRGGBB] sets the hex colour, and
-// [-] resets to the default colour. Tolerates missing/loose closers. Unknown
-// bracket tags are passed through as literal text.
+// Parses the game's inline colour markup: [c][RRGGBB]text[-][/c], where [-] resets
+// to the default. Loose closers are tolerated; unknown bracket tags pass through.
+
 
 interface Token {
   text: string;
@@ -42,10 +40,7 @@ export function parseGameText(input: string): Token[] {
   return tokens;
 }
 
-/**
- * Render a game string with its inline [c][RRGGBB]…[-][/c] colour markup as
- * styled spans. Use for stage notes, skill descriptions, etc.
- */
+// Use for stage notes, skill descriptions, etc.
 export default function GameText({ children }: { children: string }) {
   const tokens = parseGameText(children);
   return (

@@ -1,7 +1,3 @@
-// Team-builder core logic: level/slot gating, stat computation (points +
-// equipment + core links), skill scaling, ally-AoE tile mapping, equip
-// eligibility, and the shareable team code.
-
 import { FullUnitData, UnitData, LinkBonus, UnitStat } from '@/interfaces/unit';
 import { EquipStat, EquipFull } from '@/interfaces/equip';
 import { Skill } from '@/interfaces/skill';
@@ -27,9 +23,7 @@ export const maxLinksAt = (level: number): number =>
 // A squad fields at most 5 units on the 3x3 grid.
 export const MAX_UNITS = 5;
 
-// Bundled fallback keeps rank gating correct against older remote data snapshots
-// whose generated Skill.leastRank was always 0. Freshly transformed data carries
-// SAV directly, so that value wins when present.
+// Fallback for older remote snapshots whose Skill.leastRank was always 0.
 export function skillUnlockRank(skillKey: string, leastRank: number, region: string): number {
   const byRegion = skillUnlockRanks as Record<string, Record<string, number>>;
   return leastRank || byRegion[region]?.[skillKey] || 0;
@@ -43,9 +37,8 @@ export const totalPointsAt = (level: number): number => level * POINTS_PER_LEVEL
 export const POINT_STATS = ['ATK', 'DEF', 'HP', 'ACC', 'EVA', 'CRIT'] as const;
 export type PointStat = (typeof POINT_STATS)[number];
 
-// Stat-point conversion: how much of each stat one allocation point grants, in
-// the stat's STORED units (fractions for the percent stats: ACC 0.015 = +1.5%).
-// Shared with the equipment modal's point-worth badge — keep the two in sync.
+// Per-point stat gain in STORED units (ACC 0.015 = +1.5%); the equipment modal
+// shows the same numbers - keep the two in sync.
 export const STAT_PER_POINT: Record<string, number> = {
   ATK: 1.5, DEF: 1.25, HP: 8,
   ACC: 0.015, EVA: 0.004, CRIT: 0.004,
@@ -71,8 +64,7 @@ export function makeSlot(unit: UnitData): TeamSlot {
 
 // ── base stat growth ──────────────────────────────────────────────────────────
 
-// HP/ATK/DEF grow linearly from [lv1, lv100]; past 100 (limit break) the same
-// per-level growth continues.
+// Growth past level 100 (limit break) continues at the same per-level rate.
 function rawStatAt(pair: [number, number], level: number): number {
   const lv = Math.min(Math.max(level, 1), LV_MAX);
   const perLevel = (pair[1] - pair[0]) / (LV_DEFAULT - 1);
@@ -100,8 +92,7 @@ export function baseStats(st: UnitStat, level: number): StatMap {
 
 // ── link-bonus classification ─────────────────────────────────────────────────
 
-// Resolve a link bonus to the stat it feeds via its template text (null =
-// non-stat: Skill Power / EXP / Sortie / Range / Buff-Debuff Lv).
+// stat === null means non-stat: Skill Power / EXP / Sortie / Range / Buff-Debuff Lv.
 export interface LinkStatBonus {
   stat: StatKey | null;
   pct: boolean;     // true: value is a fraction of the stat; false: flat add
@@ -134,8 +125,7 @@ const EQUIP_ATTR_TO_KEY: Record<string, StatKey> = {
 const round1 = (n: number) => Math.round(n * 10) / 10;
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
-// Out-of-battle stats: link % multiplies (base + points + equip flat) for
-// HP/ATK/DEF; percent stats (ACC/EVA/CRIT/RES) are additive.
+// Link % multiplies HP/ATK/DEF; the percent stats are additive.
 export function computeStats(
   unit: FullUnitData, slot: TeamSlot, equipStats: EquipStat[],
 ): ComputedStats {
@@ -204,10 +194,7 @@ export function computeStats(
 
 // ── skill scaling (same rules as the unit detail page) ────────────────────────
 
-// Return a level-scaled copy of a skill:
-//   skillLv  1..10 — scales rate and buff values, applies levelChanges (AP/AoE).
-//   spAdd    flat skill-power add (full-link Skill Power option).
-//   buffLv   extra buff/debuff levels for buff VALUES only (full-link option +2).
+// spAdd is a flat skill-power add; buffLv moves buff VALUES only. See schemas.md.
 export function scaleSkillLevel(skill: Skill, skillLv: number, spAdd: number, buffLv: number): Skill {
   const lv = Math.min(Math.max(skillLv, 1), 10);
   const rate = skill.rate + (skill.rateGain ?? 0) * (lv - 1) + spAdd;
@@ -242,8 +229,7 @@ export function fullLinkBuffLv(unit: FullUnitData, fullLink: number): number {
 
 // ── ally-AoE tile mapping ─────────────────────────────────────────────────────
 
-// Map a skill's 9-cell AoE grid onto the ally board: center > 0 anchors the
-// grid's center cell on the caster's tile; center === 0 is a fixed grid.
+// center > 0 anchors the grid's center cell on the caster; center === 0 is fixed.
 export function mapAreaToTiles(area: number[], center: number, casterTile: number): number[] {
   const hit: number[] = [];
   if (!center) {
@@ -279,8 +265,7 @@ export function allyAffectedTiles(skill: Skill, casterTile: number): number[] | 
 
 // ── equip eligibility ─────────────────────────────────────────────────────────
 
-// Can the unit wear this equip in a slot of `slotType`? Checks the slot type and
-// the class/role/unit locks.
+// Checks the slot type plus the class/role/unit locks.
 export function canEquip(
   e: { slot: string; classLimit: string | null; roleLimit: string | null; pcLimit: string },
   unit: UnitData, slotType: string,
@@ -292,15 +277,13 @@ export function canEquip(
   return true;
 }
 
-// Is equip slot `idx` unlocked at `level`? Uses the unit's own slot metadata
-// when the detail bundle is loaded, else the standard 20/40/60/80 ladder.
+// Uses the unit's own slot metadata when loaded, else the 20/40/60/80 ladder.
 export function equipSlotUnlocked(unit: UnitData, idx: number, level: number): boolean {
   const need = unit.equip?.[idx]?.level ?? EQUIP_UNLOCK_LEVELS[idx] ?? 999;
   return level >= need;
 }
 
-// Flatten the stats of everything a slot has equipped (locked slots excluded),
-// resolving each selection through the lazily-fetched full equip records.
+// Locked slots are excluded; selections resolve through the lazily-fetched records.
 export function equippedStats(
   slot: TeamSlot, unit: UnitData,
   getFull: (id: string) => EquipFull | null,
@@ -317,9 +300,7 @@ export function equippedStats(
 }
 
 // ── share code ────────────────────────────────────────────────────────────────
-// v2 is a compact binary payload encoded as base64url. Unit/equipment IDs use
-// stable dictionaries; unknown IDs fall back to inline UTF-8 so future data is
-// still shareable. v1 delimiter codes remain readable below.
+// v2+ is a compact base64url binary payload; unknown IDs fall back to inline UTF-8.
 const CODE_PREFIX = '4.';
 const V3_PREFIX = '3.';
 const V2_PREFIX = '2.';

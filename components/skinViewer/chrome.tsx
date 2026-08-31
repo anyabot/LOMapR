@@ -1,13 +1,9 @@
-// Shared overlay chrome for the skin viewers. The fixed/spine (PixiJS) and
-// skinned (Unity iframe) viewers host different engines but wear the same UI:
-// a face dropdown, save/reload buttons, a variant radio strip, and a control
-// bar. These presentational components are fed each viewer's own state so the
-// markup lives in one place.
+// Shared overlay chrome: the PixiJS and Unity viewers wear the same UI, fed each
+// viewer's own state, so the markup lives in one place.
 import { useState } from 'react';
 import { Box, Button, CloseButton, Flex, HStack, Image, Input, Select, Spinner, Text, Tooltip } from '@chakra-ui/react';
 import { HamburgerIcon, ViewIcon, ViewOffIcon } from '@chakra-ui/icons';
 
-// Icon-button used in the canvas overlay panel (top-right / bottom-right).
 // `active` = highlighted/full-opacity; `inactive` = dimmed with slash.
 export function IconBtn({ src, alt, label, active, onClick, placement = 'left' }: {
   src: string; alt: string; label: string; active: boolean;
@@ -57,8 +53,7 @@ export function FaceSelect({ value, options, onChange }: {
   );
 }
 
-// Save-current-view-as-PNG icon button (optionally shows a spinner while a
-// capture is in flight — used by the async Unity capture path).
+// `saving` shows a spinner while an async capture is in flight.
 export function SaveButton({ onClick, saving = false }: { onClick: () => void; saving?: boolean }) {
   return (
     <Tooltip label="Save visible area as PNG" fontSize="xs" hasArrow placement="left">
@@ -72,7 +67,6 @@ export function SaveButton({ onClick, saving = false }: { onClick: () => void; s
   );
 }
 
-// Plain 36px icon button used in the top-right overlay control group.
 // `dim` lightly fades it (e.g. inactive zones toggle).
 function OverlayIconButton({ src, alt, label, onClick, dim = false }: {
   src: string; alt: string; label: string; onClick: () => void; dim?: boolean;
@@ -126,9 +120,7 @@ export function LayersButton({ active, onToggle }: { active: boolean; onToggle: 
   );
 }
 
-// Spine layer editor: one row per drawable slot, with an eye toggle each.
-// Rows are listed front-most first (Spine draw order runs back-to-front, so the
-// list is reversed) to match the stacking order an image editor shows.
+// Rows are front-most first (Spine draws back-to-front), matching an image editor.
 // `top` shifts the panel below the face dropdown when that one is present.
 export function LayerPanel({ slots, hidden, top = 2, onToggle, onSetAll, onClose }: {
   slots: string[];
@@ -181,8 +173,7 @@ export function LayerPanel({ slots, hidden, top = 2, onToggle, onSetAll, onClose
   );
 }
 
-// Icon + tooltip per platform variant key. `base` depends on whether a KR
-// variant also exists (vfun vs onestore icon), so it's a function.
+// `base` is a function because its icon depends on whether a KR variant exists.
 export function variantMeta(key: string, hasKr: boolean): { icon: string; label: string } {
   const map: Record<string, { icon: string; label: string }> = {
     base:  { icon: hasKr ? '/images/shop/icon-platform-vfun.png' : '/images/shop/icon-platform-onestore.png', label: 'Uncensored' },

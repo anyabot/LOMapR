@@ -1,8 +1,6 @@
-// Team-builder state: a 3x3 formation of configured units (max 5 per squad).
 // Tiles 0..8 row-major = ten-key positions [7,8,9/4,5,6/1,2,3]; depth = column.
 
-// One equipped item: an equip FAMILY id plus the chosen rank (index into
-// EquipFull.ranks) and enhancement level (0..10).
+// An equip FAMILY id, the chosen rank (index into EquipFull.ranks) and level 0..10.
 export interface TeamEquipSel {
   id: string;
   rank: number;
@@ -28,17 +26,14 @@ export interface TeamSlot {
 // The whole team: 9 tiles, null = empty.
 export type Team = (TeamSlot | null)[];
 
-// A selected enemy wave for the simulation, from one of three sources:
-// world stages, Sanctum floors, or Infinite War boss stages. Persisted per
-// saved team slot (localStorage only, not in the share code) and linkable via
-// /team?w= (see lib/waveRef.ts).
+// Persisted per saved team slot (localStorage only, never in the share code) and
+// linkable via /team?w= - see lib/waveRef.ts.
 export type WaveRef =
   | { src: 'world'; world: string; stage: string; wave: number }
   | { src: 'sanctum'; area: string; floor: number; diff: number; wave: number }
   | { src: 'iw'; boss: string; stage: number };
 
-// Keys of the displayed stat block (percent stats are stored as whole percents,
-// matching UnitStat).
+// Percent stats are stored as whole percents, matching UnitStat.
 export type StatKey =
   | 'HP' | 'ATK' | 'DEF' | 'SPD' | 'CRI' | 'ACC' | 'EVA'
   | 'fireRes' | 'iceRes' | 'lightningRes';
@@ -50,7 +45,6 @@ export interface ComputedStats {
   base: StatMap;    // grade + level growth only
   total: StatMap;   // after stat points + equipment + link bonuses
   bonus: StatMap;   // total - base (shown in yellow)
-  // summed link-bonus percentages per flat stat (HP/ATK/DEF), kept for the
-  // simulation's ordering rule (flat buffs land after the link multiplier).
+  // per-stat link-bonus totals, kept because flat buffs land after the link multiplier
   linkPct: Partial<Record<StatKey, number>>;
 }

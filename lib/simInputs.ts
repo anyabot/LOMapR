@@ -1,6 +1,5 @@
-// Build round-1 simulation inputs (player team and enemy wave) straight from
-// the store. `missing` lists units whose bundles are still loading;
-// `unavailable` lists units that do not exist on the current server.
+// Round-1 simulation inputs built from the store. `missing` is still loading;
+// `unavailable` does not exist on the current server.
 
 import { RootState } from '@/store';
 import { selectUnitFull, selectUnitSkills } from '@/store/unitSlice';
@@ -71,8 +70,7 @@ export function buildSimInputs(team: Team, state: RootState): SimInputBuild {
 
 // ── enemy side ────────────────────────────────────────────────────────────────
 
-// Enemy stats at a wave level: HP/ATK/DEF grow linearly (base + perLv·(lv−1),
-// floored); ACC/EVA/CRIT/SPD and resists are flat — same math as the enemy modal.
+// HP/ATK/DEF grow linearly, floored; the rest are flat. Same math as the enemy modal.
 export function enemyStatsAt(e: EnemyFull, lv: number): StatMap {
   const lin = (pair: [number, number]) => Math.floor(pair[0] + pair[1] * (lv - 1));
   return {
@@ -93,9 +91,7 @@ export function isEnemyWaveCell(
   return !!cell?.id && cell.id !== '0';
 }
 
-// Build the enemy side from a stage wave (9 cells of {id, lv} | null). Needs
-// each enemy's full record + skill bundle; still-loading entries go to
-// `missing`. A failed skill fetch degrades to "no passives" rather than block.
+// A failed skill fetch degrades to "no passives" rather than blocking the build.
 export function buildEnemySimInputs(
   wave: (EnemyIndex | null)[], state: RootState,
 ): EnemySimInputBuild {

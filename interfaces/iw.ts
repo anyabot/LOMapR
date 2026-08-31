@@ -1,5 +1,4 @@
-// Infinite War (IW): seasons of escalating boss-rush stages. Follows the
-// table_*iw tables (season / mapstage / phase / mobgroup / monster).
+// Infinite War: seasons of escalating boss-rush stages, from the table_*iw tables.
 
 export interface Phase {
   id: string;       // boss monster site-key for this phase

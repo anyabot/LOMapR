@@ -30,8 +30,7 @@ test.describe('/units', () => {
   });
 
   test('second click on a filter switches it to exclude mode', async ({ page }) => {
-    // filter buttons cycle off -> include -> exclude; the exclude state must
-    // drop ONLY that section while the others stay.
+    // filter buttons cycle off -> include -> exclude; exclude drops only that section
     await page.getByRole('button', { name: 'Heavy', exact: true }).click();
     await page.getByRole('button', { name: 'Heavy', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Heavy', exact: true })).toBeHidden();

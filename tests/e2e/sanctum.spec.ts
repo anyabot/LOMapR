@@ -12,8 +12,7 @@ test.describe('/sanctum', () => {
     // difficulty: EASY always exists
     await expect(page.getByRole('button', { name: 'EASY', exact: true })).toBeVisible();
 
-    // switching floors updates the share label (the navbar has its own select,
-    // so pick the combobox whose options are floors)
+    // the navbar has its own select, so pick the combobox whose options are floors
     const floorSelect = page.getByRole('combobox').filter({ hasText: 'Floor' });
     await floorSelect.selectOption({ index: 1 });
     await expect(page.getByText(/Share — .*Floor/)).toBeVisible();

@@ -16,9 +16,7 @@ export interface SkillBuff {
   applyCondCount: number; // BETV_Sub[0]: threshold for count-of-buff conds (e.g. applyCond 20 = have >= N of applyCondVals); 0 if n/a
   applyCondSubs?: number[]; // cond 64 only: per-entry apply chances (parallel to applyCondVals)
   condAttr: number;    // BETBAT: attr type constraint (BUFF_ATTR_TYPE: 0=Buff,1=Debuff,3=Etc,6=Any)
-  // optional SECOND apply-condition (AND-combined with the first), present only when
-  // the buff has one (~4% do). Same shape as the primary fields above.
-  // e.g. "on even round (cond1=42) AND ≥4 of <char set> in battle (cond2=65)".
+  // optional SECOND apply-condition, AND-combined with the first
   applyCond2?: number;
   applyCondVals2?: string[];
   applyCondNames2?: string[];
@@ -49,27 +47,21 @@ export interface Skill {
   img: string;
   range: number;
   AP: number;
-  // 9-cell damage-rate grid (row-major, cells 1..9). 0 = not hit; >0 = damage
-  // multiplier for that cell (drives both hit-area and color). Parsed from the
-  // table GridIndex, which is richer than the old binary area.
+  // 9-cell damage-rate grid (row-major); 0 = not hit, >0 = that cell's multiplier
   area: number[];
   center: number;
   description: string;
   attr: string | undefined;
   leastRank: number;
-  // corrective accuracy for this specific skill (additive ACC), and whether the
-  // skill ignores Protect. Surfaced in the UI later.
+  // additive ACC correction for this skill, and whether it ignores Protect
   accuracy: number;
   guardPierce: boolean;
-  // damage multiplier (SkillAttackRate) that fills the {0} placeholder in the
-  // official description; the old hand text embedded it inline as $(rate). `rate`
-  // is the skill-level-1 base; `rateGain` is the per-level increment (player skills
-  // scale 1..10 — skill power at level L = rate + rateGain*(L-1)). Monsters: 0.
+  // SkillAttackRate, filling {0} in the official description. `rate` is level 1 and
+  // `rateGain` the per-level increment (player skills 1..10); monsters are 0.
   rate: number;
   rateGain?: number;
   buffs: SkillBuff[];
-  // significant per-level changes (player skills only): AP drops, AoE (grid)
-  // shifts, buff-duration changes — keyed by the level they take effect.
+  // significant per-level changes (player skills only), keyed by effective level
   levelChanges?: SkillLevelChange[];
 }
 

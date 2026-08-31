@@ -1,16 +1,15 @@
 import { EnemyIndex } from "./world";
 import { SkillBuff } from "./skill";
 
-// Sanctum (EW) follows Table_MapStageEW. A "floor" is one Stage_Num within a
-// chapter; each floor has up to 3 difficulty variants (Stage_Difficulty).
+// Table_MapStageEW: a "floor" is one Stage_Num within a chapter, with up to 3
+// difficulty variants.
 
 export interface Wave {
   // 9-cell enemy grid (row-major), null = empty cell.
   e: (EnemyIndex | null)[];
 }
 
-// Per-floor resource gain (Sanctum minerals). ChargeUP = regen/turn increase,
-// MAXUP = max capacity increase.
+// ChargeUP raises regen per turn, MAXUP raises capacity.
 export interface SanctumGain {
   mineralCharge: number;
   mineralMax: number;
@@ -18,8 +17,7 @@ export interface SanctumGain {
   refinedMax: number;
 }
 
-// A squad (Table_TroopCategory) resolved to its members — used by both suitable
-// and squad-based banned groups.
+// A Table_TroopCategory squad resolved to its members.
 export interface SquadGroup {
   key: string;
   name: string;    // loc id
@@ -27,8 +25,7 @@ export interface SquadGroup {
   units: string[]; // member Char_* ids (max 5)
 }
 
-// A banned-unit rule (Table_ProhibitionEW). Attribute bans (body/type/role) stay
-// descriptive; squad bans resolve to the squad's units. `desc` is a loc id.
+// Table_ProhibitionEW: attribute bans stay descriptive, squad bans resolve to units.
 export interface Prohibition {
   filter: {
     body?: string;          // 'Bioroid' | 'AGS'

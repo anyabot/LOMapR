@@ -16,12 +16,8 @@ export const config = {
   matcher: ['/models/:path*', '/rebuilt/:path*', '/skins/:path+', '/api/:path*'],
 };
 
-/**
- * Protect the relatively small dynamic surface of the site without putting a
- * challenge in front of visitors. In production, Cloudflare's asset-first
- * routing serves prerendered pages and static files before this middleware is
- * reached, so only allowlisted proxy rewrites and future API routes are counted.
- */
+// In production Cloudflare's asset-first routing serves prerendered pages and static
+// files before this runs, so only the allowlisted rewrites and API routes are counted.
 export async function middleware(request: NextRequest) {
   // The Cloudflare binding does not exist under the regular Next.js dev server.
   if (process.env.NODE_ENV !== 'production') return NextResponse.next();
@@ -37,8 +33,8 @@ export async function middleware(request: NextRequest) {
     const { env } = getCloudflareContext();
     const limiter = (env as RateLimitEnv).DYNAMIC_RATE_LIMITER;
 
-    // CF-Connecting-IP is set by Cloudflare and cannot be spoofed by clients.
-    // The fallback is only relevant to unusual preview/proxy configurations.
+    // CF-Connecting-IP is set by Cloudflare and cannot be spoofed; the fallback only
+    // matters to unusual preview/proxy configurations.
     const clientKey = request.headers.get('cf-connecting-ip') ?? 'unknown';
     const result = await limiter?.limit({ key: clientKey });
 

@@ -13,7 +13,6 @@ export interface Wave {
 // From the game's STAGE_SUB_TYPE enum: NORMAL / SIDE / EX / STORYONLY.
 export type StageSubType = "Main" | "Side" | "Ex" | "Story";
 
-// Stage-map icon art per subtype (shared by the stage grid and stage detail).
 export const STAGE_ICON_SRC: Record<StageSubType, string> = {
   Side: "/images/SideStage.png",
   Main: "/images/Main_Stage.png",
@@ -21,11 +20,7 @@ export const STAGE_ICON_SRC: Record<StageSubType, string> = {
   Story: "/images/StoryStage.png",
 };
 
-// One reward entry — a flat object keyed by what it grants:
-//   currency: { cash: 2 } / { metal: 500 } / { exp, accountExp, skillExp, ... }
-//   item:     { item: "ResourcePack_500", count?: 1 }
-//   char:     { char: "Char_DS_Johanna_N" }
-// Item/char ids are raw game keys; display names + icons resolved later.
+// Exactly one grant per entry: a currency amount, `item` + `count`, or `char`.
 export interface RewardEntry {
   accountExp?: number;
   exp?: number;
@@ -45,19 +40,10 @@ export interface StageRewards {
   reward_am?: RewardEntry[]; // all star-missions completed
 }
 
-// A star-clear condition. `desc` is the game's loc id (resolve with t()) — often
-// poor or absent — so the parsed structured fields below say what must actually be
-// done (from Table_MissionObject, see build_world._mission_cond):
-//   object  the goal: 'STAGE_CLEAR' | 'KILL_ENEMY' | 'KILL_SPCENEMY'.
-//   trigger the clear constraint (MISSION_TRIGGER_TYPE name), absent when none.
-//   value   the trigger's numeric parameter (round/death/hit/squad limit, type
-//           count, recorded damage). 0 is meaningful ("0 deaths", "take 0 hits").
-//   unit    the trigger's required unit (Char_ key) — use/keep-alive/clear-with it.
-//   skill   the trigger's required/forbidden skill (Skill_ key).
-//   count   KILL_ENEMY: number of enemies to defeat.
-//   enemy   KILL_SPCENEMY: the specific enemy (site id) to defeat.
+// `desc` (loc id) is often poor or absent — render the structured fields instead.
 export interface StageMission {
-  desc?: string;
+  desc?: string;      // loc id, resolve with t()
+  // trigger/value/unit/skill semantics: .ai/knowledge/schemas.md
   object: 'STAGE_CLEAR' | 'KILL_ENEMY' | 'KILL_SPCENEMY';
   trigger?: string;
   value?: number;
@@ -79,20 +65,16 @@ export interface StageSquad {
   fixed?: string[];  // forced squad members (raw Char_ ids)
 }
 
-// Exploration (Search) info. time is in seconds; metal/nutrient/power are the
-// resource yields; units/unitsLv are the dispatch-squad requirement.
 export interface StageSearch {
   metal?: number;
   nutrient?: number;
   power?: number;
-  time?: number;
-  units?: number;
-  unitsLv?: number;
+  time?: number;      // seconds
+  units?: number;     // dispatch-squad size
+  unitsLv?: number;   // dispatch-squad level
 }
 
-// Full per-wave rank drops (B/A/S clear rank). Index matches `waves`. Each rank
-// is a flat RewardEntry list (items, chars, and exp/skillExp). The UI aggregates
-// / splits / hides as needed — the table keeps the complete data.
+// Drops per clear rank, for one wave.
 export interface WaveDrop {
   B?: RewardEntry[];
   A?: RewardEntry[];
@@ -106,22 +88,23 @@ export interface Stage {
   pos: number;         // Stage_Pos, used to order stages within their subtype row
   subtype: StageSubType;
   next: string;        // title of the next stage (progression), "" if none
-  waves: Wave[];       // battle waves; empty for story-only stages
+  waves: Wave[];       // may be non-empty on Story stages — gate on isBattleStage
   rewards?: StageRewards;   // clear / first-clear / all-mission rewards
   missions?: StageMission[]; // star-clear conditions
   unlock?: StageUnlock;     // prior-stage clear requirement
   squad?: StageSquad;       // squad rules
   search?: StageSearch;     // exploration info
-  drops?: WaveDrop[];       // full per-wave rank drops (parallel to waves)
+  drops?: WaveDrop[];       // parallel to `waves`
 }
+
+// Story-only stages can carry leftover wave/drop rows for a battle the game never runs.
+export const isBattleStage = (s: Stage): boolean => s.subtype !== 'Story' && s.waves.length > 0;
 
 export interface Zone {
   title: string;       // display name (loc id, resolve with t())
   img: string;         // image key
-  // A zone is either a flat stage list, or (for multi-part chapters like 12/13)
-  // several sub-maps. When `subzones` is set, render those instead of `stages`.
   stages: Stage[];
-  subzones?: Stage[][];
+  subzones?: Stage[][];  // multi-part chapters (12/13); when set, render these instead
 }
 
 export interface World {

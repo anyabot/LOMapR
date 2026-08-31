@@ -1,8 +1,5 @@
-// Auto stat allocation: the fewest points that reach 100% round-1 in-battle
-// CRIT (and an optional round-1 ACC floor). Other stats are left at zero and
-// surplus points stay unspent. Solved by fixpoint iteration because round-1
-// deltas can depend on the allocation itself (HP fractions, ATK-vs-DEF
-// conditions, …).
+// Fewest allocation points reaching 100% round-1 CRIT (plus an optional ACC floor).
+// Solved by fixpoint: round-1 deltas can depend on the allocation itself.
 
 import { FullUnitData } from '@/interfaces/unit';
 import { TeamSlot } from '@/interfaces/team';
@@ -35,8 +32,7 @@ export function solveAutoPoints(opts: {
   getFull: (id: string) => EquipFull | null;
   accTarget: number;                // round-1 ACC floor in %, 0 = ignore ACC
   enemyInputs?: SimEnemyInput[];    // simulated enemy wave (may debuff the team)
-  // derive the ACC floor from the wave instead: 100 + highest enemy round-1
-  // EVA (hit chance = ACC − EVA, so this is the always-hit threshold)
+  // hit chance = ACC - EVA, so 100 + highest enemy EVA is the always-hit threshold
   accFromEnemies?: boolean;
 }): AutoStatSolution | null {
   const { inputs, tile, unit, slot, getFull, accTarget } = opts;
@@ -59,8 +55,7 @@ export function solveAutoPoints(opts: {
     const sim = simulateRound1(simInputs, enemyInputs);
     const r = sim.units.find((u) => u.tile === tile);
     if (!r) return null;
-    // Effective ACC floor: fixed input, or always-hit vs the wave's highest
-    // round-1 EVA (their own buffs included — recomputed every iteration).
+    // Recomputed every iteration, so the enemies' own buffs are included.
     const accFloor = accFromEnemies
       ? 100 + Math.max(0, ...sim.enemyUnits.map((e) => e.battle.EVA))
       : accTarget;

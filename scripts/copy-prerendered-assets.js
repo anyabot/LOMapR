@@ -1,17 +1,5 @@
-// Post-OpenNext-build step (runs at the end of `npm run cf:build`).
-//
-// Stock OpenNext keeps prerendered page HTML inside the server function, so
-// every page view would invoke the Worker (and count against the request
-// quota). This app is 100% prerendered, so instead:
-//   1. copy each prerendered page's HTML (and its getStaticProps data JSON,
-//      if any) into .open-next/assets — with selective asset-first routing
-//      Cloudflare then serves pages as free static
-//      assets without ever invoking the Worker;
-//   2. prune local-only public/ dirs (gitignored dev data) from the deploy.
-// Cloudflare serves 404.html for unknown paths without invoking the Worker.
-// The Worker-first allowlist in wrangler.jsonc handles the
-// /models|/rebuilt|/skins proxy rewrites and future API routes. Any future SSR
-// route must also be added to that allowlist.
+// Post-OpenNext-build step (end of `npm run cf:build`): copies prerendered HTML into
+// .open-next/assets and prunes local-only public/ dirs. Full rationale: DEPLOY.md.
 const fs = require('fs');
 const path = require('path');
 
@@ -31,8 +19,8 @@ let pages = 0;
     if (ent.isDirectory()) { walk(full); continue; }
     if (!ent.name.endsWith('.html')) continue;
     const route = path.relative(pagesDir, full).replace(/\\/g, '/').replace(/\.html$/, '');
-    // 404/500 stay at the root as plain .html; everything else becomes
-    // <route>/index.html to match the trailingSlash: true URL shape.
+    // 404/500 stay at the root as plain .html; the rest become <route>/index.html
+    // to match the trailingSlash: true URL shape.
     const dest =
       route === '404' || route === '500' ? path.join(assets, `${route}.html`)
       : route === 'index' ? path.join(assets, 'index.html')

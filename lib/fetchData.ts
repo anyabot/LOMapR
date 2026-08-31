@@ -1,21 +1,8 @@
-// Client-side data layer: the browser fetches JSON straight from Cloudflare R2's
-// public URL (edge-cached, free egress), so reads never invoke a Pages Function.
-//
-// This ports the shaping the old /api/* routes did:
-//   • KR → global fallback (a region file falls back to global when absent)
-//   • Images: MERGE region over global, then rewrite to bundled /public art
-//   • array-shaping: fill empty arrays Firebase/generation may have dropped
-//   • id-stamping: copy each record's key onto record.id
-//
-// Public env var (exposed to the browser): NEXT_PUBLIC_R2_PUBLIC_URL.
-
+// Browser-side data layer. Shaping applied here: KR to global fallback, image merge
+// and rewrite to bundled /public art, empty-array fill, and id-stamping from the key.
 import PUBLIC_IMAGES from './publicImages.json';
 
-// Data source base URL. Default: R2 public URL (production + "bucket" dev mode).
-// When NEXT_PUBLIC_DATA_SOURCE=local, read on-disk data/ files served statically
-// from /public/local-data (populated by `npm run dev:local`, which copies data/
-// there). The R2 key layout maps 1:1 to data/<key>, so the same keys work
-// against either base — local mode just swaps the base URL, no other changes.
+// The key layout maps 1:1 to data/<key>, so local mode only swaps the base URL.
 const LOCAL = process.env.NEXT_PUBLIC_DATA_SOURCE === 'local';
 const R2 = (process.env.NEXT_PUBLIC_R2_PUBLIC_URL ?? '').replace(/\/$/, '');
 const BASE = LOCAL ? '/local-data' : R2;
@@ -110,15 +97,12 @@ function preferPublicImages(map: { [key: string]: string }): { [key: string]: st
 
 // ── public API (mirrors the old /api/* routes) ───────────────────────────────
 
-// World CONTAINER: per-world metadata + zone titles/imgs only (no stages). Light
-// — used by the World index/detail and unit name-lookup. The heavy stage data is
-// fetched per-world via fetchWorldStage().
+// Light world container: per-world metadata + zone titles/imgs, no stages.
 export async function fetchWorld(region: Region) {
   return stampId(shapeWorld(await getWithFallback(region, 'world.json')));
 }
 
-// One world's FULL record (zones→stages→waves/rewards/drops) from
-// split/world/<id>.json. Fetched lazily when a stage page opens that world.
+// One world's full record, fetched lazily when a stage page opens that world.
 export async function fetchWorldStage(id: string, region: Region) {
   const regions: Region[] = region === 'global' ? ['global'] : [region, 'global'];
   for (const r of regions) {
@@ -199,11 +183,8 @@ export async function fetchEnemy(id: string, region: Region) {
   return null;
 }
 
-// Split skill/AI bundles are content-deduplicated at build time: identical
-// payloads (most same-variant enemies share one) are stored once, named after
-// the owning enemy id (split/<sub>/<ownerId>.json — greppable, not hashed). The
-// caller passes the bundle ref, which is the enemy's own id unless its record
-// carries a skillsRef/aiRef pointing at the shared owner. ref absent -> no bundle.
+// Split skill/AI bundles are content-deduplicated at build time and named after the
+// owning enemy id, so callers pass skillsRef/aiRef when the record carries one.
 export async function fetchSplitSkills(ref: string | undefined, region: Region) {
   if (!ref) return null;
   const data = await get(`${region}/split/skills/${ref}.json`);
@@ -220,9 +201,7 @@ export async function fetchSplitAI(ref: string | undefined, region: Region) {
 
 // ── units (playable characters) ───────────────────────────────────────────────
 
-// LIGHT unit list (grid + hover card only): name/rarity/grade/type/role/body/icon/
-// faction + trimmed profile{engName,number}. Heavy fields live in the per-unit
-// bundle. split/units/unit_list.json.
+// Light unit list for the grid and hover card; heavy fields ride in the per-unit bundle.
 export async function fetchUnitList(region: Region) {
   const regions: Region[] = region === 'global' ? ['global'] : [region, 'global'];
   for (const r of regions) {
@@ -232,10 +211,7 @@ export async function fetchUnitList(region: Region) {
   return {};
 }
 
-// A single unit's full bundle: { skills, detail }. Not content-deduped (units don't
-// share skills) — the file is named after its own unit id. `skills` holds BOTH forms'
-// skills (base + skillsCh); `detail` carries the heavy fields kept out of the light
-// list (stats, promotions, lvLimits, linkBonus, full profile, source, …).
+// `skills` holds BOTH forms (base + skillsCh); `detail` carries the heavy fields.
 export async function fetchUnitBundle(id: string | undefined, region: Region) {
   if (!id) return null;
   const data = await get(`${region}/split/units/${id}.json`);
@@ -243,8 +219,7 @@ export async function fetchUnitBundle(id: string | undefined, region: Region) {
   return get(`global/split/units/${id}.json`);
 }
 
-// Flat skin gallery list. split/skins/skin_list.json — one entry per purchasable
-// skin, with unit context + gallery/filter fields. Region-aware with global fallback.
+// One entry per purchasable skin, with unit context + gallery/filter fields.
 export async function fetchSkinList(region: Region) {
   const regions: Region[] = region === 'global' ? ['global'] : [region, 'global'];
   for (const r of regions) {
@@ -336,8 +311,7 @@ export async function fetchMisc(region: Region) {
   return getWithFallback(region, 'misc.json');
 }
 
-// All (unit, skill, buff) entries for ONE buff-type ordinal, fetched when the
-// type is selected. split/misc/buff_<type>.json.
+// All (unit, skill, buff) entries for ONE buff-type ordinal.
 export async function fetchMiscBuff(type: number, region: Region) {
   const data = await get(`${region}/split/misc/buff_${type}.json`);
   if (data || region === 'global') return data;

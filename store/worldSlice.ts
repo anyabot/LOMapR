@@ -4,12 +4,8 @@ import { World } from '@/interfaces/world';
 import { Region } from './regionSlice';
 import { fetchWorld, fetchWorldStage } from '@/lib/fetchData';
 
-// Per-region world cache so switching regions and back doesn't refetch. `value`
-// holds the world CONTAINER (per-world meta + zone titles/imgs, no stages), loaded
-// once by fetchWorldAsync. A world's full stage data is loaded LAZILY by
-// fetchWorldStageAsync(id) — which replaces that world's entry with the full record.
-// `stage` tracks per-world stage-load status so the stage page can show a loader /
-// not refetch.
+// `value` holds the light container (per-world meta + zone titles/imgs, no stages);
+// fetchWorldStageAsync(id) replaces one entry with the full record.
 interface RegionBucket {
   value: { [key: string]: World };
   status: 'idle' | 'loading' | 'failed';
@@ -45,8 +41,7 @@ export const fetchWorldAsync = createAsyncThunk<
   { getPendingMeta: (_base, { getState }) => ({ region: (getState() as RootState).region.region }) }
 );
 
-// Lazily load one world's full stage data (split/world/<id>.json) and merge it
-// into the container entry. Skips if the world already has stages loaded.
+// Merged into the container entry; skips a world whose stages are already loaded.
 export const fetchWorldStageAsync = createAsyncThunk<
   { region: Region; id: string; world: World }, string,
   { state: RootState; pendingMeta: { region: Region } }
@@ -82,8 +77,7 @@ export const worldSlice = createSlice({
       })
       .addCase(fetchWorldAsync.fulfilled, (state, action) => {
         const b = state.byRegion[action.payload.region];
-        // merge so any already-loaded full world records aren't clobbered by the
-        // lighter container entries.
+        // merge so already-loaded full worlds aren't clobbered by container entries
         b.value = { ...action.payload.data, ...b.value };
         b.status = 'idle';
       })

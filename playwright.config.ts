@@ -1,7 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 
-// E2E smoke tests run against the local-data dev server (npm run dev:local),
-// so they need no network access to R2 — data is served from /public/local-data.
+// Runs against the local-data dev server (npm run dev:local), so no R2 access.
 export default defineConfig({
   testDir: './tests/e2e',
   // dev server compiles pages on first hit, so allow generous timeouts
@@ -18,8 +17,7 @@ export default defineConfig({
   },
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-    // mobile-first rule: every route must render without horizontal body scroll
-    // on a phone viewport. Runs the route smoke table only (Pixel 5 = chromium).
+// mobile-first rule: no horizontal body scroll on a phone viewport, route table only
     { name: 'mobile', use: { ...devices['Pixel 5'] }, testMatch: /pages\.spec\.ts/ },
   ],
   webServer: {

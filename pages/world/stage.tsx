@@ -1,7 +1,7 @@
 import { useAppSelector, useAppDispatch } from '@/hooks';
 import { selectWorld, selectWorldStageStatus, fetchWorldAsync, fetchWorldStageAsync } from '@/store/worldSlice';
 import { fetchItemsAsync } from '@/store/itemSlice';
-import { Stage, Zone, STAGE_ICON_SRC } from '@/interfaces/world';
+import { Stage, Zone, STAGE_ICON_SRC, isBattleStage } from '@/interfaces/world';
 import { t } from '@/lib/strings';
 import { useTranslationVersion } from '@/lib/translationVersion';
 import { useEffect, useState } from 'react';
@@ -43,14 +43,12 @@ export default function Home() {
     world[id]? world[id].zones ? world[id].zones[real_zone_index]? setRealZone(world[id].zones[real_zone_index]) : null : null : null
   }, [world, id, real_zone_index]);
   useEffect(() => {
-    // inline the stage lookup so the effect's deps fully cover it (no unstable
-    // findStage reference) — exhaustive-deps clean.
+    // inlined so the effect's deps fully cover the lookup (no unstable findStage ref)
     if (!realZone) return;
     const stages = realZone.subzones ? realZone.subzones.flat() : realZone.stages;
     setRealCurrStage(stages.find(e => e.title.toLowerCase() === currStage.toLowerCase()));
   }, [realZone, currStage]);
-  // when a specific stage is requested (e.g. from an appearance link), switch to
-  // the subzone that contains it.
+  // a specific stage request (e.g. an appearance link) switches to its subzone
   useEffect(() => {
     if (realZone?.subzones && currStage) {
       const idx = realZone.subzones.findIndex(
@@ -132,10 +130,8 @@ export default function Home() {
             <VStack as={Center} spacing={4}>
               {realCurrStage.title ? (
                 (() => {
-                  const isBattle = !!realCurrStage.waves.length;
-                  const icon = isBattle
-                    ? (STAGE_ICON_SRC[realCurrStage.subtype] ?? STAGE_ICON_SRC.Main)
-                    : STAGE_ICON_SRC.Story;
+                  const isBattle = isBattleStage(realCurrStage);
+                  const icon = STAGE_ICON_SRC[realCurrStage.subtype] ?? STAGE_ICON_SRC.Main;
                   const hasName = realCurrStage.name && t(realCurrStage.name) !== realCurrStage.title;
                   const shareLink = (
                     <CopyLink

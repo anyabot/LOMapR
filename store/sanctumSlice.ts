@@ -1,4 +1,4 @@
-import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { createAsyncThunk, createSelector, createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { RootState } from '../store';
 import { Floor } from '@/interfaces/sanctum';
 import { Region } from './regionSlice';
@@ -7,10 +7,8 @@ import { fetchSanctum } from '@/lib/fetchData';
 // value: area key -> floors, each floor being an array of its difficulty variants.
 type SanctumData = { [area: string]: Floor[][] };
 
-// Per-region sanctum data so switching regions and back doesn't refetch. The active
-// area/floor/diff selection is UI nav state and stays shared (flat) — only the data
-// is region-specific. floorData is DERIVED (selectFloorData) from the active region's
-// data + selection, so a region switch needs no recompute action.
+// Only the data is region-specific; the active area/floor/diff selection is shared UI
+// nav state, and the floor itself is derived by selectFloorData.
 interface RegionBucket {
   value: SanctumData;
   status: 'idle' | 'loading' | 'failed';
@@ -31,8 +29,7 @@ const initialState: SanctumState = {
   activeDiff: 0,
 };
 
-// Clamp the active indices to what `value` contains and return the matching Floor
-// (or undefined if the area/floor/diff isn't present). Pure — does not mutate state.
+// Clamps the active indices to what `value` holds; undefined when absent. Pure.
 function clampFloor(value: SanctumData, area: string, floorIdx: number, diffIdx: number): Floor | undefined {
   const floors = value[area];
   if (!floors || floors.length === 0) return undefined;
@@ -97,9 +94,15 @@ const bucketOf = (state: RootState) => state.sanctum.byRegion[state.region.regio
 export const selectSanctum = (state: RootState) => bucketOf(state).value;
 export const selectSanctumStatus = (state: RootState) => bucketOf(state).status;
 // Derived: the active floor for the active region + current selection (clamped).
-export const selectFloorData = (state: RootState): Floor | undefined =>
-  clampFloor(bucketOf(state).value, state.sanctum.activeArea,
-    state.sanctum.activeFloor, state.sanctum.activeDiff);
+export const selectFloorData: (state: RootState) => Floor | undefined = createSelector(
+  [
+    (state: RootState) => bucketOf(state).value,
+    (state: RootState) => state.sanctum.activeArea,
+    (state: RootState) => state.sanctum.activeFloor,
+    (state: RootState) => state.sanctum.activeDiff,
+  ],
+  clampFloor,
+);
 export const selectActiveArea = (state: RootState) => state.sanctum.activeArea;
 export const selectActiveFloor = (state: RootState) => state.sanctum.activeFloor;
 export const selectActiveDiff = (state: RootState) => state.sanctum.activeDiff;

@@ -4,8 +4,7 @@ import { AIGraph } from '@/interfaces/ai';
 import { Region } from './regionSlice';
 import { fetchSplitAI } from '@/lib/fetchData';
 
-// Per-region AI cache so switching regions and back doesn't refetch. Each region
-// keeps its own enemy-id -> graph map (graphs are region-specific).
+// Per-region AI cache; graphs are region-specific.
 interface RegionBucket {
   value: { [enemyId: string]: AIGraph };
   loaded: { [enemyId: string]: boolean };

@@ -1,9 +1,6 @@
 import { Box, Flex, HStack, Image, Text } from '@chakra-ui/react';
 
-// Shared stat-display primitives used by the enemy modal and the unit detail page:
-//   StatSection — a titled group (yellow caption + bordered panel)
-//   StatRow     — one icon + label + value line
-//   StatPair    — two icon+label+value cells side by side (the game's paired layout)
+// Shared stat-display primitives for the enemy modal and the unit detail page.
 
 // One icon + label + value row inside a stat section.
 export function StatRow({ icon, label, value }: { icon?: string; label: React.ReactNode; value: React.ReactNode }) {

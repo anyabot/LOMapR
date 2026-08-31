@@ -14,9 +14,7 @@ import { fetchGachaPools, GachaEntry, GachaPools } from '@/lib/fetchData';
 import { tAny } from '@/lib/strings';
 import { useTranslationVersion } from '@/lib/translationVersion';
 
-// Derive skin-specific formation icon from the gacha entry.
-// unitIcon = "FormationIcon_BR_Gnome_N", key = "Skin_BR_Gnome_1"
-// -> strip trailing "N", append "NS" + numeric index (strip leading zeros)
+// "FormationIcon_BR_Gnome_N" + "Skin_BR_Gnome_1" -> "FormationIcon_BR_Gnome_NS1".
 function skinFormationIcon(entry: GachaEntry & { kind: 'skin' }): string {
   const idx = parseInt(entry.key.split('_').at(-1) ?? '1', 10);
   const base = entry.unitIcon.replace(/_N$/, '');
@@ -221,8 +219,8 @@ function ResultCard({ entry }: { entry: GachaEntry }) {
   return href ? <Box as={NextLink} href={href}>{card}</Box> : card;
 }
 
-// ── rates grid section (hoisted to module level — nested component definitions
-// cause React to treat them as new types each render, unmounting all images) ──
+// Hoisted to module level: a nested component is a new type each render, which
+// would unmount every image.
 function RatesSection({ entries, label, total }: { entries: GachaEntry[]; label: string; total: number }) {
   if (!entries.length) return null;
   return (

@@ -4,9 +4,7 @@ import { EnemyData, EnemyFull } from '@/interfaces/enemy';
 import { Region } from './regionSlice';
 import { fetchEnemyList, fetchEnemy } from '@/lib/fetchData';
 
-// Per-region data bucket. Region switching keeps every region's bucket intact
-// (no wipe), so flipping back to an already-loaded region is instant and never
-// flashes the loader. A region only ever fetches once.
+// Per-region bucket, never wiped on a region switch, so a region fetches only once.
 interface RegionBucket {
   enemy: {[key: string]: EnemyData};
   full: {[key: string]: EnemyFull};
@@ -72,8 +70,7 @@ export const fetchEnemyFullAsync = createAsyncThunk<
       return thunkApi.rejectWithValue({ region, id }) as any;
     }
   },
-  // stamp the active region onto the pending action so its loading flag lands
-  // in the correct region bucket.
+  // stamp the active region so the pending loading flag lands in the right bucket
   { getPendingMeta: (_base, { getState }) => ({ region: (getState() as RootState).region.region }) }
 );
 
@@ -88,9 +85,7 @@ export const EnemySlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      // pending/fulfilled/rejected resolve the region from the thunk payload
-      // (fulfilled/rejected) or the active region (pending — the only region a
-      // fetch is ever kicked for).
+      // pending resolves the region from the active region, the others from the payload
       .addCase(fetchEnemyAsync.fulfilled, (state, action) => {
         const b = state.byRegion[action.payload.region];
         b.enemy = action.payload.data;

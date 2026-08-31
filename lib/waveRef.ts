@@ -1,5 +1,4 @@
-// Enemy-wave reference codecs: compact `~`-joined strings used by /team?w=
-// links (the "Simulate in Team Builder" buttons) and to sanitize the per-slot
+// Compact `~`-joined wave references for /team?w= links and the per-slot
 // localStorage entries. Sources: world stages, Sanctum floors, IW boss stages.
 
 import { WaveRef } from '@/interfaces/team';
@@ -36,8 +35,7 @@ export function decodeWaveRef(s: string): WaveRef | null {
   return null;
 }
 
-// Sanitize a stored (JSON-parsed) wave entry; legacy entries have no `src`
-// and are world refs.
+// Legacy stored entries have no `src` and are world refs.
 export function sanitizeWaveRef(w: unknown): WaveRef | null {
   if (!w || typeof w !== 'object') return null;
   const v = w as Record<string, unknown>;

@@ -34,8 +34,7 @@ export const fetchEnemySkillsAsync = createAsyncThunk<
     }
     try {
       const rec = state.enemy.byRegion[region].enemy[enemyId];
-      // bundle file is named after its owner; ref points at a shared owner, else
-      // the enemy owns its own file (use its id).
+      // skillsRef points at a shared owner; without one the enemy owns its own file
       const ref = rec?.skillsRef ?? enemyId;
       const skills = await fetchSplitSkills(ref, region);
       return { region, enemyId, skills: skills || {} };
@@ -69,8 +68,11 @@ export const skillSlice = createSlice({
 
 const bucketOf = (state: RootState) => state.skill.byRegion[state.region.region];
 
+// Shared empty map so a not-yet-loaded enemy returns a stable reference.
+const EMPTY_SKILLS: { [key: string]: Skill } = {};
+
 export const selectEnemySkills = (state: RootState, enemyId: string) =>
-  bucketOf(state).byEnemy[enemyId] ?? {};
+  bucketOf(state).byEnemy[enemyId] ?? EMPTY_SKILLS;
 export const selectEnemySkillStatus = (state: RootState, enemyId: string) =>
   bucketOf(state).status[enemyId] ?? 'idle';
 

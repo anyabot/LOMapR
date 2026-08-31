@@ -8,11 +8,7 @@ interface Props {
   label?: string;
 }
 
-/**
- * A compact "share link" badge. The whole badge is a single clickable button
- * that copies the absolute URL (origin + path) to the clipboard, with the icon
- * on the right and a brief checkmark confirmation.
- */
+// The whole badge is one button; copies the absolute URL and confirms briefly.
 export default function CopyLink({ path, label = 'Share link' }: Props) {
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const { onCopy, hasCopied } = useClipboard(origin + path);

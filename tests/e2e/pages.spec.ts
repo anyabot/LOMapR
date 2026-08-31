@@ -1,11 +1,7 @@
 import { test, expect, Page } from '@playwright/test';
 
-// Smoke tests: every page renders its title and (where static) its main heading.
-// Data-driven pages render their heading only after the local-data fetch, so a
-// visible heading also proves the data pipeline (public/local-data) is serving.
-//
-// Detail pages are visited without query params and must show their no-selection
-// fallback rather than crash; deeper per-page functionality gets its own spec later.
+// Smoke tests: every page renders its title and, where static, its main heading; a
+// data-driven heading also proves public/local-data is being served.
 
 type PageCase = {
   path: string;
@@ -45,8 +41,8 @@ for (const c of CASES) {
   test(`page ${c.path} renders`, async ({ page }) => {
     const errors = failOnPageError(page);
 
-    // a 404 on global data or any 5xx means content is silently missing —
-    // fail loudly instead. (kr/ misses are legitimate: KR→global fallback.)
+    // a global-data 404 or any 5xx means content is silently missing; kr/ misses are
+    // legitimate (KR->global fallback)
     const badResponses: string[] = [];
     page.on('response', (r) => {
       const failed = r.status() >= 500
@@ -67,9 +63,7 @@ for (const c of CASES) {
       await expect(page.getByText(c.text).first()).toBeVisible({ timeout: 15_000 });
     }
 
-    // mobile-first rule: the page body must never scroll horizontally — wide
-    // content belongs in its own overflowX="auto" wrapper. Runs on both the
-    // desktop and the mobile (Pixel 5) project.
+    // mobile-first rule: wide content belongs in its own overflowX="auto" wrapper
     const overflow = await page.evaluate(() => {
       const el = document.documentElement;
       return el.scrollWidth - el.clientWidth;

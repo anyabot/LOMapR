@@ -20,9 +20,8 @@ import { BUFF_TYPE_NAMES, TRIGGER_LABELS, buffValue } from '@/components/buffLis
 import { buildSimInputs, buildEnemySimInputs, isEnemyWaveCell } from '@/lib/simInputs';
 import { simulateRound1, NoteKind, AppliedBuff, SimUnitResult } from '@/lib/simulate';
 
-// Round-1 simulation output: in-battle stats (both sides when an enemy wave is
-// selected), applied buffs by type, action order, and the review list of
-// effects not auto-applied.
+// Round-1 simulation output: in-battle stats, applied buffs, action order, and the
+// review list of effects that were not auto-applied.
 
 const STAT_ROWS: [StatKey, string, string][] = [
   ['HP', 'HP', ''], ['ATK', 'ATK', ''], ['DEF', 'DEF', ''],
@@ -105,9 +104,8 @@ function durationLabel(a: AppliedBuff): string {
 function AppliedGroupRow({ group }: { group: AppliedGroup }) {
   const representative = group.rows[0].buff;
   const total = Math.round(group.rows.reduce((sum, a) => sum + a.buff.val, 0) * 10000) / 10000;
-  // `tid` values are effect-type IDs (for example, Debuff Immunity against AP
-  // or EVA), not numeric magnitudes. Adding them can resolve to a completely
-  // unrelated effect name, so categorical groups intentionally have no total.
+  // `tid` values are effect-type IDs, not magnitudes: summing them would name an
+  // unrelated effect, so categorical groups have no total.
   const totalStr = representative.fmt === 'tid'
     ? ''
     : buffValue({ ...representative, val: total, vals: undefined }).str;
@@ -167,9 +165,7 @@ export default function SimulatePanel({ team, enemyWave }: {
     if (hasWave) { dispatch(fetchEnemyAsync()); dispatch(fetchImageAsync()); }
   }, [hasWave, dispatch]);
 
-  // Build sim inputs from the configured team; empty until every needed bundle
-  // (unit detail + equipped-item records) has arrived.
-  // state identity changes on every store update; that's fine — memo is cheap.
+  // Empty until every needed bundle (unit detail + equipped-item records) has arrived.
   const { inputs, missing, unavailable } = useMemo(() => buildSimInputs(team, state), [team, state]);
   const enemyBuild = useMemo(
     () => (hasWave && enemyWave ? buildEnemySimInputs(enemyWave, state) : null),

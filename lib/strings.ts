@@ -1,23 +1,5 @@
-// Localization-string resolver.
-//
-// Strings are split into chunks loaded independently:
-//   common   unit/enemy/faction names — loaded eagerly on app start
-//   skill    skill names + descriptions — lazy, loaded when skill tab opens
-//   buff     buff names + descriptions — lazy, loaded when skill tab opens
-//   stage    stage/chapter/mission names — lazy, loaded when world pages open
-//   item     equip/consumable names — lazy, loaded when item UI opens
-//   shop     skin/pack names — lazy, loaded on skins page
-//
-// Overlay layers (all chunks):
-//   official    game text from Table_Localization_en/ko — always active
-//   mtl         Global MTL: machine-translated global skill text
-//   krMtl       Missing KR MTL: KR-only skills not in global
-//   community   Community fan-translation overlay
-//
-// Resolution rule: community > mtl > krMtl > official (global region)
-//                  community > krMtl > mtl > official (kr region)
-// Official: try active region first, fall back to other region.
-// KR English: only returned when KR Korean matches global Korean.
+// Localization-string resolver. Chunks load independently; overlay layers and the
+// resolution order are recorded in .ai/knowledge/project.md.
 
 export type Lang = 'en' | 'ko';
 export type Region = 'global' | 'kr';
@@ -63,8 +45,7 @@ export function setMtlData(table: StringTable)       { if (table && Object.keys(
 export function setKrMtlData(table: StringTable)     { if (table && Object.keys(table).length) krMtl = table; }
 export function setCommunityData(table: StringTable) { if (table && Object.keys(table).length) community = table; }
 
-// Legacy setters used by _app.tsx during migration — maps a full flat table
-// (old strings.json shape) to the common chunk so existing loaders still work.
+// Maps a full flat table (old strings.json shape) onto the common chunk.
 export function setStringsData(region: Region, table: StringTable) {
   setChunkData(region, 'common', table);
 }
@@ -78,11 +59,7 @@ function officialLookup(region: Region, id: string): { en?: string; ko?: string 
   return undefined;
 }
 
-// Resolve one localization id.
-//
-// Rule: community > (krMtl > mtl when KR, mtl > krMtl when global) > official.
-// Official: try active region first; if not found, try the other region.
-// KR English: only used when KR Korean matches global Korean (same content).
+// Resolution order: .ai/knowledge/project.md
 export function t(value: string | undefined | null, lang: Lang = 'en'): string {
   if (!value) return '';
 
@@ -122,8 +99,7 @@ export function t(value: string | undefined | null, lang: Lang = 'en'): string {
   return value;
 }
 
-// Kept as aliases so import sites compile without mass-renaming.
-// Both collapse to t() — the single resolution rule covers all cases.
+// Aliases kept so import sites compile without mass-renaming; both collapse to t().
 export const tKr  = t;
 export const tAny = t;
 

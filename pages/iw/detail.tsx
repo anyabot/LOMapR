@@ -128,8 +128,7 @@ export default function Home() {
       </>
     );
   } else if (!(id in iw.bosses)) {
-    // e.g. switched region to one that doesn't have this boss — don't 404, offer
-    // a way back to the list for the active region.
+    // e.g. a region switch to one without this boss: offer a way back, don't 404
     return (
       <>
         <Head><title>Infinite War</title></Head>

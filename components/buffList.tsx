@@ -1,12 +1,3 @@
-/**
- * BuffList — shared component for rendering SkillBuff arrays.
- * Extracted from skillTab.tsx so it can be reused in equipModal and elsewhere.
- *
- * Usage:
- *   import BuffList from '@/components/buffList';
- *   <BuffList buffs={lvl.buffs} />
- */
-
 import { Box, Flex, HStack, Image, Text, VStack } from "@chakra-ui/react";
 import React from "react";
 import { SkillBuff } from "@/interfaces/skill";
@@ -56,8 +47,7 @@ const APPLY_COND_LABELS: Record<number, string> = {
   19: "If self has [buff] (joint)", 20: "If self has ≥ {0} [buff]",
   21: "If self HP in range", 22: "If self missing [buff]",
   23: "If target has ≥ {0} stacks of [buff]", 24: "If self missing [buff] (joint)",
-  // CHECK_COUNT_* compare a counted group size against {0} (e.g. 27 = total units
-  // on both sides ≤ {0}).
+  // CHECK_COUNT_* compare a counted group size against {0}.
   25: "If enemies = {0}", 26: "If allies = {0}",
   27: "If total units = {0}", 28: "On round {0} and after",
   29: "On round {0} and before", 30: "If [char] not in battle",
@@ -158,9 +148,7 @@ function attrStyle(attr: number) {
   };
 }
 
-// Buff strings are "Name: Description". Take the name = everything up to the first
-// separator colon, ignoring colons inside <...> so a bracketed name that itself has a
-// colon ("<True Ancestor's Authority: Fate Manipulation> : ...") isn't truncated.
+// Name = everything up to the first colon that is not inside <...>.
 function buffName(s: string): string {
   let depth = 0;
   for (let i = 0; i < s.length; i++) {
@@ -181,20 +169,16 @@ function resolveCondVal(v: string, nam: string): string {
     : v ? buffName(tr(nam) || tr(`BuffName_${v}`) || v.replace(/^Effect_[^_]+_/, "").replace(/^Char_[^_]+_/, "").replace(/_/g, " ")) : "";
 }
 
-// one apply-condition's data (a buff has a primary + an optional secondary).
-// filterVals: fallback ordinals for [class]/[role]/[body] conditions that encode
-// the type in filterClass/filterRole/filterBody rather than applyCondVals.
+// filterVals: fallback ordinals for conditions that encode the type in filterClass/Role/Body.
 interface CondData { cond: number; vals: string[]; names: string[]; count: number; filterVals?: number[]; }
 
-// Clamp any applyCond value beyond the known enum max (68) to 63 (unconditional).
-// KR has extra entries past __MAX__ that global doesn't; they all mean "no condition".
+// KR has applyCond entries past the enum max; they all mean "no condition".
 const BETAC_MAX = 68;
 const normAc = (ac: number) => ac > BETAC_MAX ? 63 : ac;
 
 const primaryCond = (b: SkillBuff): CondData => {
   const ac = normAc(b.applyCond);
-  // conds 38/39 (allies) and 45/46 (enemies) by class/role encode the type in
-  // filterClass/filterRole when applyCondVals is empty.
+  // 38/39 (allies) and 45/46 (enemies) fall back to filterClass/filterRole.
   const filterVals =
     (ac === 38 || ac === 45) && b.applyCondVals.length === 0 ? (b.filterClass ?? []) :
     (ac === 39 || ac === 46) && b.applyCondVals.length === 0 ? (b.filterRole  ?? []) :
@@ -233,8 +217,7 @@ function resolveApplyCondParts(c: CondData): { before: string; name: string; aft
 
   let nameVal = "";
   if (nameToken === "[buff type]") {
-    // a single condition can list several buff-type ordinals (e.g. EVA / Rooted);
-    // map them all, not just the first.
+    // one condition can list several buff-type ordinals (e.g. EVA / Rooted)
     const names = c.vals.map((val) => {
       const numV = parseInt(val, 10);
       return !isNaN(numV) ? (BUFF_TYPE_NAMES[numV] ?? String(numV)) : val;
@@ -242,8 +225,7 @@ function resolveApplyCondParts(c: CondData): { before: string; name: string; aft
     nameVal = uniq(names).join(" / ");
   } else if (nameToken === "[buff]" || nameToken === "[char]") {
     if (!v) return null;
-    // a single condition can list several buffs/chars (e.g. "target is A / B / C");
-    // resolve every entry and dedup by display name, not just the first.
+    // one condition can list several buffs/chars; dedup by display name
     const names = c.vals.map((val, i) => {
       const nm2 = c.names[i] ?? "";
       const fromDesc = nameToken === "[buff]"
@@ -254,8 +236,7 @@ function resolveApplyCondParts(c: CondData): { before: string; name: string; aft
         || val.replace(/^Effect_[^_]+_/, "").replace(/^Char_[^_]+_/, "").replace(/_/g, " ");
       return buffName(resolved);
     });
-    // Collapse runs that share the same base name (name minus a trailing number,
-    // e.g. "Bonfire Kit 1"…"Bonfire Kit 11" → "Bonfire Kit (Lv 1–11)").
+    // "Bonfire Kit 1".."Bonfire Kit 11" collapses to "Bonfire Kit (Lv 1-11)"
     const collapsed: string[] = [];
     let i = 0;
     while (i < names.length) {
@@ -277,9 +258,7 @@ function resolveApplyCondParts(c: CondData): { before: string; name: string; aft
     }
     nameVal = uniq(collapsed).join(" / ");
   } else if (nameToken && TYPE_MAP[nameToken]) {
-    // [class]/[role]/[body]: the value(s) are type ordinals (e.g. 0=Light).
-    // When applyCondVals is empty the type may come from filterClass/filterRole
-    // (passed in as filterVals by primaryCond).
+    // values are type ordinals (0=Light); filterVals covers an empty applyCondVals
     const srcVals = c.vals.length > 0 ? c.vals
       : (c.filterVals ?? []).map(String);
     if (srcVals.length === 0) return null;
@@ -294,16 +273,13 @@ function resolveApplyCondParts(c: CondData): { before: string; name: string; aft
   let val0 = "";
   if (has0) {
     if (c.count > 0) {
-      // stack/count conditions (applyCond 9/20/23/31) keep their {0} threshold in
-      // the dedicated count field, not in vals.
+      // conds 9/20/23/31 keep their {0} threshold in `count`, not in vals
       val0 = String(c.count);
     } else if (nameToken && v && !v.match(/^\d/)) {
       // a token condition whose value is a key, with no count → drop the {0}.
       val0 = "";
     } else {
-      // a no-token {0} condition (e.g. "If ≥ {0} allies alive") can list several
-      // thresholds — one per skill level. They're contiguous, so collapse to a
-      // min–max range (single value when min == max).
+      // contiguous per-level thresholds collapse to a min-max range
       const nums = c.vals.map((x) => parseFloat(x)).filter((n) => !isNaN(n));
       if (nums.length === 0) {
         val0 = v || "?";
@@ -344,10 +320,8 @@ const Pill = ({ bg, color, children }: { bg: string; color: string; children: Re
   </Box>
 );
 
-// Types whose value is a ratio (×100 → %) regardless of the stored fmt field.
-// Mirrors _RATIO_TYPES in build/buffs.py — keep in sync.
-// Note: 107/108 (Range skill 1/2) are in the python _RATIO_TYPES but store flat integers, excluded here.
-// Note: 141/142/143/144/145/146/147 have custom display logic below, excluded from generic ratio handling.
+// Value is a ratio regardless of `fmt`. Mirrors _RATIO_TYPES in build/buffs.py;
+// divergences are recorded in .ai/knowledge/schemas.md.
 const RATIO_TYPES = new Set([
   1, 3, 5, 7, 9, 11, 13, 15, 17, 19,
   24, 29, 30, 31, 32,
@@ -382,8 +356,7 @@ export function buffValue(buff: SkillBuff): { str: string; color: string } {
   // Use max-level value when per-level values are stored non-linearly.
   const rawV = buff.vals ? buff.vals[buff.vals.length - 1] : buff.val;
   const rawVMin = buff.vals ? buff.vals[0] : rawV;
-  // DEBUFF_RATEUP stores a positive magnitude, but semantically lowers Status
-  // Resistance. DEBUFF_PERDOWN (91) is the opposite direction and stays positive.
+  // DEBUFF_RATEUP stores a positive magnitude but lowers Status Resistance.
   const direction = t === 90 ? -1 : 1;
   const v = rawV * direction;
   const vMin = rawVMin * direction;
@@ -420,9 +393,7 @@ export function buffValue(buff: SkillBuff): { str: string; color: string } {
   return { str: valStr, color };
 }
 
-// One full buff effect line: icon + name + value, plus description and the
-// Resolve display name(s) for remove-type buff targets from applyCondVals.
-// Returns a deduplicated "/" list, or "" when no Effect_ targets are present.
+// Display names for remove-type buff targets, deduplicated and "/"-joined.
 const REMOVE_TYPES = new Set([88, 89, 97, 99, 100]);
 function resolveRemoveTargets(buff: SkillBuff): string {
   if (!REMOVE_TYPES.has(buff.type)) return "";
@@ -438,12 +409,11 @@ function resolveRemoveTargets(buff: SkillBuff): string {
   return uniq(names).join(" / ");
 }
 
-// duration/stack/note column. Used by both the normal groups and the 65 tier table.
+// One buff effect line: icon, name, value, description and duration/stack notes.
 export function BuffEffectRow({ buff, topBorder = false, extraCondNode }: { buff: SkillBuff; topBorder?: boolean; extraCondNode?: React.ReactNode }) {
   if (!buff.icon && !BUFF_TYPE_NAMES[buff.type]) return null;
   const { str: valStr, color: valColor } = buffValue(buff);
-  // Type 90 descriptions already say "reduced/decreased", so interpolate the
-  // unsigned magnitude even though the effect row correctly displays a minus.
+  // Type 90 descriptions already say "reduced", so interpolate the magnitude.
   const descValStr = buff.type === 90 ? valStr.replace(/-/g, "") : valStr;
   const descFill = descValStr.replace(/^[+×<]\s?/, "").replace(/%$/, "");
   const as = attrStyle(buff.attr);
@@ -516,9 +486,7 @@ export function BuffEffectRow({ buff, topBorder = false, extraCondNode }: { buff
   );
 }
 
-// The trigger / target / apply-condition / filter pill row for a buff. `skipCond65`
-// drops the 65 ("count of <char set>") pill, used inside the 65 tier table where the
-// count is already the row label. Returns null if there are no tags to show.
+// `skipCond65` drops the 65 pill inside the 65 tier table, where the row label has it.
 export function BuffCondTags({ rep, skipCond65 = false }: { rep: SkillBuff; skipCond65?: boolean }) {
   const tr  = (id: string) => { const r = t(id); return r !== id ? r : ""; };
   const trg = (id: string) => { const r = tr(id); return r ? buffName(r) : ""; };
@@ -591,12 +559,9 @@ function BuffGroup({ group, groupIdx }: { group: SkillBuff[]; groupIdx: number }
   const attrBorder  = uniformAttr ? attrStyle(rep.attr).border : "#4a5568";
   const tr  = (id: string) => { const r = t(id); return r !== id ? r : ""; };
   const trg = (id: string) => { const r = tr(id); return r ? buffName(r) : ""; };
-  // global sometimes stores "0" for an unnamed buff instead of an empty string;
-  // treat both as "no name" so the header shows "???" rather than the attr label.
+  // global stores "0" for an unnamed buff; treat it as empty
   const rawName = trg(rep.name);
-  // When the Nam-derived name is just the parent group prefix (e.g. "Élan Vital") but
-  // the desc has a more specific "SubEffectName : value" format, prefer the desc name.
-  // Only applies when the group has one buff and the desc name differs from rawName.
+  // Prefer the desc name when Nam only gives the parent group prefix.
   const rawDesc = rep.desc ? t(rep.desc) : "";
   const descName = rawDesc && rawDesc !== rep.desc && rawDesc.includes(" : ") && group.length === 1
     ? buffName(rawDesc) : "";
@@ -684,16 +649,12 @@ function BuffGroup({ group, groupIdx }: { group: SkillBuff[]; groupIdx: number }
 }
 
 // ── shared tiered-buff table (used by cond64 and cond65) ─────────────────────
-// Both conditions cluster buff groups into rows with a labeled left-gutter pill.
-// TieredBuffGroup renders the common chrome; callers supply header content and
-// per-row pill nodes. Each row holds one or more SkillBuff[] groups stacked vertically.
+// Both cluster buff groups into rows with a labeled left-gutter pill.
 
 const COND64 = 64;
 const COND65 = 65;
 
-// Shared context: conditions/trigger/target common to every buff in a tier table,
-// hoisted into the header so they aren't repeated per-row. skipCond is the cond
-// ordinal whose pill is already represented by the row label (64 or 65).
+// Conditions common to every buff in a tier table, hoisted into the header.
 interface TieredCtx {
   rep: SkillBuff | null;
   sharedTrigger: boolean;
@@ -805,11 +766,10 @@ function TieredBuffGroup({
   );
 }
 
-// a clickable unit reference (hover card + link to the detail page), inline so it
-// sits inside the requirement sentence without breaking onto its own line.
 const shortKey = (k: string) =>
   k.replace(/^Char_[A-Za-z0-9]+_/, '').replace(/_(N|EW\d*|TU\d+|CH)$/, '').replace(/_/g, ' ');
 
+// Inline so the reference sits inside the requirement sentence, not on its own line.
 function CharSetName({ vals }: { vals: string[] }) {
   return (
     <>
@@ -887,9 +847,7 @@ function Cond64Group({
   const rawName = trg(rep.name);
   const groupName = rawName && rawName !== "0" ? rawName : "";
 
-  // shared context is derived from the child groups — it picks up the common
-  // applyCond (e.g. cond22 "if self missing [buff]") and renders it once in the
-  // header via ctx.rep / BuffCondTags. Don't render it separately from the marker.
+  // The shared context already renders the common applyCond via ctx.rep.
   const allBuffs = slots.flatMap((si) => tiers.get(si)!.flat());
   const ctx = buildTieredCtx(allBuffs, COND64);
 
@@ -944,9 +902,7 @@ export default function BuffList({ buffs }: BuffListProps) {
 
   const setKey = (vals: string[]) => vals.join("|");
 
-  // Split groups: cond64 marker groups anchor a chance table whose subsequent
-  // groups are claimed by effectKey; cond65 groups cluster into tier tables by
-  // char set; everything else is a normal block.
+  // cond64 markers claim later groups by effectKey; cond65 groups cluster by char set.
   type Item =
     | { kind: "group";  group: SkillBuff[]; idx: number }
     | { kind: "cond64"; marker: SkillBuff[]; tiers: Map<number, SkillBuff[][]> }

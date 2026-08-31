@@ -1,6 +1,5 @@
-// DEV-ONLY: copy data/ -> public/local-data/ so `npm run dev:local` can serve
-// on-disk JSON as static files (the client reads /local-data/<key>, mirroring the
-// R2 key layout). public/local-data is gitignored and never deployed.
+// DEV-ONLY: copy data/ -> public/local-data/ so `npm run dev:local` serves on-disk
+// JSON as static files, mirroring the remote key layout. Gitignored, never deployed.
 
 const fs = require('fs');
 const path = require('path');

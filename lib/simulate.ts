@@ -1,14 +1,3 @@
-// Round-1 battle simulation: fixpoint application of battle/round-start passive
-// and equipment effects, in-battle stat recompute (flat buffs after link bonus,
-// before percentage buffs), and the first-action AP timeline (combat starts at
-// the earliest cycle where any unit reaches 10 AP, cap 20). Effects not
-// auto-applied are reported via `notes`.
-//
-// Optionally simulates the ENEMY side too (a stage wave): all conditions and
-// targets are side-relative ("allies" = the caster's side), enemy-side targets
-// (ENEMY_GRID / ENEMY_ALL) and enemy-reading conditions become evaluable, and
-// the AP timeline pools both sides.
-
 import { FullUnitData } from '@/interfaces/unit';
 import { EnemyData } from '@/interfaces/enemy';
 import { Skill, SkillBuff } from '@/interfaces/skill';
@@ -148,8 +137,7 @@ interface UnitState {
 
 type Sides = [Map<number, UnitState>, Map<number, UnitState>];
 
-// depth = distance column: player front = right column (tile%3 == 2); the enemy
-// board faces the player, so its front line is the mirrored column (tile%3 == 0).
+// The enemy board faces the player, so its front column is mirrored.
 const depthOf = (u: UnitState) => (u.side === 0 ? u.tile % 3 : 2 - (u.tile % 3));
 
 // mirror a tile across the column axis (cross-board relative AoE anchor)
@@ -178,17 +166,14 @@ const BODY_ORD: Record<string, number> = { Bioroid: 0, AGS: 1 };
 const pairType = (t: number): number =>
   (t < 20 || t === 104 || t === 105) ? (t % 2 === 0 ? t + 1 : t - 1) : t;
 
-// Does an applied buff match a condition value (Effect_ key or buff-type ordinal),
-// under an attr constraint (0 buff / 1 debuff / 3 etc / 6 any)?
+// `val` is an Effect_ key or a buff-type ordinal; condAttr 0 buff / 1 debuff / 6 any.
 function buffMatches(a: AppliedBuff, val: string, name: string, condAttr: number): boolean {
   if (condAttr !== 6 && condAttr >= 0 && a.buff.attr !== condAttr) return false;
   const num = parseInt(val, 10);
   if (!isNaN(num) && String(num) === val) {
     return a.buff.type === num || a.buff.type === pairType(num);
   }
-  // A concrete effect key decides on its own: display names collide across
-  // levels of a buff family (e.g. Horn of Faucre Lv1..11 all share one name),
-  // so the name is only consulted when no key is given.
+  // Names collide across levels of a buff family, so a key always wins.
   if (val) {
     return !!a.buff.effectKey &&
       (a.buff.effectKey === val || a.buff.effectKey.startsWith(val + '_'));
@@ -215,10 +200,7 @@ interface CondSpec {
 
 type CondVerdict = true | false | { note: NoteKind; detail: string };
 
-// Evaluate one apply-condition for caster `self`, optional `target`. "Allies"
-// is always the caster's own side; "enemies" the opposing side (may be empty
-// when no wave is simulated — enemy-reading conds then return a note).
-// Returns true/false, or a note object when it cannot be evaluated.
+// "Allies" is always the caster's own side; the opposing side is empty with no wave.
 function evalCond(
   c: CondSpec, self: UnitState, target: UnitState | null,
   sides: Sides, round: number,
@@ -400,8 +382,7 @@ function evalTrigger(b: SkillBuff, self: UnitState, sides: Sides): CondVerdict {
 
 // ── in-battle stat recompute ─────────────────────────────────────────────────
 
-// flat buffs land after the link multiplier (inside stats.total) and before
-// percentage buffs; percent-type stats are additive in percentage points
+// Flat buffs land after the link multiplier (already in `total`), before percent ones.
 function recomputeBattle(u: UnitState): {
   battle: StatMap; apSpd: number; apAdd: number; roundAp: number; apSet: number | null;
 } {
@@ -430,12 +411,9 @@ function recomputeBattle(u: UnitState): {
     const f = flat[k] ?? 0, p = pct[k] ?? 0;
     if (MULT_KEYS.has(k)) {
       const v = (t0[k] + f) * (1 + p);
-      // The UI shows SPD to two decimals, but AP accumulation uses the
-      // underlying value. Rounding here first can shift displayed AP by 0.01.
-      if (k === 'SPD') apSpd = v;
+      if (k === 'SPD') apSpd = v;   // AP accumulates on the untruncated value
       battle[k] = k === 'SPD' ? trunc2(v) : Math.floor(v);
     } else {
-      // percent stats: pct-type buffs add val*100 percentage points
       battle[k] = Math.round((t0[k] + f + p * 100) * 10) / 10;
     }
   }
@@ -506,8 +484,7 @@ export function simulateRound1(
     side: Side, tile: number, unitId: string,
     passives: SimSkillSource[], equips: SimEquipSource[],
   ) => {
-    // cond-64 random groups: the marker's applyCondVals claim child effect keys —
-    // exclude those children from normal candidacy and note the whole group.
+    // a cond-64 marker claims its child effect keys in applyCondVals
     const claimed = new Set<string>();
     for (const src of passives)
       for (const b of src.skill.buffs)
@@ -552,8 +529,7 @@ export function simulateRound1(
       const opp = sides[(1 - cand.side) as Side];
       const oppActive = opp.size > 0;
 
-      // single-enemy target: the victim of an attack is not deterministic
-      // pre-combat, wave or not
+      // the victim of a single-target attack is not deterministic pre-combat
       if (b.targetType === 3) {
         noteOnce(cand, 'enemy-target', oppActive
           ? 'target 3: single enemy — victim not deterministic'
@@ -609,7 +585,6 @@ export function simulateRound1(
           targets = [...Array.from(own.values()), ...Array.from(opp.values())];
           break;
         case 4: {
-          // enemy grid: fixed cells land on the opposing board directly;
           // relative grids anchor on the caster tile mirrored across columns
           const anchor = cand.center ? mirrorTile(cand.caster) : 0;
           targets = mapAreaToTiles(cand.area, cand.center, anchor)
@@ -674,11 +649,7 @@ export function simulateRound1(
   }
 
   // ── final stats + AP / action timeline (both sides pooled) ──
-  // The first combat round starts as soon as ANY unit reaches 10 AP. Slower
-  // units do not keep accumulating pre-combat cycles before that round starts;
-  // they remain below 10 and gain SPD (+ recurring round AP) in later rounds.
-  // Every unit receives at least one SPD cycle, even when effects already give
-  // it 10+ AP, and AP is capped at 20 at every displayed timeline point.
+  // Round 1 begins when any unit first reaches 10 AP; every unit gets >= 1 cycle.
   const apMeta = new Map<number, {
     battle: StatMap; startAp: number; roundAp: number;
     spd: number; cycles: number;

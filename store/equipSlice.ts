@@ -4,9 +4,8 @@ import { EquipData, EquipFull } from '@/interfaces/equip';
 import { Region } from './regionSlice';
 import { fetchEquipList, fetchEquip } from '@/lib/fetchData';
 
-// Per-region bucket: the light equip LIST + lazily-loaded FULL family records
-// (split/equip/<id>.json), mirroring enemySlice. `active` is the family id whose
-// modal is open (a global active-equip modal lives in the layout).
+// Per-region light equip LIST + lazily-loaded FULL family records, mirroring
+// enemySlice. `active` is the family id whose (layout-level) modal is open.
 interface RegionBucket {
   equip: { [id: string]: EquipData };
   full: { [id: string]: EquipFull };

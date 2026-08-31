@@ -8,8 +8,7 @@ import { selectIWStatus } from '@/store/IWSlice';
 import { selectUnitStatus } from '@/store/unitSlice';
 import { selectEquipStatus } from '@/store/equipSlice';
 
-// Which data slices each route depends on. The overlay shows while any of a
-// route's slices is still loading. Routes not listed never block.
+// Slices each route depends on; routes not listed never block.
 type Dep = 'enemy' | 'world' | 'sanctum' | 'iw' | 'unit' | 'equip';
 const ROUTE_DEPS: { test: (path: string) => boolean; deps: Dep[] }[] = [
   { test: (p) => p === '/enemies', deps: ['enemy'] },
@@ -20,12 +19,7 @@ const ROUTE_DEPS: { test: (path: string) => boolean; deps: Dep[] }[] = [
   { test: (p) => p === '/' || p.startsWith('/world'), deps: ['world'] },
 ];
 
-/**
- * App-wide loading overlay rendered once in the layout. It watches the data
- * slices the current route needs and shows a centered spinner over the page
- * until they finish loading — so individual pages don't each implement their
- * own loading state.
- */
+// App-wide overlay rendered once in the layout, so pages need no loading state.
 export default function GlobalLoader() {
   const router = useRouter();
   const status = {

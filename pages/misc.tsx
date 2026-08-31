@@ -1,11 +1,3 @@
-/**
- * /misc — Miscellaneous Categorization.
- * Cross-unit lookups built by tools/transform/build/misc.py:
- *   1. Buff Lookup — REVERSE index: pick a buff/debuff type, see every unit that
- *      applies it, with values, targets and activation conditions.
- *   2. AoE — every unit skill hitting >= 2 cells, with its damage grid.
- *   3. Damage Types — units by active-skill damage type (physical/fire/ice/electric).
- */
 import { useEffect, useMemo, useState } from 'react';
 import Head from 'next/head';
 import {
@@ -87,8 +79,7 @@ const ATTR_FILTERS = [
   { label: 'Other', attrs: [2, 3] },
 ] as const;
 
-// TARGET_TYPE groups (see interfaces/skill.ts): self / ally-side / enemy-side /
-// both-sides (ALL_UNIT, ALL_GRID, SYSTEM).
+// TARGET_TYPE groups (see interfaces/skill.ts).
 const TARGET_FILTERS = [
   { label: 'Self', types: [0] },
   { label: 'Allies', types: [1, 2, 8] },
@@ -124,8 +115,7 @@ const buffDirectionAtLevel = (buff: SkillBuff, level: number): ValueDirection =>
   return value > 0 ? 1 : value < 0 ? -1 : 0;
 };
 
-// The reverse lookup is not tied to the unit page's skill-level selector, so
-// present the full natural skill range instead of silently showing level 1.
+// Not tied to the unit page's level selector, so show the full natural range.
 const buffWithLevelRange = (buff: SkillBuff): SkillBuff => {
   const lv1 = buffValueAtLevel(buff, 1);
   const lv10 = buffValueAtLevel(buff, 10);
@@ -149,8 +139,7 @@ function BuffLookup({ unitById }: { unitById: Record<string, UnitData> }) {
   const [trigger, setTrigger] = useState('any');            // 'any' | trigger ordinal
   const [sortBy, setSortBy] = useState<'unit' | 'value'>('unit');
 
-  // Group ordinals by display name. When that name has both positive and negative
-  // level-10 values, expose separate +/- chips; one-sided effects remain one chip.
+  // A name carrying both positive and negative level-10 values gets separate +/- chips.
   const groups = useMemo(() => {
     const byName = new Map<string, { ord: number; meta: MiscBuffTypeMeta }[]>();
     for (const [k, meta] of Object.entries(index?.buffTypes ?? {})) {
@@ -251,8 +240,7 @@ function BuffLookup({ unitById }: { unitById: Record<string, UnitData> }) {
 
   const chipFilter = search && !activeGroup ? groups.filter((g) => g.name.toLowerCase().includes(search.toLowerCase())) : groups;
 
-  // filter-aware chip count: distinct units whose entries pass the attr + target
-  // filters (from the compact index signatures — no per-type fetch needed).
+  // counted from the compact index signatures, so no per-type fetch is needed
   const groupUnitCount = (g: { sig: BuffSig[] }) => {
     const set = new Set<number>();
     for (const [u, a, tt] of g.sig) if (attrPass(a) && targetPass(tt)) set.add(u);

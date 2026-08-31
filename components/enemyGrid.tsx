@@ -22,8 +22,7 @@ export default function EnemyGrid({wave}: Props) {
   }, [dispatch]);
   const details = useAppSelector(selectEnemy);
 
-  // fixed cell + image sizes so cells never reflow when an image loads late or a
-  // name is 1 vs 2 lines.
+  // fixed sizes so cells never reflow when an image loads late or a name wraps
   const cellW = ["84px", "104px", "128px", "140px", "150px"]
   const cellH = ["112px", "132px", "156px", "168px", "178px"]
   const imgSize = ["52px", "64px", "80px"]

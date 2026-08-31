@@ -15,7 +15,7 @@ import { ArrowBackIcon } from '@chakra-ui/icons';
 import { useAppSelector, useAppDispatch } from '@/hooks';
 import {
   selectUnitFull, selectUnits, selectUnitStatus, fetchUnitsAsync,
-  selectUnitSkills, selectUnitSkillStatus, fetchUnitBundleAsync,
+  selectUnitSkills, selectUnitSkillStatus, fetchUnitBundleAsync, EMPTY_SKILLS,
 } from '@/store/unitSlice';
 import { selectWorld, fetchWorldAsync } from '@/store/worldSlice';
 import { selectItems, fetchItemsAsync, ItemInfo } from '@/store/itemSlice';
@@ -35,8 +35,7 @@ import { StatRow, StatPair, StatSection } from '@/components/statBlock';
 import { rankTag, rankColor, roleRankIcon, typeIcon, roleIcon, bodyIcon, equipIcon, factionIcon, unitDisplayName } from '@/lib/rank';
 import { NPCS, NpcEntry } from '@/lib/npcs';
 
-// Units cap at level 100 before the lv-limit unlocks; HP/ATK/DEF grow linearly
-// from stat[grade].X[0] (lv1) to X[1] (lv100). The other stats are flat per grade.
+// HP/ATK/DEF grow linearly from stat[grade].X[0] (lv1) to X[1]; the rest are flat.
 const LV_CAP = 100;
 
 // Solid rank chip in the official rank color (dark text for readability).
@@ -51,12 +50,7 @@ function RankTag({ grade, prefix = '', size }: { grade: number; prefix?: string;
 // Material requirements reuse the reward chip UI: a UnitReq is just {item, count}.
 const asRewards = (req: UnitReq[]): RewardEntry[] => req.map((r) => ({ item: r.id, count: r.count }));
 
-// Render a link-bonus desc template ("HP+{0}%") with its value filled in. The value
-// is shown ×100 only when the template is a PERCENT (contains '%'); otherwise it's
-// a flat amount (e.g. "Action Power +{0}" → SPD +0.1, "Intersection +{0}" → Range
-// +1). The table's CoreLink_Percentage_Output flag is unreliable here (SPD is
-// flagged percent but displays flat), so we key off the template text. `mult` scales
-// by the number of links for the normal-bonus view (×N).
+// The CoreLink_Percentage_Output flag is unreliable, so key off the template text.
 function linkText(b: LinkBonus, mult = 1): string {
   const tpl = t(b.desc);
   const isPct = tpl.includes('%');
@@ -71,14 +65,11 @@ function lerp(pair: [number, number], level: number): number {
   return Math.ceil(pair[0] + (pair[1] - pair[0]) * f);
 }
 
-// The collection chart values (1..11) are flavor grades shown as a letter ladder
-// (verified vs in-game: Gnome 4=C+/5=B/7=A). Odd = base letter, even = '+'.
+// Flavor grades 1..11 as a letter ladder; odd = base letter, even = '+'.
 const CHART_GRADES = ['D', 'D+', 'C', 'C+', 'B', 'B+', 'A', 'A+', 'S', 'S+', 'SS'];
 const chartGrade = (n: number): string => CHART_GRADES[Math.min(Math.max(n, 1), 11) - 1] ?? '—';
 
-// Profile radar-hexagon. `values` are the 6 chart stats in the data order
-// [ATK, ATK rate, SPD, HP(Endurance), DEF, Assist]; we render them clockwise from
-// the top as Atk / Speed / Assist / Def / Endurance / Atk Rate (the in-game layout).
+// `values` are the 6 chart stats in data order [ATK, ATK rate, SPD, HP, DEF, Assist].
 function RadarChart({ values, max = 11 }: { values: number[]; max?: number }) {
   // axis order (clockwise from top) -> index into the data array + label.
   const AXES: [number, string][] = [
@@ -120,27 +111,18 @@ function RadarChart({ values, max = 11 }: { values: number[]; max?: number }) {
   );
 }
 
-// Find a unit's full-link Skill-Power bonus value (the multiplier to skill power),
-// detected by the loc template; 0 if the unit has no such option. `value` is the
-// raw fraction (e.g. 0.15 = +15% skill power).
+// `value` is the raw fraction (0.15 = +15% skill power); 0 when the unit has none.
 function fullLinkSkillPower(unit: FullUnitData): number {
   const b = unit.fullLinkBonus.find((x) => t(x.desc).toLowerCase().includes('skill power'));
   return b ? b.value : 0;
 }
 
-// Whether the unit's full-link options include the Buff/Debuff-Effect-Lv bonus
-// (which grants +2 buff/debuff levels when selected).
+// The Buff/Debuff-Effect-Lv full-link option grants +2 buff/debuff levels.
 function hasFullLinkBuffLv(unit: FullUnitData): boolean {
   return unit.fullLinkBonus.some((x) => /buff\/debuff effect lv/i.test(t(x.desc)));
 }
 
-// Return a level-/bonus-scaled copy of a skill for display:
-//   skillLv    1..10 — scales rate (skill power) and buff values, and applies the
-//              latest levelChange at-or-below the level (AP / AoE / buff turns).
-//   spAdd      extra skill power added FLAT to the rate (full-link Skill Power,
-//              e.g. 0.20 → +20% multiplier: 300% base becomes 320%, not 360%).
-//   buffLv     extra buff/debuff levels added on top of skillLv for buff VALUES
-//              only (affection +1, full-link buff +2) — not power, not AoE.
+// Scaling rules (spAdd is flat, buffLv moves values only): .ai/knowledge/schemas.md
 function scaleSkill(skill: Skill, skillLv: number, spAdd: number, buffLv: number): Skill {
   const lv = Math.min(Math.max(skillLv, 1), 10);
   const rate = skill.rate + (skill.rateGain ?? 0) * (lv - 1) + spAdd;
@@ -153,8 +135,7 @@ function scaleSkill(skill: Skill, skillLv: number, spAdd: number, buffLv: number
     if (c.area) { area = c.area; center = c.center ?? center; }
   }
 
-  // buff value at effective level = skillLv + buffLv (buff/debuff level adds gain
-  // steps just like skill level). Only the VALUE scales — turns/AoE unaffected.
+  // Only the buff VALUE scales with effLv; turns and AoE do not.
   const effLv = lv + buffLv;
   const buffs = skill.buffs.map((b) => {
     const val = b.vals
@@ -172,21 +153,18 @@ export default function UnitDetail() {
   const id = router.query.id as string;
   const dispatch = useAppDispatch();
 
-  // selectUnitFull merges the light list record with the heavy detail once its
-  // bundle loads; until then the detail fields (stat/promotions/…) are absent.
+  // Detail fields (stat/promotions) are absent until the heavy bundle loads.
   const unit = useAppSelector((s) => (id ? selectUnitFull(s, id) : null));
   const units = useAppSelector(selectUnits);
   const status = useAppSelector(selectUnitStatus);
   const world = useAppSelector(selectWorld);
   const equip = useAppSelector(selectEquip);
-  const skills = useAppSelector((s) => (id ? selectUnitSkills(s, id) : {}));
+  const skills = useAppSelector((s) => (id ? selectUnitSkills(s, id) : EMPTY_SKILLS));
   const skillStatus = useAppSelector((s) => (id ? selectUnitSkillStatus(s, id) : 'idle'));
   const region = useAppSelector(selectRegion);
-  // the heavy detail half rides in the same bundle as skills; gate stat-dependent
-  // UI on it having loaded.
+  // The heavy detail half rides in the same bundle as skills.
   const detailLoaded = !!unit?.stat;
-  // Keep the last fully-loaded unit+skills so we can continue rendering while a
-  // region switch fetches the new bundle (avoids tab index reset on every switch).
+  // Keeps the page rendered across a region switch, so the tab index survives.
   const lastFullRef = useRef<FullUnitData | null>(null);
   const lastSkillsRef = useRef<{ [key: string]: Skill }>({});
   if (detailLoaded && unit) {
@@ -199,21 +177,12 @@ export default function UnitDetail() {
   const [level, setLevel] = useState(LV_CAP);
 
   useEffect(() => { dispatch(fetchUnitsAsync()); }, [dispatch]);
-  // material/unit icons (item map) + Drop-Location event names (world CONTAINER)
-  // resolve from those stores; fetch them here so a direct load to a unit URL
-  // populates them. Both self-skip if already loaded. (_app only auto-fetches on
-  // region CHANGE, not first load.) world.json is now the light container, so this
-  // is cheap — the Drop tab only needs world titles, not stage data.
+  // _app auto-fetches on region CHANGE only, so a direct URL load needs these.
   useEffect(() => { dispatch(fetchItemsAsync()); }, [dispatch]);
   useEffect(() => { dispatch(fetchWorldAsync()); }, [dispatch]);
-  // selectUnitFull returns a fresh merged object each render, so DON'T depend on
-  // `unit` (identity churns -> effect re-fires every render -> render loop). Depend
-  // on the stable id / the specific primitive instead.
   const hasExclusive = !!unit?.exclusiveEquip?.length;
   useEffect(() => { if (hasExclusive) dispatch(fetchEquipAsync()); }, [hasExclusive, dispatch]);
-  // also re-fetch on a region switch: setRegion wipes the per-unit bundles, but `id`
-  // is unchanged, so without `region` here the effect wouldn't re-run and the page
-  // would sit on the loading spinner until a manual refresh.
+  // `region` is required: setRegion wipes the bundles while `id` stays the same.
   useEffect(() => { if (id) dispatch(fetchUnitBundleAsync(id)); }, [id, region, dispatch]);
   // when the bundle (stats) loads or the unit changes, default to its top grade.
   useEffect(() => {
@@ -232,11 +201,9 @@ export default function UnitDetail() {
     );
   }
 
-  // prefer the English display name from the collection profile; fall back to the
-  // resolved unit name loc id.
+  // Prefer the collection profile's English name over the unit name loc id.
   const name = unitDisplayName(unit);
-  // top grade stats at lv-cap → ATK passed to SkillTab (rate → damage preview).
-  // stat lives in the heavy detail bundle, absent until it loads.
+  // Top-grade ATK at lv-cap, for SkillTab's damage preview; absent until loaded.
   const topStat = unit.stat?.[unit.stat.length - 1];
   const headerAtk = topStat ? topStat.ATK[1] : 0;
 
@@ -307,9 +274,7 @@ export default function UnitDetail() {
         {(!detailLoaded && !lastFullRef.current) ? (
           <Center py={20}><Spinner color="yellow.400" /></Center>
         ) : (() => {
-        // Use the current data if loaded; fall back to last-known while a region
-        // switch fetches the new bundle — keeps the tabs mounted and avoids resetting
-        // the selected tab index.
+        // Fall back to last-known during a region switch, so the tabs stay mounted.
         const full = (detailLoaded ? unit : lastFullRef.current) as FullUnitData;
         return (
         <Tabs colorScheme="yellow" variant="enclosed" isLazy>
@@ -373,9 +338,7 @@ export default function UnitDetail() {
   );
 }
 
-// A faction is identified by its shared troop icon. Within it, the game assigns
-// units to separately named squads of at most five members. Preserve those squad
-// boundaries rather than flattening every member into one long list.
+// Preserve the game's named squads (max five members) instead of flattening them.
 function FactionSection({ unit, units }: { unit: UnitData; units: UnitData[] }) {
   if (!unit.faction) return null;
 
@@ -423,10 +386,8 @@ function FactionSection({ unit, units }: { unit: UnitData; units: UnitData[] }) 
   );
 }
 
-// ── Skills tab: control group (level / full-link power / affection) + skill subtabs
-// Lore groups overlap official factions and are referenced by story/skill effects,
-// so they deliberately have no faction icon. Squad 21 comes from Table_PC's real
-// Is21Squad marker; the other memberships are curated from explicit skill targets.
+// Lore groups overlap official factions and deliberately have no faction icon.
+// Squad 21 comes from Table_PC's Is21Squad; the rest are curated from skill targets.
 function LoreGroupsSection({ unit, units }: { unit: UnitData; units: UnitData[] }) {
   const groups = unit.loreGroups || [];
   if (groups.length === 0) return null;
@@ -495,8 +456,7 @@ function LoreMemberGrid({ currentUnit, members, npcMembers }: {
   );
 }
 
-// Fixed five-column member rows shared by official faction squads and lore groups.
-// Groups with more than five members wrap into another five-slot row.
+// Fixed five-column rows; more than five members wrap into another five-slot row.
 function UnitMemberGrid({ currentUnit, members }: { currentUnit: UnitData; members: UnitData[] }) {
   return (
     <SimpleGrid columns={5} spacing={{ base: 1, sm: 2 }} maxW="420px">
@@ -528,6 +488,7 @@ function UnitMemberCard({ currentUnit, member }: { currentUnit: UnitData; member
   );
 }
 
+// ── Skills tab: level / full-link power / affection controls + per-skill subtabs
 function SkillsTab({
   unit, skills, headerAtk, skillStatus,
 }: {
@@ -625,8 +586,8 @@ function SkillsTab({
       {records.length === 0 ? (
         <Text color="gray.500" fontSize="sm">No skill data.</Text>
       ) : (
-        // SkillTab renders a <TabPanel>, so it must live inside <Tabs>/<TabPanels>.
-        // key on form so the inner Tabs resets its selected index when swapping forms.
+        // SkillTab renders a <TabPanel>, so it must live inside <Tabs>/<TabPanels>;
+        // `key` on form resets the inner Tabs index when swapping forms.
         <Tabs key={form} variant="unstyled" size="sm">
           <TabList flexWrap="wrap" gap={1}>
             {records.map((s) => (
@@ -652,8 +613,7 @@ function SkillsTab({
 function ProfileTab({ unit }: { unit: FullUnitData }) {
   const p = unit.profile;
   if (!p) return <Text color="gray.500" fontSize="sm">No profile data for this unit.</Text>;
-  // bio uses '&n' as line breaks; also scrub the stray replacement char the source
-  // text carries (a mojibake em-dash).
+  // bio uses '&n' for line breaks and carries a mojibake em-dash.
   const bio = p.desc ? t(p.desc).replace(/&n/g, '\n').replace(/�/g, '—') : '';
 
   return (
@@ -846,8 +806,7 @@ function InfoTab({
   );
 }
 
-// ── Exclusive gear: equipment locked to this unit (via pcLimit). Tiles open the
-// equipment modal in place. Renders nothing when the unit has no exclusive gear.
+// ── Exclusive gear: equipment locked to this unit via pcLimit ────────────────
 function ExclusiveEquip({ unit, equip }: { unit: UnitData; equip: Record<string, EquipData> }) {
   const dispatch = useAppDispatch();
   const ids = unit.exclusiveEquip || [];
@@ -1017,14 +976,12 @@ function LimitBreakTab({ unit }: { unit: FullUnitData }) {
   );
 }
 
-// ── Skin tab: pick a skin, render it via the shared PixiJS viewer ────────────
-// Archive key = the skin's model asset lowercased (matches <key>.tar.br on R2);
-// region-diverged skins ship as two archives (<key>__global / <key>__kr) instead.
 function skinFaceIcon(faceKey: string): string {
   return `/images/icons/${faceKey.replace(/^CharFace_/, 'FormationIcon_')}.png`;
 }
 
 
+// ── Skin tab: pick a skin, render it through the shared viewer ──────────────
 function SkinTab({ unit }: { unit: FullUnitData }) {
   useTranslationVersion();
   const region = useAppSelector(selectRegion);
@@ -1042,8 +999,8 @@ function SkinTab({ unit }: { unit: FullUnitData }) {
   const baseAsset = (skin.model || '').toLowerCase();
   const damAsset = (skin.modelDam || '').toLowerCase();
   const asset = (showDam && hasDam ? damAsset : baseAsset);
-  // skinned base: Unity variant bundle handles kr/sfw internally
-  // fixed/spine: variants embedded in single archive, no __global/__kr suffix needed
+  // Both engines take the bare asset name: skinned variants are handled by Unity,
+  // fixed/spine variants are embedded in the single archive.
   const isSkinnedBase = skin.viewerKind === 'skinned' && !(showDam && hasDam);
   const archiveKey = asset;
   const effectiveViewerKind = isSkinnedBase ? 'skinned' : skin.viewerKind === 'skinned' ? undefined : skin.viewerKind;

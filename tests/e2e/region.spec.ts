@@ -1,8 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-// Region/server switching: KR data is ahead of global, so KR-only units must
-// appear only when the KR region is active (navbar select or ?server= override)
-// and fall back to "not found" on global.
+// KR data is ahead of global, so a KR-only unit must appear only under the KR region.
 const KR_ONLY = { id: 'Char_BR_MariaGrace_N', name: 'Maria Grace' };
 
 test.describe('region switching', () => {
@@ -40,8 +38,7 @@ test.describe('region switching', () => {
     await expect(page.getByText('No units match the current filters.')).toBeVisible({ timeout: 15_000 });
   });
 
-  // regression: switching region used to leave an open unit-detail page on its
-  // spinner forever (the bundle cache is wiped but no refetch fired).
+  // a region switch wipes the bundle cache, so the open page must refetch, not hang
   test('region switch on an open unit detail refetches instead of hanging', async ({ page }) => {
     await page.goto('/units/detail?id=Char_3P_ConstantiaS2_N');
     await expect(page.getByRole('heading', { name: 'Constantia S2', exact: true })).toBeVisible({ timeout: 15_000 });
@@ -56,8 +53,7 @@ test.describe('region switching', () => {
     await expect(page.locator('[style*="z-index: 9999"]')).toHaveCount(0);
   });
 
-  // KR-only units have empty `en` strings; the canonName fallback chain must
-  // never let a raw numeric loc-id (e.g. "1000200002") reach the grid.
+  // KR-only units have empty `en`, and no raw numeric loc-id may reach the grid
   test('no raw loc-ids leak on the KR unit grid', async ({ page }) => {
     await page.goto('/units?server=kr');
     await expect(page.getByRole('heading', { name: 'Units', exact: true })).toBeVisible({ timeout: 15_000 });

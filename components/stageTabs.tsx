@@ -4,7 +4,7 @@ import {
 } from '@chakra-ui/react';
 import { ArrowLeftIcon, ArrowRightIcon, StarIcon } from '@chakra-ui/icons';
 import NextLink from 'next/link';
-import { Stage, WaveDrop, RewardEntry, StageMission } from '@/interfaces/world';
+import { Stage, WaveDrop, RewardEntry, StageMission, isBattleStage } from '@/interfaces/world';
 import { encodeWaveRef } from '@/lib/waveRef';
 import { t } from '@/lib/strings';
 import { useTranslationVersion } from '@/lib/translationVersion';
@@ -50,12 +50,11 @@ export default function StageTabs({
   worldId?: string;   // enables the "simulate this wave" team-builder link
 }) {
   useTranslationVersion();
-  const isBattle = !!stage.waves.length;
+  const isBattle = isBattleStage(stage);
   const r = stage.rewards;
   const tabs: { label: string; icon?: React.ReactNode; panel: React.ReactNode }[] = [];
 
-  // ── Clear Rewards: rewards (left) + unlock / missions (right) ───────────────
-  // `clear` (EXP) isn't shown in this tab, so it doesn't gate it.
+  // ── Clear Rewards: `clear` (EXP) isn't shown here, so it doesn't gate the tab ─
   const hasClearTab = !!(r?.reward_f?.length || r?.reward_am?.length
     || stage.unlock || stage.missions?.length);
   if (hasClearTab) {
@@ -103,10 +102,9 @@ export default function StageTabs({
     });
   }
 
-  // ── Drops: aggregate the full per-wave B/A/S data into a stage-total pool,
-  //    split units vs items (exp/skillExp are hidden here — shown per wave under
-  //    the Enemies tab). The table keeps the complete data; this is UI-only.
-  const dropPool = aggregateDrops(stage.drops);
+  // ── Drops: per-wave B/A/S aggregated into a stage-total pool, units vs items.
+  //    exp/skillExp are hidden here and shown per wave under the Enemies tab.
+  const dropPool = aggregateDrops(isBattle ? stage.drops : undefined);
   if (dropPool.items.length || dropPool.units.length) {
     tabs.push({
       label: 'Drops',
@@ -232,23 +230,19 @@ export default function StageTabs({
   );
 }
 
-// Strip the table prefix off a Char_/MOB_-style key for a fallback display name
-// (e.g. Char_BR_Khan_N -> Khan, EmperorChick_EW -> EmperorChick).
+// Fallback display name from a Char_/MOB_-style key (Char_BR_Khan_N -> Khan).
 const shortKey = (k: string) =>
   k.replace(/^Char_[A-Za-z0-9]+_/, '').replace(/_(N|EW\d*|TU\d+|CH)$/, '').replace(/_/g, ' ');
 
-// Skill display name: the community SkillName_ override if present, else a readable
-// fallback from the key. (t() passes the raw key through when it isn't a known id,
-// so check that the resolved text actually differs from the lookup key.)
+// t() passes an unknown key through, so compare against the lookup key.
 function skillName(skillKey: string): string {
   const key = `SkillName_${skillKey}`;
   const resolved = t(key);
   return resolved !== key ? resolved : shortKey(skillKey).replace(/^MP /, '');
 }
 
-// Readable phrasing for each MISSION_TRIGGER_TYPE. {v} is the trigger's value;
-// {u}/{s} mark where the linked unit/skill name goes (filled in by MissionRow).
-// A trigger absent here just shows its raw name (forward-compatible).
+// {v} is the trigger value; {u}/{s} mark where MissionRow puts the unit/skill name.
+// A trigger absent here shows its raw name.
 const TRIGGER_TEXT: Record<string, string> = {
   ROUND_LIMIT_LESS: 'within {v} rounds',
   DEATH_COUNT_LESS: 'with {v} or fewer deaths',
@@ -276,8 +270,7 @@ const TRIGGER_TEXT: Record<string, string> = {
   DAMAGE_RECORD: 'dealing {v}+ recorded damage',
 };
 
-// Natural phrasing for the value-0 case of the "or fewer" triggers ("0 or fewer
-// hits" -> "without taking damage"). Falls back to the generic template otherwise.
+// Natural phrasing for the value-0 case of the "or fewer" triggers.
 const TRIGGER_TEXT_ZERO: Record<string, string> = {
   DEATH_COUNT_LESS: 'without any deaths',
   BEATEN_LESS: 'without taking damage',
@@ -289,18 +282,13 @@ const TRIGGER_TEXT_ZERO: Record<string, string> = {
   SQUAD_CHANGE_LESS: 'without changing squads',
 };
 
-// One star mission, rendered from its parsed condition. The base goal (clear / kill
-// N enemies / kill a specific enemy) plus the trigger constraint, with the required
-// unit and the target enemy shown as clickable links (unit -> hover card + detail
-// page; enemy -> opens the global enemy modal). Falls back to t(desc) if there's no
-// structured object (older data).
+// Falls back to t(desc) when older data has no structured `object`.
 function MissionRow({ mission: m }: { mission: StageMission }) {
   const dispatch = useAppDispatch();
   const units = useAppSelector(selectUnits);
   const enemies = useAppSelector(selectEnemy);
 
-  // resolve the target enemy's name (self-skips if the list is already loaded).
-  // UnitHoverCard loads the unit list itself, so units need no fetch here.
+  // UnitHoverCard loads the unit list itself, so only enemies need a fetch here.
   useEffect(() => { if (m.enemy) dispatch(fetchEnemyAsync()); }, [m.enemy, dispatch]);
 
   if (!m.object) {
@@ -312,8 +300,7 @@ function MissionRow({ mission: m }: { mission: StageMission }) {
     );
   }
 
-  // a clickable unit reference (hover card + link to the detail page), inline so it
-  // sits inside the requirement sentence without breaking onto its own line.
+  // inline so the reference sits inside the requirement sentence, not on its own line
   const unitLink = (id: string) => {
     const u = units[id];
     const label = u ? unitDisplayName(u) : shortKey(id);
@@ -380,9 +367,7 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-// Collapse the full per-wave B/A/S drop data into a single stage-total pool,
-// split into unit (char) and item drops, deduped (items keep the max count).
-// EXP entries are ignored here — they're surfaced per wave in the Enemies tab.
+// EXP entries are ignored here; they are surfaced per wave in the Enemies tab.
 function aggregateDrops(drops?: WaveDrop[]): { units: string[]; items: { item: string; count?: number }[] } {
   const units: string[] = [];
   const seenUnits = new Set<string>();

@@ -4,9 +4,7 @@ import { MiscBuffEntry, MiscIndex } from '@/interfaces/misc';
 import { Region } from './regionSlice';
 import { fetchMisc, fetchMiscBuff } from '@/lib/fetchData';
 
-// Per-region misc categorization data (see interfaces/misc.ts). The index is one
-// small fetch; per-buff-type entry lists are fetched lazily when a type is
-// selected and cached here so reselecting / region round-trips don't refetch.
+// The index is one small fetch; per-buff-type entry lists load lazily and stay cached.
 interface RegionBucket {
   index: MiscIndex | null;
   status: 'idle' | 'loading' | 'failed';

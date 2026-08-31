@@ -47,9 +47,7 @@ const theme = extendTheme({
     },
   },
   components: {
-    // Static dark surface for Cards. Clickable cards (SimpleCard, banners) are
-    // plain Boxes that add their own hover — Cards here are non-interactive info
-    // panels, so no hover lift.
+    // Non-interactive info panels; clickable cards are plain Boxes with their own hover.
     Card: {
       baseStyle: {
         container: {
@@ -81,8 +79,7 @@ const theme = extendTheme({
       },
     },
     Divider: { baseStyle: { borderColor: '#2c313c', opacity: 1 } },
-    // Dark defaults that don't depend on color-mode resolution. The light-mode
-    // gray variants render near-white on this dark UI, so pin them.
+    // The light-mode gray variants render near-white on this dark UI, so pin them.
     Button: {
       variants: {
         solid: (props: { colorScheme: string }) =>
@@ -101,8 +98,7 @@ const theme = extendTheme({
         field: { bg: '#181b22', borderColor: '#2c313c' },
         addon: { bg: '#2c313c', color: '#e8eaed', borderColor: '#2c313c' },
       },
-      // the outline variant (default) sets its own addon bg/border, overriding
-      // baseStyle — pin it dark here too.
+      // the outline variant sets its own addon bg/border, overriding baseStyle
       variants: {
         outline: {
           field: { bg: '#181b22', borderColor: '#2c313c' },
@@ -117,13 +113,7 @@ const theme = extendTheme({
   },
 })
 
-// Keep the string resolver pointed at the active region, and on a region CHANGE
-// re-dispatch the data fetches. The setRegion reducer already cleared each
-// slice's cache, but the active page's mount-time fetch effect won't re-run, so
-// we kick the fetches here. (Each thunk self-skips if data is already present.)
-// Optional ?server= override (only used when forcing a region). Maps the game
-// server name to a region: global -> global; kr / korea / korean -> kr.
-// Returns null when the param is absent/unrecognized.
+// Maps a ?server= value to a region; null when absent or unrecognized.
 function forcedRegionFromUrl(): Region | null {
   if (typeof window === 'undefined') return null;
   const v = (new URLSearchParams(window.location.search).get('server') || '').toLowerCase();
@@ -137,22 +127,16 @@ function RegionSync() {
   const dispatch = useDispatch<typeof store.dispatch>();
   const first = useRef(true);
 
-  // After mount, pick the active region. A ?server= query param (global | kr /
-  // korea / korean) FORCES the region and wins over the persisted choice — it's
-  // only meant as an explicit override. Otherwise fall back to the persisted
-  // region. Either applied via setRegion -> slice resets -> the effect below
-  // refetches. (Store starts at 'global' on server + client: no hydration drift.)
+  // ?server= FORCES the region and wins over the persisted choice. The store starts
+  // at 'global' on both server and client, so there is no hydration drift.
   useEffect(() => {
     const forced = forcedRegionFromUrl();
     const target = forced ?? loadRegion();
     if (target && target !== 'global') dispatch(setRegion(target));
   }, [dispatch]);
 
-  // Keep the string resolver on the active region; on a region CHANGE, kick the
-  // fetches for the now-active region (the active page's mount-time effect won't
-  // re-run on its own). Each thunk self-skips if that region's bucket is already
-  // loaded, and switching regions no longer wipes any data — so a repeat visit
-  // to a region is instant with no loader flash.
+  // A region change does not re-run the active page's mount-time fetch effect, so
+  // kick the fetches here; each thunk self-skips when that bucket is already loaded.
   useEffect(() => {
     if (first.current) { first.current = false; return; }  // pages handle initial load
     dispatch(fetchEnemyAsync());
@@ -168,9 +152,7 @@ function RegionSync() {
 }
 
 
-// Unified hook: keeps resolver flags + region in sync, loads all string chunks,
-// and returns a version counter that increments whenever t()/tAny() output could
-// change. Components subscribe via useTranslationVersion() to re-render in place.
+// Returns a counter that increments whenever t()/tAny() output could change.
 function useStringsAndTranslation(): number {
   const region    = useSelector((s: RootState) => s.region.region);
   const mtl       = useSelector(selectMtl);
@@ -189,8 +171,7 @@ function useStringsAndTranslation(): number {
     }
   }, [dispatch]);
 
-  // Push flags + region into the resolver SYNCHRONOUSLY at render time so that
-  // t()/tAny() calls in the same render tree already see the updated values.
+  // Synchronous at render time, so t() in the same render tree sees the new values.
   setStringsRegion(region);
   setStringsLayers({ mtl, krMtl, community });
 
@@ -241,8 +222,7 @@ function useStringsAndTranslation(): number {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [region]);
 
-  // Flag changes bump the version via a derived value so context consumers re-render.
-  // We track via useEffect to avoid setState-during-render.
+  // Tracked in an effect rather than derived, to avoid setState-during-render.
   useEffect(() => {
     setVer((v) => v + 1);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -251,10 +231,8 @@ function useStringsAndTranslation(): number {
   return ver;
 }
 
-// Fixed color-mode manager: the app is dark-only. This pins Chakra to dark and
-// IGNORES localStorage / system preference, so a stale `chakra-ui-color-mode:
-// light` value (which made local render light while deploy was dark) can never
-// flip it. get() always returns 'dark'; set() is a no-op (never persist).
+// The app is dark-only: get() always returns 'dark' and set() never persists, so a
+// stale `chakra-ui-color-mode: light` value can never flip it.
 const darkOnlyManager: ColorModeProviderProps['colorModeManager'] = {
   type: 'localStorage',
   ssr: true,

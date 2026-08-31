@@ -10,9 +10,8 @@ const PARTICLE_INDICES = new Uint32Array([0, 1, 2, 0, 2, 3]);
 // Coplanar nodes carry up to 1e-6 of matrix noise; authored offsets start at 1e-4.
 const FACE_DEPTH_EPSILON = 1e-5;
 
-// Unity front faces are clockwise on screen, and projecting through Pixi's
-// y-down space and back to clip space preserves that, so `_Cull` 2 (Back) keeps
-// the clockwise half and `_Cull` 1 (Front) keeps the other.
+// Unity front faces stay clockwise through Pixi's y-down space, so `_Cull` 2 (Back)
+// keeps the clockwise half and 1 (Front) keeps the other.
 function applyCull(mesh: PIXI.Mesh, cull: number | undefined) {
   if (!cull) return;
   mesh.state.culling = true;
@@ -49,8 +48,7 @@ export function mountSkinnedRig(
       indices: new Uint32Array(renderer.mesh.tris),
     });
     mesh.label = renderer.name;
-    // Every renderer kind carries its material's blend and colour; none of them
-    // can be assumed to be plain alpha-blended white.
+    // No renderer kind can be assumed plain alpha-blended white.
     if (renderer.blend && renderer.blend !== 'normal') mesh.blendMode = renderer.blend;
     if (renderer.color) {
       const [r, g, b] = renderer.color;
@@ -119,8 +117,7 @@ export function mountSkinnedRig(
     rig.refreshWorld();
   };
 
-  // Mesh-mode systems (m_RenderMode 4) draw the authored mesh, projected to the
-  // viewer's y-down space, instead of a screen-aligned quad.
+  // Mesh-mode systems (m_RenderMode 4) draw the authored mesh, not a screen-aligned quad.
   const particleGeometry = emitterDefs.map((def) => {
     const source = def.mesh ? doc.particleMeshes?.[def.mesh] : undefined;
     if (!source) return null;
@@ -176,8 +173,7 @@ export function mountSkinnedRig(
       // Billboards collapse to screen-aligned quads under an orthographic camera.
       const scale = Math.hypot(w[m], w[m + 4], w[m + 8]);
       const count = Math.min(run.particles.length, 600);
-      // tilesX/tilesY only apply while the texture-sheet module is enabled; with it
-      // off Unity samples the whole texture regardless of what the fields say.
+      // tilesX/tilesY apply only while the texture-sheet module is enabled
       const cols = def.uv ? Math.max(1, def.tiles[0]) : 1;
       const rows = def.uv ? Math.max(1, def.tiles[1]) : 1;
       const geometry = particleGeometry[index];
@@ -189,8 +185,7 @@ export function mountSkinnedRig(
           indices: geometry ? geometry.indices.slice() : PARTICLE_INDICES.slice(),
         });
         mesh.blendMode = def.blend && def.blend !== 'normal' ? def.blend : 'normal';
-        // Unity generates billboard quads already facing the camera, so `_Cull`
-        // can only remove geometry on mesh-mode systems.
+        // Unity billboards already face the camera, so `_Cull` only affects mesh mode.
         applyCull(mesh, geometry ? def.cull : 0);
         entry.layer.addChild(mesh);
         entry.meshes.push(mesh);
@@ -203,9 +198,8 @@ export function mountSkinnedRig(
         const cy = -(w[m + 4] * p.x + w[m + 5] * p.y + w[m + 6] * p.z + w[m + 7]);
         mesh.visible = true;
         if (geometry) {
-          // Mesh particles are oriented by the scale-free world rotation and a
-          // uniform scale. Using the node's basis would apply the rig root's
-          // 1000:1 z flattening and squash the mesh into a smear.
+          // A scale-free world rotation and uniform scale: the node's basis would apply
+          // the rig root's 1000:1 z flattening and smear the mesh.
           const target = mesh.geometry.getBuffer('aPosition').data as Float32Array;
           const src = geometry.verts;
           const r = rig.worldRot;
@@ -318,8 +312,7 @@ export function mountSkinnedRig(
       const mesh = meshes[index];
       const shown = rig.isVisible(index);
       mesh.visible = shown;
-      // Hidden renderers must not count towards getLocalBounds, or off-centre
-      // gizmos and spare backgrounds shrink the fit.
+      // Hidden renderers must not count towards getLocalBounds, or the fit shrinks.
       mesh.measurable = shown;
       if (!shown) return;
       mesh.zIndex = position;
