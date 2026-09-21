@@ -134,6 +134,7 @@ export type SkinnedFace = {
   node: number;
   tex: string;
   order: number;
+  layer?: number;
   color: [number, number, number, number];
   flip: [boolean, boolean];
   mesh: SpriteMesh;
