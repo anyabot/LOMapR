@@ -345,8 +345,10 @@ export function mountSkinnedRig(
       }
       // Tied on sorting order and depth, the face sprite draws behind the mesh.
       const depth = rig.world[m + 11];
+      const faceLayer = face.layer ?? 0;
       mesh.zIndex = order.reduce((position, renderer) => {
-        const { order: rank, node } = doc.renderers[renderer];
+        const { layer = 0, order: rank, node } = doc.renderers[renderer];
+        if (layer !== faceLayer) return position + (layer < faceLayer ? 1 : 0);
         if (rank !== face.order) return position + (rank < face.order ? 1 : 0);
         return position + (rig.world[node * 16 + 11] > depth + FACE_DEPTH_EPSILON ? 1 : 0);
       }, 0) - 0.5;
