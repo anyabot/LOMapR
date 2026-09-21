@@ -1222,7 +1222,10 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
           const attachment = slot.getAttachment();
           const region = attachment?.region;
           const page = region?.page;
-          if (!attachment || !page?.width || !page?.height) continue;
+          const source = page?.texture?.texture?.source;
+          const textureWidth = source?.width ?? page?.width;
+          const textureHeight = source?.height ?? page?.height;
+          if (!attachment || !textureWidth || !textureHeight) continue;
           let vertices: Float32Array;
           let indices: ArrayLike<number>;
           if (attachment instanceof RegionAttachment) {
@@ -1239,7 +1242,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
             continue;
           }
           max = Math.max(max, mappedSourcePixelScale(
-            vertices, attachment.uvs, indices, page.width, page.height,
+            vertices, attachment.uvs, indices, textureWidth, textureHeight,
             { a: sp.scale.x, b: 0, c: 0, d: sp.scale.y },
           ));
         }
@@ -1253,7 +1256,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
         for (const actor of actors) max = Math.max(max, attachmentScale(actor));
         const bg = bgSpriteRef.current;
         const bgSource = bg?.texture?.source;
-        if (bg?.visible && bgSource?.width && bgSource?.height) {
+        if (!max && bg?.visible && bgSource?.width && bgSource?.height) {
           max = Math.max(
             max,
             Math.abs(bg.width) / bgSource.width,
