@@ -8,7 +8,7 @@ import {
 import type { SpriteInfo, SkinNode, FixedFace, Layout } from './skinViewer/types';
 import {
   baseSkinKey, layoutHasVariant, zAngle, attachPanZoom,
-  mappedSourcePixelScale, meshSourcePixelScale, fixBlendAlpha,
+  meshSourcePixelScale, fixBlendAlpha,
 } from './skinViewer/types';
 
 // Used when a skinned Pixi archive has not been published yet.
@@ -797,7 +797,6 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
       pixiRef.current = PIXI;
       const {
         Spine, SkeletonJson, AtlasAttachmentLoader, Skin, Physics, TextureAtlas, SpineTexture,
-        RegionAttachment, MeshAttachment,
       } =
         await import('@esotericsoftware/spine-pixi-v8') as any;
       const files = filesRef.current;
@@ -1214,57 +1213,14 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
       spine.update(0);
       fit();
 
-      // Measure source-atlas pixels in the currently composed pose.
-      const attachmentScale = (sp: any): number => {
-        if (!sp?.visible) return 0;
-        let max = 0;
-        for (const slot of sp.skeleton.slots) {
-          const attachment = slot.getAttachment();
-          const region = attachment?.region;
-          const page = region?.page;
-          const source = page?.texture?.texture?.source;
-          const textureWidth = source?.width ?? page?.width;
-          const textureHeight = source?.height ?? page?.height;
-          if (!attachment || !textureWidth || !textureHeight) continue;
-          let vertices: Float32Array;
-          let indices: ArrayLike<number>;
-          if (attachment instanceof RegionAttachment) {
-            vertices = new Float32Array(8);
-            attachment.computeWorldVertices(slot, vertices, 0, 2);
-            indices = [0, 1, 2, 0, 2, 3];
-          } else if (attachment instanceof MeshAttachment) {
-            vertices = new Float32Array(attachment.worldVerticesLength);
-            attachment.computeWorldVertices(
-              slot, 0, attachment.worldVerticesLength, vertices, 0, 2,
-            );
-            indices = attachment.triangles;
-          } else {
-            continue;
-          }
-          max = Math.max(max, mappedSourcePixelScale(
-            vertices, attachment.uvs, indices, textureWidth, textureHeight,
-            { a: sp.scale.x, b: 0, c: 0, d: sp.scale.y },
-          ));
-        }
-        return max;
-      };
-      spinePixelScaleRef.current = () => {
-        let max = 0;
-        const actors = actorInstances.length
-          ? actorInstances.flatMap((a) => [a.base, a.sfw].filter(Boolean))
-          : [spine, spineSfw].filter(Boolean);
-        for (const actor of actors) max = Math.max(max, attachmentScale(actor));
-        const bg = bgSpriteRef.current;
-        const bgSource = bg?.texture?.source;
-        if (!max && bg?.visible && bgSource?.width && bgSource?.height) {
-          max = Math.max(
-            max,
-            Math.abs(bg.width) / bgSource.width,
-            Math.abs(bg.height) / bgSource.height,
-          );
-        }
-        return max || 1;
-      };
+      const nativePixelScale = Math.max(1, ...[
+        baseAtlas, sfwAtlas, ...extraActorData.map((item) => item.atlas),
+      ].filter(Boolean).flatMap((atlas: any) => atlas.pages.map((page: any) => {
+        const source = page.texture?.texture?.source;
+        if (!source?.width || !source?.height) return 1;
+        return Math.max(page.width / source.width, page.height / source.height);
+      })));
+      spinePixelScaleRef.current = () => nativePixelScale;
       app.renderer.on('resize', fit);
 
       attachPanZoom(app.canvas as HTMLCanvasElement, root, zoneLayer);
