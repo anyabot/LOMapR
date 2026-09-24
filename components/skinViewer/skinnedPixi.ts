@@ -27,6 +27,7 @@ export type SkinnedView = {
   setVariant: (variant: string) => void;
   setToggle: (key: string, on: boolean) => void;
   setFace: (face: string) => void;
+  texelDensity: () => number;
   destroy: () => void;
 };
 
@@ -409,6 +410,34 @@ export function mountSkinnedRig(
       sync();
     },
     setFace(face: string) { activeFace = face; sync(); },
+    texelDensity() {
+      const samples: { density: number; area: number }[] = [];
+      for (const mesh of [...meshes, ...faceMeshes.map((entry) => entry.mesh)]) {
+        if (!mesh.visible || mesh.texture === PIXI.Texture.WHITE) continue;
+        const { pixelWidth, pixelHeight } = mesh.texture.source;
+        const position = mesh.geometry.getBuffer('aPosition').data as Float32Array;
+        const uv = mesh.geometry.getBuffer('aUV').data as Float32Array;
+        const index = mesh.geometry.indexBuffer.data;
+        let area = 0, texels = 0;
+        for (let i = 0; i + 2 < index.length; i += 3) {
+          const a = index[i] * 2, b = index[i + 1] * 2, c = index[i + 2] * 2;
+          area += Math.abs((position[b] - position[a]) * (position[c + 1] - position[a + 1])
+            - (position[c] - position[a]) * (position[b + 1] - position[a + 1]));
+          texels += Math.abs((uv[b] - uv[a]) * (uv[c + 1] - uv[a + 1])
+            - (uv[c] - uv[a]) * (uv[b + 1] - uv[a + 1])) * pixelWidth * pixelHeight;
+        }
+        if (area > 0 && texels > 0) samples.push({ density: Math.sqrt(texels / area), area });
+      }
+      if (!samples.length) return 0;
+      samples.sort((x, y) => x.density - y.density);
+      const half = samples.reduce((sum, sample) => sum + sample.area, 0) / 2;
+      let seen = 0;
+      for (const sample of samples) {
+        seen += sample.area;
+        if (seen >= half) return sample.density;
+      }
+      return samples[samples.length - 1].density;
+    },
     destroy() {
       container.destroy({ children: true });
     },
