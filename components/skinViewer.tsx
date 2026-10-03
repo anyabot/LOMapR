@@ -348,7 +348,12 @@ function SkinnedPixiViewer(props: SkinViewerProps) {
     const app = appRef.current, view = viewRef.current;
     if (!app || !view) return;
     view.setZones(false);
-    const canvas = app.renderer.extract.canvas({ target: view.container, resolution: 2 }) as HTMLCanvasElement;
+    // extract renders the container in local (world-unit) space, ignoring its fit scale.
+    const bounds = visibleBounds(view.container);
+    const span = bounds ? Math.max(bounds.width, bounds.height) : 0;
+    const density = view.texelDensity() || 2;
+    const resolution = span > 0 ? Math.min(density, 8192 / span) : density;
+    const canvas = app.renderer.extract.canvas({ target: view.container, resolution }) as HTMLCanvasElement;
     view.setZones(zones);
     const anchor = document.createElement('a');
     anchor.href = canvas.toDataURL('image/png');
