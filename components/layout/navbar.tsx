@@ -1,55 +1,68 @@
-
 import { useState } from 'react';
 import NextLink from 'next/link';
 import { CloseIcon, HamburgerIcon } from '@chakra-ui/icons'
-import { Flex, Heading, HStack, Image, Link, IconButton } from "@chakra-ui/react";
-import NavContent from './navcontent';
+import { Flex, HStack, IconButton } from "@chakra-ui/react";
+import { HubBar } from '@altterisk/game-hub';
+import NavLink from './navlink';
+import { EtcMenu, RegionSelect, TranslationMenu } from './navcontent';
 
 function CommonNavbar() {
   const [isOpen, setIsOpen] = useState(false);
   const toggle = () => setIsOpen(!isOpen);
   return (
-    <Flex
-      as="nav"
-      align="center"
-      justify="space-between"
-      wrap="wrap"
-      w="100%"
-      mb={6}
-      py={3}
-      px={[4, 6, 8]}
-      bg="surface.elevated"
-      borderBottomWidth="1px"
-      borderColor="surface.border"
-      position="sticky"
-      top={0}
-      zIndex={10}
-    >
-      <Link as={NextLink} href="/" _hover={{ textDecoration: 'none' }}>
-        <HStack spacing={2} title="LOMapR — Last Origin Information & Resources">
-          <Image
-            src="/images/icons/Ev_Consumable_BADKSticker.png"
-            alt="LOMapR"
-            boxSize="28px"
-            draggable={false}
-          />
-          <Heading size="md" color="yellow.300" whiteSpace="nowrap">
-            LOMapR
-          </Heading>
-        </HStack>
-      </Link>
-
-      <IconButton
-        aria-label="Toggle menu"
-        display={{ base: "inline-flex", md: "none" }}
-        onClick={toggle}
-        variant="ghost"
-        size="sm"
-        icon={isOpen ? <CloseIcon /> : <HamburgerIcon />}
+    <>
+      <HubBar
+        game="lo"
+        renderHomeLink={({ className, children }) => (
+          <NextLink href="/" className={className}>{children}</NextLink>
+        )}
+        nav={
+          <>
+            <NavLink to="/">Home</NavLink>
+            <NavLink to="/units">Units</NavLink>
+            <NavLink to="/skins">Skins</NavLink>
+            <NavLink to="/equipment">Equipment</NavLink>
+            <NavLink to="/world">World</NavLink>
+            <NavLink to="/sanctum">Sanctum</NavLink>
+            <NavLink to="/enemies">Enemies</NavLink>
+            <NavLink to="/iw">Infinite War</NavLink>
+            <EtcMenu />
+          </>
+        }
+        actions={
+          <>
+            <HStack spacing={2} display={{ base: "none", md: "flex" }}>
+              <RegionSelect />
+              <TranslationMenu />
+            </HStack>
+            <IconButton
+              aria-label="Toggle menu"
+              display={{ base: "inline-flex", md: "none" }}
+              onClick={toggle}
+              variant="ghost"
+              size="sm"
+              icon={isOpen ? <CloseIcon /> : <HamburgerIcon />}
+            />
+          </>
+        }
       />
-
-      <NavContent isOpen={isOpen} />
-    </Flex>
+      {isOpen && (
+        <Flex
+          display={{ base: "flex", md: "none" }}
+          wrap="wrap"
+          gap={2}
+          justify="center"
+          px={4}
+          py={3}
+          bg="hub.surface"
+          borderBottomWidth="1px"
+          borderColor="hub.border"
+        >
+          <RegionSelect />
+          <TranslationMenu />
+        </Flex>
+      )}
+    </>
   )
 }
 

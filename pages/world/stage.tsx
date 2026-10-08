@@ -75,7 +75,7 @@ export default function Home() {
         <title>Stage List</title>
       </Head>
       {id in world && !stagesLoaded ? (
-        <Center py={20}><Spinner size="xl" color="yellow.400" thickness="3px" /></Center>
+        <Center py={20}><Spinner size="xl" color="accent.400" thickness="3px" /></Center>
       ) : null}
     </>)
   }
@@ -109,8 +109,8 @@ export default function Home() {
                 key={i}
                 variant="outline"
                 bg={i === sub ? 'whiteAlpha.100' : 'transparent'}
-                color={i === sub ? 'yellow.300' : 'gray.400'}
-                borderColor={i === sub ? 'yellow.400' : 'surface.border'}
+                color={i === sub ? 'accent.300' : 'gray.400'}
+                borderColor={i === sub ? 'accent.400' : 'surface.border'}
                 _hover={{ bg: 'whiteAlpha.200' }}
                 onClick={() => setCurrSubzone(i)}
               >

@@ -48,7 +48,7 @@ export function StatSection({ title, children }: { title: string; children: Reac
   return (
     <Box>
       <Text fontSize="2xs" letterSpacing="wider" textTransform="uppercase"
-        color="yellow.400" fontWeight="700" mb={1} px={2}>
+        color="accent.400" fontWeight="700" mb={1} px={2}>
         {title}
       </Text>
       <Box bg="blackAlpha.300" borderRadius="lg" borderWidth="1px" borderColor="surface.border" py={0.5}>

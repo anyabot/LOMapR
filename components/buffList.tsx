@@ -779,7 +779,7 @@ function CharSetName({ vals }: { vals: string[] }) {
           <React.Fragment key={v}>
             {i > 0 && <Box as="span" color="gray.400"> / </Box>}
             <UnitHoverCard unitId={v} inline>
-              <Box as="span" color="yellow.100" fontWeight="semibold" cursor="pointer"
+              <Box as="span" color="accent.100" fontWeight="semibold" cursor="pointer"
                 textDecoration='underline'>{label}</Box>
             </UnitHoverCard>
           </React.Fragment>

@@ -34,6 +34,7 @@ import CopyLink from '@/components/copyLink';
 import { StatRow, StatPair, StatSection } from '@/components/statBlock';
 import { rankTag, rankColor, roleRankIcon, typeIcon, roleIcon, bodyIcon, equipIcon, factionIcon, unitDisplayName } from '@/lib/rank';
 import { NPCS, NpcEntry } from '@/lib/npcs';
+import { getGame, tokens } from '@altterisk/game-hub';
 
 // HP/ATK/DEF grow linearly from stat[grade].X[0] (lv1) to X[1]; the rest are flat.
 const LV_CAP = 100;
@@ -87,20 +88,20 @@ function RadarChart({ values, max = 11 }: { values: number[]; max?: number }) {
     <svg viewBox={`0 0 ${size} ${size}`} width="100%" style={{ maxWidth: 280 }}>
       {/* grid rings + spokes */}
       {[0.33, 0.66, 1].map((f) => (
-        <polygon key={f} points={ring(R * f)} fill="none" stroke="#2c313c" strokeWidth={1} />
+        <polygon key={f} points={ring(R * f)} fill="none" stroke={tokens.color.border} strokeWidth={1} />
       ))}
       {AXES.map((_, i) => {
         const [x, y] = pt(i, R);
-        return <line key={i} x1={cx} y1={cy} x2={x} y2={y} stroke="#2c313c" strokeWidth={1} />;
+        return <line key={i} x1={cx} y1={cy} x2={x} y2={y} stroke={tokens.color.border} strokeWidth={1} />;
       })}
       {/* value polygon */}
-      <polygon points={poly} fill="rgba(242,200,60,0.45)" stroke="#f2c83c" strokeWidth={2} />
+      <polygon points={poly} fill={`${getGame('lo').accent}73`} stroke={getGame('lo').accent} strokeWidth={2} />
       {/* axis labels + grade */}
       {AXES.map(([idx, label], i) => {
         const [x, y] = pt(i, R + 26);
         return (
           <g key={label}>
-            <text x={x} y={y - 5} fill="#9aa0aa" fontSize={10} textAnchor="middle">{label}</text>
+            <text x={x} y={y - 5} fill={tokens.color.textMuted} fontSize={10} textAnchor="middle">{label}</text>
             <text x={x} y={y + 8} fill="#fff" fontSize={13} fontWeight="bold" textAnchor="middle">
               {chartGrade(values[idx] ?? 0)}
             </text>
@@ -272,12 +273,12 @@ export default function UnitDetail() {
           </VStack>
         </Flex>
         {(!detailLoaded && !lastFullRef.current) ? (
-          <Center py={20}><Spinner color="yellow.400" /></Center>
+          <Center py={20}><Spinner color="accent.400" /></Center>
         ) : (() => {
         // Fall back to last-known during a region switch, so the tabs stay mounted.
         const full = (detailLoaded ? unit : lastFullRef.current) as FullUnitData;
         return (
-        <Tabs colorScheme="yellow" variant="enclosed" isLazy>
+        <Tabs colorScheme="accent" variant="enclosed" isLazy>
           <TabList flexWrap="wrap">
             <Tab>Stats</Tab>
             <Tab>Skills</Tab>
@@ -440,7 +441,7 @@ function LoreMemberGrid({ currentUnit, members, npcMembers }: {
             <Box borderWidth="1px" borderColor="surface.border" borderRadius="lg"
               bg="blackAlpha.300" overflow="hidden" role="group"
               transition="border-color .12s ease, transform .12s ease"
-              _hover={{ borderColor: 'yellow.400', transform: 'translateY(-2px)' }}>
+              _hover={{ borderColor: 'accent.400', transform: 'translateY(-2px)' }}>
               <Box position="relative" w="100%" pt="100%" bg="blackAlpha.500">
                 <Image src={member.thumbnail} alt={memberName} position="absolute" inset={0}
                   objectFit="cover" w="100%" h="100%" />
@@ -469,10 +470,10 @@ function UnitMemberCard({ currentUnit, member }: { currentUnit: UnitData; member
   const memberName = unitDisplayName(member);
   const current = member.id === currentUnit.id;
   const card = (
-    <Box borderWidth="1px" borderColor={current ? 'yellow.400' : 'surface.border'} borderRadius="lg"
-      bg={current ? 'yellowAlpha.100' : 'blackAlpha.300'} overflow="hidden" role="group"
+    <Box borderWidth="1px" borderColor={current ? 'accent.400' : 'surface.border'} borderRadius="lg"
+      bg={current ? 'var(--hub-accent-soft)' : 'blackAlpha.300'} overflow="hidden" role="group"
       transition="border-color .12s ease, transform .12s ease"
-      _hover={current ? undefined : { borderColor: 'yellow.400', transform: 'translateY(-2px)' }}>
+      _hover={current ? undefined : { borderColor: 'accent.400', transform: 'translateY(-2px)' }}>
       <Box position="relative" w="100%" pt="100%" bg="blackAlpha.500">
         {member.icon ? (
           <Image src={`/images/icons/${member.icon}.png`} alt={memberName}
@@ -480,7 +481,7 @@ function UnitMemberCard({ currentUnit, member }: { currentUnit: UnitData; member
         ) : null}
       </Box>
       <Text px={1} py={1} fontSize="2xs" fontWeight="semibold" textAlign="center" noOfLines={2}
-        color={current ? 'yellow.200' : 'gray.200'}>{memberName}</Text>
+        color={current ? 'accent.200' : 'gray.200'}>{memberName}</Text>
     </Box>
   );
   return current ? <Box>{card}</Box> : (
@@ -519,7 +520,7 @@ function SkillsTab({
     return <Text color="gray.500" fontSize="sm">This unit has no skills.</Text>;
   }
   if (skillStatus === 'loading' && baseRecords.length === 0) {
-    return <Center py={8}><Spinner color="yellow.400" /></Center>;
+    return <Center py={8}><Spinner color="accent.400" /></Center>;
   }
 
   return (
@@ -529,8 +530,8 @@ function SkillsTab({
         <Flex gap={4} wrap="wrap" align="center">
           {hasAltForm ? (
             <ButtonGroup isAttached size="sm">
-              <Button colorScheme="yellow" variant={form === 0 ? 'solid' : 'outline'} onClick={() => setForm(0)}>Form 1</Button>
-              <Button colorScheme="yellow" variant={form === 1 ? 'solid' : 'outline'} onClick={() => setForm(1)}>Form 2</Button>
+              <Button colorScheme="accent" variant={form === 0 ? 'solid' : 'outline'} onClick={() => setForm(0)}>Form 1</Button>
+              <Button colorScheme="accent" variant={form === 1 ? 'solid' : 'outline'} onClick={() => setForm(1)}>Form 2</Button>
             </ButtonGroup>
           ) : null}
 
@@ -539,10 +540,10 @@ function SkillsTab({
             <Text fontSize="xs" color="gray.500" whiteSpace="nowrap">Skill Lv</Text>
             <Slider aria-label="skill level" value={level} min={1} max={10} flex="1"
               onChange={setLevel} focusThumbOnChange={false}>
-              <SliderTrack bg="whiteAlpha.200"><SliderFilledTrack bg="yellow.400" /></SliderTrack>
+              <SliderTrack bg="whiteAlpha.200"><SliderFilledTrack bg="accent.400" /></SliderTrack>
               <SliderThumb boxSize={4} />
             </Slider>
-            <Badge colorScheme="yellow" minW="2.2em" textAlign="center">{level}</Badge>
+            <Badge colorScheme="accent" minW="2.2em" textAlign="center">{level}</Badge>
           </HStack>
         </Flex>
 
@@ -594,7 +595,7 @@ function SkillsTab({
               <Tab key={s.title} p={1.5} borderRadius="md" borderBottomWidth="3px"
                 borderBottomColor="transparent" opacity={0.55}
                 _hover={{ opacity: 0.85, bg: 'whiteAlpha.100' }}
-                _selected={{ opacity: 1, borderBottomColor: 'yellow.400', bg: 'whiteAlpha.100' }}>
+                _selected={{ opacity: 1, borderBottomColor: 'accent.400', bg: 'whiteAlpha.100' }}>
                 <Image src={`/images/SkillIcon/${s.img}_${s.type}.png`}
                   boxSize={['32px', '38px', '42px']} alt={s.title} />
               </Tab>
@@ -692,7 +693,7 @@ function InfoTab({
         </InputGroup>
         <Slider aria-label="level" value={Math.min(level, LV_CAP)} min={1} max={LV_CAP} mb={4}
           onChange={setLevel} focusThumbOnChange={false}>
-          <SliderTrack bg="whiteAlpha.200"><SliderFilledTrack bg="yellow.400" /></SliderTrack>
+          <SliderTrack bg="whiteAlpha.200"><SliderFilledTrack bg="accent.400" /></SliderTrack>
           <SliderThumb boxSize={4} />
         </Slider>
 
@@ -964,9 +965,9 @@ function LimitBreakTab({ unit }: { unit: FullUnitData }) {
           </Tbody>
           <Tfoot>
             <Tr bg="blackAlpha.400">
-              <Th position="sticky" left={0} bg="blackAlpha.400" color="yellow.300">Total</Th>
+              <Th position="sticky" left={0} bg="blackAlpha.400" color="accent.300">Total</Th>
               {cols.map((id) => (
-                <Th key={id} isNumeric color="yellow.300">{totals[id].toLocaleString()}</Th>
+                <Th key={id} isNumeric color="accent.300">{totals[id].toLocaleString()}</Th>
               ))}
             </Tr>
           </Tfoot>
@@ -1019,7 +1020,7 @@ function SkinTab({ unit }: { unit: FullUnitData }) {
                 as="button"
                 onClick={() => setIdx(i)}
                 borderWidth={2}
-                borderColor={selected ? 'yellow.400' : 'gray.600'}
+                borderColor={selected ? 'accent.400' : 'gray.600'}
                 borderRadius="md"
                 bg={selected ? 'whiteAlpha.100' : 'transparent'}
                 p={2}
@@ -1027,7 +1028,7 @@ function SkinTab({ unit }: { unit: FullUnitData }) {
                 minW="100px"
                 maxW="120px"
                 cursor="pointer"
-                _hover={{ borderColor: 'yellow.300' }}
+                _hover={{ borderColor: 'accent.300' }}
                 transition="border-color 0.15s"
               >
                 {iconSrc && (

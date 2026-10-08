@@ -154,7 +154,7 @@ export default function UnitConfig({ tile, slot, unit, team, enemyWave, onChange
   if (!detail) {
     return (
       <Box borderWidth="1px" borderColor="surface.border" borderRadius="xl" bg="surface.elevated" p={4}>
-        <Center py={8}><Spinner color="yellow.400" /></Center>
+        <Center py={8}><Spinner color="accent.400" /></Center>
       </Box>
     );
   }
@@ -195,7 +195,7 @@ export default function UnitConfig({ tile, slot, unit, team, enemyWave, onChange
 
   const fmtBonus = (n: number, suffix = '') =>
     n === 0 ? null : (
-      <Text as="span" color="yellow.300" fontWeight="700" ml={1.5}>
+      <Text as="span" color="accent.300" fontWeight="700" ml={1.5}>
         ({n > 0 ? '+' : ''}{Number.isInteger(n) ? n.toLocaleString() : n}{suffix})
       </Text>
     );
@@ -217,7 +217,7 @@ export default function UnitConfig({ tile, slot, unit, team, enemyWave, onChange
         <Box minW={0} flex="1">
           <Heading size="sm" noOfLines={1}>
             <Link href={`/units/detail?id=${encodeURIComponent(unit.id)}`}>
-              <Text as="span" _hover={{ color: 'yellow.300', textDecoration: 'underline' }}>
+              <Text as="span" _hover={{ color: 'accent.300', textDecoration: 'underline' }}>
                 {unitDisplayName(unit)}
               </Text>
             </Link>
@@ -265,7 +265,7 @@ export default function UnitConfig({ tile, slot, unit, team, enemyWave, onChange
           </InputGroup>
           <Slider aria-label="level" value={slot.level} min={1} max={LV_MAX} flex="1" minW="120px"
             onChange={(v) => onChange({ level: v })} focusThumbOnChange={false}>
-            <SliderTrack bg="whiteAlpha.200"><SliderFilledTrack bg="yellow.400" /></SliderTrack>
+            <SliderTrack bg="whiteAlpha.200"><SliderFilledTrack bg="accent.400" /></SliderTrack>
             <SliderThumb boxSize={4} />
           </Slider>
         </Flex>
@@ -304,10 +304,10 @@ export default function UnitConfig({ tile, slot, unit, team, enemyWave, onChange
       <Box borderWidth="1px" borderColor="surface.border" borderRadius="xl" bg="surface.elevated" p={4}>
         <Flex align="center" justify="space-between" gap={2} mb={1} wrap="wrap">
           <Heading size="xs">Stats <Text as="span" fontSize="2xs" color="gray.500" fontWeight="normal">
-            {rankTag(grade)} · Lv {slot.level} — total <Text as="span" color="yellow.300">(+bonus)</Text>
+            {rankTag(grade)} · Lv {slot.level} — total <Text as="span" color="accent.300">(+bonus)</Text>
           </Text></Heading>
           <HStack spacing={2}>
-            <Badge colorScheme={remaining > 0 ? 'yellow' : 'gray'}>{remaining} / {totalPts} pts left</Badge>
+            <Badge colorScheme={remaining > 0 ? 'accent' : 'gray'}>{remaining} / {totalPts} pts left</Badge>
             <Button size="xs" variant="outline"
               onClick={() => { setAutoStat(false); onChange({ points: [0, 0, 0, 0, 0, 0] }); }}>
               Reset
@@ -352,7 +352,7 @@ export default function UnitConfig({ tile, slot, unit, team, enemyWave, onChange
         {/* auto-stat: 100% round-1 CRIT + optional ACC floor, surplus into one stat */}
         <Box mt={3} pt={2} borderTopWidth="1px" borderColor="whiteAlpha.100">
           <Flex align="center" gap={3} wrap="wrap">
-            <Checkbox size="sm" colorScheme="yellow" isChecked={autoStat}
+            <Checkbox size="sm" colorScheme="accent" isChecked={autoStat}
               onChange={(e) => setAutoStat(e.target.checked)}>
               <Text fontSize="xs" fontWeight="600">Auto stats</Text>
             </Checkbox>
@@ -470,9 +470,9 @@ export default function UnitConfig({ tile, slot, unit, team, enemyWave, onChange
               <VStack key={i} spacing={1} opacity={unlocked ? 1 : 0.45}>
                 <Box as="button" boxSize="52px" borderRadius="lg" bg="blackAlpha.400"
                   borderWidth="2px" p="4px"
-                  borderColor={isOpen ? 'yellow.400' : sel && rank ? rankColor(rank.grade) : 'surface.border'}
+                  borderColor={isOpen ? 'accent.400' : sel && rank ? rankColor(rank.grade) : 'surface.border'}
                   display="flex" alignItems="center" justifyContent="center"
-                  _hover={unlocked ? { borderColor: 'yellow.300' } : undefined}
+                  _hover={unlocked ? { borderColor: 'accent.300' } : undefined}
                   onClick={() => {
                     if (!unlocked) return;
                     if (!sel) setPickerSlot(i);
@@ -511,7 +511,7 @@ export default function UnitConfig({ tile, slot, unit, team, enemyWave, onChange
             <Box mt={3} borderWidth="1px" borderColor="surface.border" borderRadius="lg" bg="blackAlpha.300" p={2.5}>
               <Flex align="center" gap={2} wrap="wrap">
                 <Text fontSize="xs" fontWeight="600" noOfLines={1} flex="1" minW="120px"
-                  cursor="pointer" _hover={{ color: 'yellow.300', textDecoration: 'underline' }}
+                  cursor="pointer" _hover={{ color: 'accent.300', textDecoration: 'underline' }}
                   onClick={() => dispatch(setActiveEquip(sel.id))}>
                   {t(rank?.name || listEq?.name || sel.id)}
                 </Text>
@@ -538,7 +538,7 @@ export default function UnitConfig({ tile, slot, unit, team, enemyWave, onChange
                   <Text fontSize="2xs" color="gray.500" whiteSpace="nowrap">Lv {sel.level}</Text>
                   <Slider aria-label="equip level" value={sel.level} min={0} max={10}
                     onChange={(v) => setEquip(i, { ...sel, level: v })} focusThumbOnChange={false}>
-                    <SliderTrack bg="whiteAlpha.200"><SliderFilledTrack bg="yellow.400" /></SliderTrack>
+                    <SliderTrack bg="whiteAlpha.200"><SliderFilledTrack bg="accent.400" /></SliderTrack>
                     <SliderThumb boxSize={3} />
                   </Slider>
                 </HStack>
@@ -553,9 +553,9 @@ export default function UnitConfig({ tile, slot, unit, team, enemyWave, onChange
         <Flex justify="flex-end" align="center" mb={2} wrap="wrap" gap={2}>
           {(full.skillsCh ?? []).length > 0 ? (
             <ButtonGroup isAttached size="xs">
-              <Button colorScheme="yellow" variant={slot.form === 0 ? 'solid' : 'outline'}
+              <Button colorScheme="accent" variant={slot.form === 0 ? 'solid' : 'outline'}
                 onClick={() => onChange({ form: 0 })}>Form 1</Button>
-              <Button colorScheme="yellow" variant={slot.form === 1 ? 'solid' : 'outline'}
+              <Button colorScheme="accent" variant={slot.form === 1 ? 'solid' : 'outline'}
                 onClick={() => onChange({ form: 1 })}>Form 2</Button>
             </ButtonGroup>
           ) : null}
@@ -564,7 +564,7 @@ export default function UnitConfig({ tile, slot, unit, team, enemyWave, onChange
           Click a skill icon to highlight the tiles it reaches on the map (ally-affecting skills only).
         </Text>
         {skillStatus === 'loading' && Object.keys(skills).length === 0 ? (
-          <Center py={4}><Spinner size="sm" color="yellow.400" /></Center>
+          <Center py={4}><Spinner size="sm" color="accent.400" /></Center>
         ) : (
           <Accordion allowMultiple>
             {skillKeys.map((key, i) => {
@@ -576,13 +576,13 @@ export default function UnitConfig({ tile, slot, unit, team, enemyWave, onChange
               const requiredRank = skillUnlockRank(key, raw.leastRank, region);
               const locked = requiredRank > grade;
               return (
-                <AccordionItem key={key} border="1px solid" borderColor={isAoe ? 'yellow.400' : 'surface.border'}
+                <AccordionItem key={key} border="1px solid" borderColor={isAoe ? 'accent.400' : 'surface.border'}
                   borderRadius="lg" mb={2} bg="blackAlpha.300" opacity={locked ? 0.55 : 1}>
                   <Flex align="center" gap={2} px={2} py={1.5} wrap="wrap">
                     <Image src={`/images/SkillIcon/${scaled.img}_${scaled.type}.png`} alt={scaled.title}
                       boxSize="34px" cursor={locked ? 'not-allowed' : 'pointer'}
                       filter={locked ? 'grayscale(1)' : undefined}
-                      outline={isAoe ? '2px solid var(--chakra-colors-yellow-400)' : undefined}
+                      outline={isAoe ? '2px solid var(--chakra-colors-accent-400)' : undefined}
                       borderRadius="md"
                       onClick={() => { if (!locked) onSkillClick(key, scaled); }} />
                     <Box minW={0} flex="1" cursor={locked ? 'default' : 'pointer'}
@@ -607,7 +607,7 @@ export default function UnitConfig({ tile, slot, unit, team, enemyWave, onChange
                           skillLv[i] = v;
                           onChange({ skillLv });
                         }} focusThumbOnChange={false}>
-                        <SliderTrack bg="whiteAlpha.200"><SliderFilledTrack bg="yellow.400" /></SliderTrack>
+                        <SliderTrack bg="whiteAlpha.200"><SliderFilledTrack bg="accent.400" /></SliderTrack>
                         <SliderThumb boxSize={3} />
                       </Slider>
                     </HStack>

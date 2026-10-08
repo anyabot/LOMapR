@@ -86,13 +86,13 @@ export default function Home() {
     }
   }, [sanctum, floorData, wave]);
 
-  // segmented toggle buttons (area / difficulty): subtle yellow when active
+  // segmented toggle buttons (area / difficulty): subtle accent when active
   const toggleProps = (active: boolean) => ({
     size: 'sm' as const,
     variant: 'outline' as const,
     bg: active ? 'whiteAlpha.100' : 'transparent',
-    color: active ? 'yellow.300' : 'gray.400',
-    borderColor: active ? 'yellow.400' : 'surface.border',
+    color: active ? 'accent.300' : 'gray.400',
+    borderColor: active ? 'accent.400' : 'surface.border',
     _hover: { bg: 'whiteAlpha.200' },
   });
 
@@ -115,7 +115,7 @@ export default function Home() {
       <UnitHoverCard key={id} unitId={id}>
         <HStack spacing={1.5} px={2} py={1} borderWidth="1px" borderColor="surface.border"
           borderRadius="lg" bg="blackAlpha.300" cursor="pointer"
-          _hover={{ borderColor: "yellow.400", bg: "whiteAlpha.100" }}>
+          _hover={{ borderColor: "accent.400", bg: "whiteAlpha.100" }}>
           {u?.icon ? (
             <Image src={`/images/icons/${u.icon}.png`} alt={id} boxSize="22px"
               borderRadius="md" objectFit="cover" flexShrink={0} />

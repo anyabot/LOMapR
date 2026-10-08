@@ -5,7 +5,7 @@
 > components, data files, or deploy behavior. Verify claims against the code,
 > never copy them from another doc.
 >
-> Last verified against code: **2026-08-12**.
+> Last verified against code: **2026-10-08**.
 
 ## What this is
 
@@ -36,7 +36,9 @@ for the game.
   handles the `/models|/rebuilt|/skins` proxy rewrites (skin archives and Unity fallback)
   and `/api` routes. Dynamic Worker traffic is protected by a
   native Cloudflare per-client rate-limit binding in `middleware.ts` (120
-  requests/minute; no browser challenge). Chakra UI + Redux Toolkit. All game
+  requests/minute; no browser challenge). Chakra UI + Redux Toolkit; the top bar,
+  footer and theme tokens come from the shared `@altterisk/game-hub` package
+  (GitHub dependency, refreshed to its `main` by every `cf:build`). All game
   data is fetched as
   JSON **at runtime in the browser** from the R2 custom domain (or from
   `public/local-data/` in `dev:local` mode). Route params are query strings

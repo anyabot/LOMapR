@@ -192,7 +192,7 @@ function ResultCard({ entry }: { entry: GachaEntry }) {
       minW="80px"
       maxW="100px"
       align="center"
-      _hover={href ? { borderColor: 'yellow.400' } : undefined}
+      _hover={href ? { borderColor: 'accent.400' } : undefined}
       transition="border-color 0.12s"
     >
       <EntryIcon entry={entry} size="64px" />
@@ -227,7 +227,7 @@ function RatesSection({ entries, label, total }: { entries: GachaEntry[]; label:
     <Box>
       <HStack mb={2} spacing={2} wrap="wrap">
         <Text fontWeight="semibold" fontSize="sm">{label}</Text>
-        <Badge colorScheme="yellow" fontSize="xs">{(total * 100).toFixed(4)}% combined</Badge>
+        <Badge colorScheme="accent" fontSize="xs">{(total * 100).toFixed(4)}% combined</Badge>
         <Text fontSize="xs" color="whiteAlpha.500">{entries.length} entries</Text>
       </HStack>
       <SimpleGrid columns={{ base: 2, sm: 3, md: 4, lg: 5 }} spacing={2}>
@@ -251,9 +251,9 @@ function RatesSection({ entries, label, total }: { entries: GachaEntry[]; label:
               bg="surface.elevated"
               borderRadius="md"
               borderWidth="1px"
-              borderColor={highlight ? 'yellow.700' : 'surface.border'}
+              borderColor={highlight ? 'accent.700' : 'surface.border'}
               align="center"
-              _hover={href ? { borderColor: 'yellow.400' } : undefined}
+              _hover={href ? { borderColor: 'accent.400' } : undefined}
               transition="border-color 0.12s"
             >
               <Box
@@ -262,7 +262,7 @@ function RatesSection({ entries, label, total }: { entries: GachaEntry[]; label:
                 borderWidth="2px"
                 borderColor={GRADE_COLOR[grade] ?? 'gray.500'}
                 overflow="hidden"
-                bg="#0f1115"
+                bg="hub.bg"
                 flexShrink={0}
               >
                 <Image
@@ -286,7 +286,7 @@ function RatesSection({ entries, label, total }: { entries: GachaEntry[]; label:
               )}
               <Text
                 fontSize="2xs"
-                color={highlight ? 'yellow.300' : 'whiteAlpha.500'}
+                color={highlight ? 'accent.300' : 'whiteAlpha.500'}
                 fontWeight={highlight ? 'semibold' : 'normal'}
                 lineHeight="none"
               >
@@ -402,7 +402,7 @@ function HistoryStats({ history }: { history: PullSession[] }) {
               <WrapItem key={entry.id}>
                 <VStack spacing={0} align="center">
                   <EntryIcon entry={entry} size="44px" />
-                  <Badge fontSize="2xs" colorScheme={count > 1 ? 'yellow' : 'gray'}>×{count}</Badge>
+                  <Badge fontSize="2xs" colorScheme={count > 1 ? 'accent' : 'gray'}>×{count}</Badge>
                 </VStack>
               </WrapItem>
             ))}
@@ -513,12 +513,12 @@ export default function GachaPage() {
                     p={3}
                     borderRadius="lg"
                     borderWidth="1px"
-                    borderColor={boxIdx === i ? 'yellow.400' : 'surface.border'}
+                    borderColor={boxIdx === i ? 'accent.400' : 'surface.border'}
                     bg={boxIdx === i ? 'whiteAlpha.100' : 'transparent'}
                     cursor={available ? 'pointer' : 'not-allowed'}
                     opacity={available ? 1 : 0.4}
                     onClick={() => available && setBoxIdx(i)}
-                    _hover={available ? { borderColor: 'yellow.400' } : {}}
+                    _hover={available ? { borderColor: 'accent.400' } : {}}
                     transition="border-color 0.15s"
                   >
                     <Text fontSize="sm" fontWeight="semibold">{b.label}</Text>
@@ -532,7 +532,7 @@ export default function GachaPage() {
               <VStack spacing={2} align="stretch">
                 {!box.hideSingle && (
                   <Button
-                    colorScheme="yellow"
+                    colorScheme="accent"
                     size="sm"
                     onClick={() => pull(1, box.singleCost, singlePool)}
                     isDisabled={!singlePool.length}
@@ -542,7 +542,7 @@ export default function GachaPage() {
                 )}
                 {box.multiKey && (
                   <Button
-                    colorScheme="yellow"
+                    colorScheme="accent"
                     variant="outline"
                     size="sm"
                     onClick={() => pull(box.pulls, box.multiCost, multiPool)}
@@ -565,7 +565,7 @@ export default function GachaPage() {
 
             {/* ── right panel: tabs ── */}
             <Box flex={1} minW={0}>
-              <Tabs index={tab} onChange={setTab} variant="soft-rounded" colorScheme="yellow" size="sm">
+              <Tabs index={tab} onChange={setTab} variant="soft-rounded" colorScheme="accent" size="sm">
                 <TabList mb={3}>
                   <Tab>Last pull {results.length > 0 && `(${results.length})`}</Tab>
                   <Tab>Rates</Tab>

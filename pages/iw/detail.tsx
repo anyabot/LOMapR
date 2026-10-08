@@ -197,10 +197,10 @@ export default function Home() {
                       flexDirection="column"
                       variant="outline"
                       bg={active ? 'whiteAlpha.100' : 'transparent'}
-                      color={active ? 'yellow.300' : 'gray.400'}
+                      color={active ? 'accent.300' : 'gray.400'}
                       borderWidth="1px"
-                      borderColor={active ? 'yellow.400' : 'surface.border'}
-                      _hover={{ bg: 'whiteAlpha.200', borderColor: active ? 'yellow.400' : 'gray.500' }}
+                      borderColor={active ? 'accent.400' : 'surface.border'}
+                      _hover={{ bg: 'whiteAlpha.200', borderColor: active ? 'accent.400' : 'gray.500' }}
                     >
                       <Text fontWeight="bold">Phase {index + 1}</Text>
                       <Text fontSize="xs" opacity={0.85} fontWeight="normal">

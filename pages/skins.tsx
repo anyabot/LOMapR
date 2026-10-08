@@ -147,7 +147,7 @@ export default function Skins() {
         <HStack>
           <Heading size="xl">Skins</Heading>
           {!loading && (
-            <Badge colorScheme="yellow" borderRadius="full" px={2}>{shown.length}</Badge>
+            <Badge colorScheme="accent" borderRadius="full" px={2}>{shown.length}</Badge>
           )}
         </HStack>
 
@@ -163,7 +163,7 @@ export default function Skins() {
                 {allCategories.map((catKey) => (
                   <WrapItem key={catKey}>
                     <Button size="xs"
-                      colorScheme={activeCats.has(catKey) ? 'yellow' : 'gray'}
+                      colorScheme={activeCats.has(catKey) ? 'accent' : 'gray'}
                       variant={activeCats.has(catKey) ? 'solid' : 'outline'}
                       onClick={() => toggleCat(catKey)}>
                       {SKIN_CATEGORIES[catKey]}   {/* Display nice name */}
@@ -191,7 +191,7 @@ export default function Skins() {
                       <Tooltip label={meta.label} placement="top" openDelay={300}>
                         <Button size="xs"
                           variant={activeParts.has(part) ? 'solid' : 'outline'}
-                          colorScheme={activeParts.has(part) ? 'yellow' : 'gray'}
+                          colorScheme={activeParts.has(part) ? 'accent' : 'gray'}
                           leftIcon={<Image src={meta.icon} alt="" boxSize="14px" />}
                           onClick={() => togglePart(part)}>
                           {meta.label}
@@ -228,7 +228,7 @@ export default function Skins() {
         </Box>
 
         {loading ? (
-          <Center py={20}><Spinner color="yellow.300" /></Center>
+          <Center py={20}><Spinner color="accent.300" /></Center>
         ) : shown.length === 0 ? (
           <Center py={16}><Text color="gray.500">No skins match the current filters.</Text></Center>
         ) : (
@@ -265,11 +265,11 @@ function SkinCard({ skin, selected, onClick }: {
   return (
     <Box as="button" onClick={onClick}
       borderWidth={2}
-      borderColor={selected ? 'yellow.400' : 'gray.600'}
+      borderColor={selected ? 'accent.400' : 'gray.600'}
       borderRadius="md"
       bg={selected ? 'whiteAlpha.100' : 'transparent'}
       p={2} textAlign="center" minW="100px" maxW="120px"
-      cursor="pointer" _hover={{ borderColor: 'yellow.300' }}
+      cursor="pointer" _hover={{ borderColor: 'accent.300' }}
       transition="border-color 0.15s">
       {iconSrc && (
         <Image src={iconSrc} alt={name} boxSize="80px" objectFit="contain"
@@ -333,7 +333,7 @@ function SkinPanel({ skin }: { skin: SkinEntry }) {
               <Td fontWeight="semibold" color="gray.400" whiteSpace="nowrap">Unit</Td>
               <Td>
               <UnitHoverCard unitId={skin.unitId} inline>
-                <Box as="span" color="yellow.100" fontWeight="semibold" cursor="pointer"
+                <Box as="span" color="accent.100" fontWeight="semibold" cursor="pointer"
                   textDecoration='underline'>{skin.unitEngName}</Box>
               </UnitHoverCard>
               </Td>
@@ -344,7 +344,7 @@ function SkinPanel({ skin }: { skin: SkinEntry }) {
                 <Td>
                   <Wrap spacing={1}>
                     {skin.category.map((c) => (
-                      <WrapItem key={c}><Badge colorScheme="yellow" variant="subtle">{SKIN_CATEGORIES[c] || c}</Badge></WrapItem>
+                      <WrapItem key={c}><Badge colorScheme="accent" variant="subtle">{SKIN_CATEGORIES[c] || c}</Badge></WrapItem>
                     ))}
                   </Wrap>
                 </Td>

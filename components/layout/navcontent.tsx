@@ -1,11 +1,10 @@
 import {
-  Box, Stack, HStack, Select, Checkbox, Text, VStack,
-  Menu, MenuButton, MenuList, MenuItem, Button, Spinner,
+  HStack, Select, Checkbox, Text, VStack,
+  Menu, MenuButton, MenuList, MenuItem, Button, Spinner, Portal,
 } from "@chakra-ui/react";
 import { ChevronDownIcon } from "@chakra-ui/icons";
 import NextLink from "next/link";
 import { useRouter } from "next/router";
-import NavLink from "./navlink"
 import { useAppSelector, useAppDispatch } from "@/hooks";
 import { selectRegion, setRegion, Region } from "@/store/regionSlice";
 import {
@@ -54,54 +53,39 @@ const ETC_LINKS = [
   ["/misc", "Misc Categories"],
 ] as const;
 
-function EtcMenu() {
+export function EtcMenu() {
   const { pathname } = useRouter();
   const active = ETC_LINKS.some(([href]) => pathname.startsWith(href));
 
   return (
     <Menu>
-      <MenuButton
-        as={Button}
-        variant="ghost"
-        size="sm"
-        h="auto"
-        minW={0}
-        px={1}
-        py={0.5}
-        fontWeight="bold"
-        color={active ? "yellow.300" : "gray.300"}
-        borderRadius={0}
-        borderBottomWidth="2px"
-        borderColor={active ? "yellow.400" : "transparent"}
-        _hover={{ color: "yellow.200", bg: "transparent" }}
-        _active={{ bg: "whiteAlpha.100" }}
-        rightIcon={<ChevronDownIcon />}
-      >
-        Etc
+      <MenuButton className="hub-navlink" aria-current={active ? "page" : undefined} flexShrink={0}>
+        Etc <ChevronDownIcon />
       </MenuButton>
-      <MenuList bg="#21252e" borderColor="#2c313c" minW="190px" py={1}>
-        {ETC_LINKS.map(([href, label]) => {
-          const itemActive = pathname.startsWith(href);
-          return (
-            <MenuItem
-              as={NextLink}
-              key={href}
-              href={href}
-              bg={itemActive ? "whiteAlpha.100" : "transparent"}
-              color={itemActive ? "yellow.300" : "gray.200"}
-              fontWeight={itemActive ? "bold" : "normal"}
-              _hover={{ bg: "whiteAlpha.100", color: "yellow.200" }}
-            >
-              {label}
-            </MenuItem>
-          );
-        })}
-      </MenuList>
+      {/* the bar's nav row scrolls horizontally, which would clip an inline list */}
+      <Portal>
+        <MenuList zIndex="dropdown" minW="190px" py={1}>
+          {ETC_LINKS.map(([href, label]) => {
+            const itemActive = pathname.startsWith(href);
+            return (
+              <MenuItem
+                as={NextLink}
+                key={href}
+                href={href}
+                color={itemActive ? "accent.300" : undefined}
+                fontWeight={itemActive ? "bold" : "normal"}
+              >
+                {label}
+              </MenuItem>
+            );
+          })}
+        </MenuList>
+      </Portal>
     </Menu>
   );
 }
 
-function TranslationMenu() {
+export function TranslationMenu() {
   const mtl       = useAppSelector(selectMtl);
   const krMtl     = useAppSelector(selectKrMtl);
   const community = useAppSelector(selectCommunity);
@@ -131,22 +115,15 @@ function TranslationMenu() {
         variant="outline"
         borderColor="whiteAlpha.300"
         _hover={{ borderColor: "whiteAlpha.500" }}
-        color={activeCount > 0 ? "yellow.300" : "inherit"}
+        color={activeCount > 0 ? "accent.300" : "inherit"}
         fontWeight="normal"
       >
         {label} ▾
       </MenuButton>
-      <MenuList
-        bg="#21252e"
-        borderColor="#2c313c"
-        minW="240px"
-        py={1}
-      >
+      <MenuList minW="240px" py={1}>
         {LAYERS.map(({ key, label, desc, warning }) => (
           <MenuItem
             key={key}
-            bg="transparent"
-            _hover={{ bg: "whiteAlpha.100" }}
             onClick={() => setters[key](!values[key])}
             px={3}
             py={2}
@@ -155,7 +132,7 @@ function TranslationMenu() {
               {loaded[key] ? (
                 <Checkbox
                   isChecked={values[key]}
-                  colorScheme="yellow"
+                  colorScheme="accent"
                   size="sm"
                   onChange={(e) => { e.stopPropagation(); setters[key](e.target.checked); }}
                   pointerEvents="none"
@@ -186,57 +163,21 @@ function TranslationMenu() {
   );
 }
 
-function NavContent({ isOpen }: { isOpen: boolean }) {
+export function RegionSelect() {
   const region   = useAppSelector(selectRegion);
   const dispatch = useAppDispatch();
 
   return (
-    <Box
-      display={{ base: isOpen ? "block" : "none", md: "block" }}
-      flexBasis={{ base: "100%", md: "auto" }}
-      flex={{ md: 1 }}
-      ml={{ md: 6 }}
+    <Select
+      size="sm"
+      value={region}
+      onChange={(e) => dispatch(setRegion(e.target.value as Region))}
+      w="auto"
+      cursor="pointer"
     >
-      <Stack
-        spacing={[3, 3, 5]}
-        align="center"
-        justify={["center", "center", "space-between"]}
-        direction={["column", "column", "row"]}
-        pt={[3, 3, 0]}
-        w="100%"
-      >
-        <HStack spacing={[3, 3, 4]} flexWrap="wrap" justify={["center", "center", "flex-start"]}>
-          <NavLink to="/">Home</NavLink>
-          <NavLink to="/units">Units</NavLink>
-          <NavLink to="/skins">Skins</NavLink>
-          <NavLink to="/equipment">Equipment</NavLink>
-          <NavLink to="/world">World</NavLink>
-          <NavLink to="/sanctum">Sanctum</NavLink>
-          <NavLink to="/enemies">Enemies</NavLink>
-          <NavLink to="/iw">Infinite War</NavLink>
-          <EtcMenu />
-        </HStack>
-
-        <HStack spacing={2} flexWrap="wrap" justify="center" align="center">
-          <Select
-            size="sm"
-            value={region}
-            onChange={(e) => dispatch(setRegion(e.target.value as Region))}
-            w="auto"
-            borderColor="whiteAlpha.300"
-            _hover={{ borderColor: "whiteAlpha.500" }}
-            cursor="pointer"
-          >
-            {REGION_OPTIONS.map(([v, label]) => (
-              <option key={v} value={v}>{label}</option>
-            ))}
-          </Select>
-
-          <TranslationMenu />
-        </HStack>
-      </Stack>
-    </Box>
+      {REGION_OPTIONS.map(([v, label]) => (
+        <option key={v} value={v}>{label}</option>
+      ))}
+    </Select>
   );
 }
-
-export default NavContent

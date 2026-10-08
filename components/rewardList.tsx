@@ -201,7 +201,7 @@ function RewardChip({
       borderColor={border}
       borderRadius="lg"
       bg="blackAlpha.300"
-      {...(linked ? { _hover: { borderColor: 'yellow.400', bg: 'whiteAlpha.100' }, cursor: 'pointer' } : {})}
+      {...(linked ? { _hover: { borderColor: 'accent.400', bg: 'whiteAlpha.100' }, cursor: 'pointer' } : {})}
     >
       <IconPlaceholder icon={r.icon} />
       <Box minW={0}>

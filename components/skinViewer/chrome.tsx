@@ -114,7 +114,7 @@ export function LayersButton({ active, onToggle }: { active: boolean; onToggle: 
     <Tooltip label={active ? 'Close layer editor' : 'Layer editor'} fontSize="xs" hasArrow placement="left">
       <Box as="button" onClick={onToggle} boxSize="36px" display="flex" alignItems="center"
         justifyContent="center" opacity={active ? 1 : 0.6} _hover={{ opacity: 1 }} transition="opacity 0.15s">
-        <HamburgerIcon boxSize="20px" color={active ? 'yellow.300' : 'gray.200'} />
+        <HamburgerIcon boxSize="20px" color={active ? 'accent.300' : 'gray.200'} />
       </Box>
     </Tooltip>
   );
@@ -160,7 +160,7 @@ export function LayerPanel({ slots, hidden, top = 2, onToggle, onSetAll, onClose
               px={1} py="2px" borderRadius="sm" textAlign="left" _hover={{ bg: 'whiteAlpha.200' }}>
               {off
                 ? <ViewOffIcon boxSize="12px" color="gray.500" flexShrink={0} />
-                : <ViewIcon boxSize="12px" color="yellow.300" flexShrink={0} />}
+                : <ViewIcon boxSize="12px" color="accent.300" flexShrink={0} />}
               <Text fontSize="xs" color={off ? 'gray.500' : 'gray.100'} isTruncated title={s}>{s}</Text>
             </Flex>
           );
@@ -202,7 +202,7 @@ export function VariantStrip({ variants, active, onSelect }: {
               opacity={isActive ? 1 : 0.4} transition="opacity 0.15s"
               _hover={{ opacity: isActive ? 0.8 : 0.65 }}
               outline={isActive ? '2px solid' : 'none'}
-              outlineColor="yellow.400"
+              outlineColor="accent.400"
               borderRadius="sm">
               <Image src={v.icon} alt={v.label} boxSize="36px" objectFit="contain" />
             </Box>

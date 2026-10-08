@@ -43,7 +43,7 @@ export default function GlobalLoader() {
       bg="blackAlpha.600"
       backdropFilter="blur(2px)"
     >
-      <Spinner size="xl" color="yellow.400" thickness="3px" speed="0.7s" emptyColor="whiteAlpha.200" />
+      <Spinner size="xl" color="accent.400" thickness="3px" speed="0.7s" emptyColor="whiteAlpha.200" />
     </Center>
   );
 }

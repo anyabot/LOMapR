@@ -2,7 +2,7 @@
 
 > **MAINTENANCE POLICY: update this doc at the end of any task that adds/moves/
 > removes a page, slice, component, lib module, or data contract.** Verify
-> against the code, don't assume. Last verified against code: **2026-08-31**.
+> against the code, don't assume. Last verified against code: **2026-10-08**.
 
 Next.js **pages router**, deployed to Cloudflare Workers via OpenNext (all
 pages prerendered and served as static assets; the Worker only handles the
@@ -11,7 +11,7 @@ UI, Redux Toolkit for data state. TypeScript throughout. No app backend:
 every data read is a runtime `fetch` from the R2 asset domain or `/local-data`
 (see `lib/fetchData.ts`).
 
-## Pages (all nav links, verified in `components/layout/navcontent.tsx`)
+## Pages (all nav links, verified in `components/layout/navbar.tsx` + `navcontent.tsx`)
 
 | route | file | what |
 |---|---|---|
@@ -35,11 +35,36 @@ drop chip / gear tile anywhere opens them in place. Unit references share
 **Mobile rule:** every page must handle mobile by default — wide tables get an
 `overflowX="auto"` wrapper + `minW`; toolbars wrap.
 
+## Shared shell and theme
+
+The top bar, footer and design tokens come from `@altterisk/game-hub` (the
+shared shell of the altterisk.cc game sites, installed from GitHub — no vendored
+tarball). `pages/_app.tsx` builds the Chakra theme as
+`extendTheme(hubChakraTheme('lo'), …)` and imports `@altterisk/game-hub/hub.css`;
+`pages/_document.tsx` sets `data-game="lo"` on `<html>` and loads Inter.
+
+- **Colours:** `accent.*` (`colorScheme="accent"`) means brand / active /
+  selected; the accent value is owned by game-hub. Surfaces use `hub.*` /
+  `surface.*` tokens; canvas and SVG code reads `tokens` / `accentScale` from
+  the package. `yellow` is kept only where it carries game meaning (SS rank,
+  Electric element, buff chance/condition pills, mission stars, skin price,
+  farmable-vs-one-time drops, the KR region toggle). `styles/globals.css`
+  aliases its old `--bg`/`--border`/`--primary`… variables to the `--hub-*` ones.
+- **Bar:** `HubBar` gets the main links (`NavLink` sets `aria-current`) plus the
+  `Etc` menu, whose list is portalled because the bar's nav row scrolls. The
+  region `<select>` and Translation menu sit in `actions` on md+; on phones a
+  "Toggle menu" button reveals them in a panel under the bar.
+- **Updates:** `cf:build` starts with `hub:update`
+  (`npm install --no-save github:Altterisk/game-hub`), so every build — including
+  the CI build on push — takes game-hub's current `main` without touching
+  `package-lock.json`. `tsconfig.json` uses `moduleResolution: "bundler"` so the
+  package's `exports` subpaths (`/chakra`, `/hub.css`) resolve.
+
 ## Components
 
 | file / dir | what |
 |---|---|
-| `layout.tsx` + `layout/` (`navbar`, `navcontent`, `navlink`, `footer`, `scrollTop`) | app shell, nav, region switch, global modals, footer (GitHub links), scroll-to-top |
+| `layout.tsx` + `layout/` (`navbar`, `navcontent`, `navlink`, `footer`, `scrollTop`) | app shell: `HubBar` (nav, Etc menu, region select, translation layers, phone toggle panel), global modals, `HubFooter` (Source code / @anyabot / Portfolio), scroll-to-top |
 | `enemyTab/` (`enemyModal`, `skillTab(+List)`, `skillArea`, `appearance(+List)`, `aiGraph`) | enemy modal internals; AI graph uses dagre |
 | `skinViewer.tsx` + `skinViewer/` | skin viewer: PixiJS fixed, Spine, and reconstructed skinned rigs loaded from brotli archives; shared pan/zoom, PNG download, variants, props/background, pause/reset, and touch controls; structural SFW variants remount a complete `__sfw` rig archive; Unity WebGL remains the automatic fallback when a skinned Pixi archive is unavailable; Spine skins also get a per-slot layer editor |
 | `buffList.tsx` | buff/effect rendering; exports `buffValue`, `BuffCondTags`, `TARGET_LABELS` (reused by misc page) |
@@ -114,7 +139,8 @@ to `{engName, number}`; the full `UnitProfile` arrives with the detail bundle.
 | `dev:local` | `sync:local-data` then dev with `NEXT_PUBLIC_DATA_SOURCE=local` |
 | `sync:local-data` | copy `data/` → `public/local-data/` |
 | `build` | `next build` (prebuild regenerates `publicImages.json`) |
-| `cf:build` | clean local-data + OpenNext Cloudflare build → `.open-next/` |
+| `hub:update` | reinstall `@altterisk/game-hub` from GitHub `main` without saving to package.json/lock |
+| `cf:build` | `hub:update` + clean local-data + OpenNext Cloudflare build → `.open-next/` |
 | `cf:preview` / `cf:deploy` | local Worker preview (workerd) / `wrangler deploy` |
 | `gen:images` | rebuild `lib/publicImages.json` |
 | `test:e2e` / `test:e2e:ui` | Playwright smoke tests (`tests/e2e/`, chromium; auto-starts `dev:local`) |
@@ -162,7 +188,8 @@ Knight Chick, Story zone 1, Colossus_01) — update it if a data rename breaks i
 
 Selector gotchas baked into the specs: `Button as={Link}` renders an `<a>`
 (use `getByRole('link')`); `getByRole` name matching is substring by default
-(pass `exact: true` when a share-label contains the word); the navbar has its
-own `LOMapR` heading and region `<select>`; the gacha page opens on the Rates
+(pass `exact: true` when a share-label contains the word); the bar brand is a
+link, not a heading (the home hero is the `LOMapR` heading), and the bar has its
+own region `<select>`; the gacha page opens on the Rates
 tab; the stage map is a canvas (drive it via the `?stage=` query instead of
 clicks).

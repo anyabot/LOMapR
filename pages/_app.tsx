@@ -26,90 +26,17 @@ import { fetchEquipAsync } from '@/store/equipSlice'
 import Layout from '@/components/layout'
 
 import { extendTheme } from '@chakra-ui/react'
+import { hubChakraTheme } from '@altterisk/game-hub/chakra'
+import '@altterisk/game-hub/hub.css'
 
-const theme = extendTheme({
-  config: { initialColorMode: 'dark', useSystemColorMode: false },
-  fonts: {
-    heading: `'NewYork'`,
-    body: `'NewYork'`,
-  },
-  colors: {
-    surface: {
-      DEFAULT: '#181b22',
-      elevated: '#21252e',
-      border: '#2c313c',
-    },
-  },
+const theme = extendTheme(hubChakraTheme('lo'), {
   styles: {
     global: {
-      body: { bg: '#0f1115', color: '#e8eaed' },
       'h1, h2': { fontWeight: 700 },
     },
   },
   components: {
-    // Non-interactive info panels; clickable cards are plain Boxes with their own hover.
-    Card: {
-      baseStyle: {
-        container: {
-          bg: '#181b22',
-          color: '#e8eaed',
-          borderRadius: 'xl',
-          borderWidth: '1px',
-          borderColor: '#2c313c',
-        },
-      },
-    },
-    Table: {
-      baseStyle: {
-        th: { borderColor: '#2c313c', color: '#9aa0aa' },
-        td: { borderColor: '#2c313c' },
-      },
-      variants: {
-        // dark zebra stripe (the default striped variant uses a light bg)
-        striped: {
-          th: { borderColor: '#2c313c', color: '#9aa0aa' },
-          td: { borderColor: '#2c313c' },
-          tbody: {
-            tr: {
-              '&:nth-of-type(odd) td': { background: 'whiteAlpha.50' },
-              '&:nth-of-type(even) td': { background: 'transparent' },
-            },
-          },
-        },
-      },
-    },
-    Divider: { baseStyle: { borderColor: '#2c313c', opacity: 1 } },
-    // The light-mode gray variants render near-white on this dark UI, so pin them.
-    Button: {
-      variants: {
-        solid: (props: { colorScheme: string }) =>
-          props.colorScheme === 'gray'
-            ? { bg: '#2c313c', color: '#e8eaed', _hover: { bg: '#3a4150' }, _active: { bg: '#3a4150' } }
-            : {},
-        outline: (props: { colorScheme: string }) =>
-          props.colorScheme === 'gray'
-            ? { color: '#e8eaed', borderColor: '#3a4150', _hover: { bg: 'whiteAlpha.200' } }
-            : {},
-      },
-    },
-    Input: {
-      defaultProps: { focusBorderColor: 'yellow.400' },
-      baseStyle: {
-        field: { bg: '#181b22', borderColor: '#2c313c' },
-        addon: { bg: '#2c313c', color: '#e8eaed', borderColor: '#2c313c' },
-      },
-      // the outline variant sets its own addon bg/border, overriding baseStyle
-      variants: {
-        outline: {
-          field: { bg: '#181b22', borderColor: '#2c313c' },
-          addon: { bg: '#2c313c', color: '#e8eaed', borderColor: '#2c313c' },
-        },
-      },
-    },
-    Select: {
-      defaultProps: { focusBorderColor: 'yellow.400' },
-      baseStyle: { field: { bg: '#181b22', borderColor: '#2c313c' } },
-    },
+    Divider: { baseStyle: { borderColor: 'hub.border', opacity: 1 } },
   },
 })
 
@@ -265,12 +192,12 @@ function AppBody({ Component, pageProps }: Pick<AppProps, 'Component' | 'pagePro
         {transitioning && (
           <div style={{
             position: 'fixed', inset: 0, zIndex: 9999,
-            background: 'rgba(15,17,21,0.7)', backdropFilter: 'blur(2px)',
+            background: 'rgba(11,15,23,0.7)', backdropFilter: 'blur(2px)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             transition: 'opacity 0.15s',
           }}>
-            <div style={{ width: 36, height: 36, border: '3px solid #2c313c',
-              borderTopColor: '#ECC94B', borderRadius: '50%',
+            <div style={{ width: 36, height: 36, border: '3px solid var(--hub-border)',
+              borderTopColor: 'var(--hub-accent)', borderRadius: '50%',
               animation: 'spin 0.7s linear infinite' }} />
             <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
           </div>

@@ -99,7 +99,7 @@ export default function EquipModal() {
         mx={4} maxW={['container.sm', 'container.sm', 'container.md']}
       >
         {!full || status === 'loading' ? (
-          <Center py={20}><Spinner size="xl" color="yellow.400" thickness="3px" /></Center>
+          <Center py={20}><Spinner size="xl" color="accent.400" thickness="3px" /></Center>
         ) : !rank ? (
           <Center py={20}><Text color="gray.500">No equipment data.</Text></Center>
         ) : (
@@ -145,7 +145,7 @@ export default function EquipModal() {
                 </ButtonGroup>
               ) : null}
 
-              <Tabs variant="soft-rounded" colorScheme="yellow" size="sm" isLazy>
+              <Tabs variant="soft-rounded" colorScheme="accent" size="sm" isLazy>
                 <TabList mb={3}>
                   <Tab>Stats</Tab>
                   <Tab>Source</Tab>
@@ -252,7 +252,7 @@ export default function EquipModal() {
                   flex="1" onChange={setLevel} focusThumbOnChange={false}
                 >
                   <SliderTrack bg="whiteAlpha.200">
-                    <SliderFilledTrack bg="yellow.400" />
+                    <SliderFilledTrack bg="accent.400" />
                   </SliderTrack>
                   <SliderThumb boxSize={4} />
                 </Slider>
@@ -287,7 +287,7 @@ export default function EquipModal() {
                       if (!hasPts) return null;
                       return (
                         <StatRow label="Stat Points" value={
-                          <Text as="span" color="yellow.300" fontWeight="700">{fmtPoints(total)} pt</Text>
+                          <Text as="span" color="accent.300" fontWeight="700">{fmtPoints(total)} pt</Text>
                         } />
                       );
                     })()}
@@ -300,7 +300,7 @@ export default function EquipModal() {
                 <Box>
                   <Text
                     fontSize="2xs" letterSpacing="wider" textTransform="uppercase"
-                    color="yellow.400" fontWeight="700" mb={2} px={2}
+                    color="accent.400" fontWeight="700" mb={2} px={2}
                   >
                     Effects
                   </Text>
@@ -318,7 +318,7 @@ export default function EquipModal() {
                 <Box mb={4} px={3} py={2.5} bg="blackAlpha.400" borderRadius="md"
                   borderWidth="1px" borderColor="surface.border">
                   <Text fontSize="2xs" letterSpacing="wider" textTransform="uppercase"
-                    color="yellow.400" fontWeight="700" mb={2}>
+                    color="accent.400" fontWeight="700" mb={2}>
                     Exchange Shop
                   </Text>
                   <HStack>
@@ -337,7 +337,7 @@ export default function EquipModal() {
                 <Box>
                   <Text
                     fontSize="2xs" letterSpacing="wider" textTransform="uppercase"
-                    color="yellow.400" fontWeight="700" mb={1} px={2}
+                    color="accent.400" fontWeight="700" mb={1} px={2}
                   >
                     Drop Location
                   </Text>

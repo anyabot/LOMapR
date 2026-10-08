@@ -60,7 +60,7 @@ export default function Home() {
           </Heading>
           <Text fontSize={['md', 'lg']} color="gray.400" maxW="2xl">
             Information &amp; resources for the mobile game{' '}
-            <Text as="span" color="yellow.300" fontWeight="bold">Last Origin</Text>.
+            <Text as="span" color="accent.300" fontWeight="bold">Last Origin</Text>.
           </Text>
         </VStack>
 
@@ -78,7 +78,7 @@ export default function Home() {
               borderRadius="xl"
               overflow="hidden"
               transition="transform .12s ease, border-color .12s ease, box-shadow .12s ease"
-              _hover={{ transform: 'translateY(-3px)', borderColor: 'yellow.400', boxShadow: '0 6px 20px rgba(0,0,0,.5)' }}
+              _hover={{ transform: 'translateY(-3px)', borderColor: 'accent.400', boxShadow: '0 6px 20px rgba(0,0,0,.5)' }}
             >
               <HStack spacing={4} align="stretch">
                 <Box w={['120px', '180px', '220px']} flexShrink={0}>
@@ -87,9 +87,9 @@ export default function Home() {
                   </AspectRatio>
                 </Box>
                 <VStack align="start" justify="center" py={3} pr={4} spacing={1}>
-                  <Badge colorScheme="yellow">Current Event</Badge>
+                  <Badge colorScheme="accent">Current Event</Badge>
                   <Heading size={['sm', 'md', 'lg']}>{t(current.title)}</Heading>
-                  <HStack color="yellow.300" fontSize="sm">
+                  <HStack color="accent.300" fontSize="sm">
                     <Text>View stages</Text>
                     <ArrowForwardIcon />
                   </HStack>
@@ -112,7 +112,7 @@ export default function Home() {
               borderRadius="xl"
               p={4}
               transition="transform .12s ease, border-color .12s ease"
-              _hover={{ transform: 'translateY(-3px)', borderColor: 'yellow.400' }}
+              _hover={{ transform: 'translateY(-3px)', borderColor: 'accent.400' }}
             >
               <Heading size="md" mb={1}>{title}</Heading>
               <Text fontSize="sm" color="gray.400">{desc}</Text>

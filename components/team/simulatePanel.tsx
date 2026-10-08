@@ -48,7 +48,7 @@ function UnitChip({ unit }: { unit: UnitData }) {
   return (
     <HStack as={NextLink} href={`/units/detail?id=${encodeURIComponent(unit.id)}`}
       spacing={1.5} flexShrink={0} onClick={(e) => e.stopPropagation()}
-      _hover={{ color: 'yellow.300', textDecoration: 'underline' }}>
+      _hover={{ color: 'accent.300', textDecoration: 'underline' }}>
       {unit.icon ? (
         <Image src={`/images/icons/${unit.icon}.png`} alt="" boxSize="22px" borderRadius="sm" objectFit="cover" />
       ) : null}
@@ -198,7 +198,7 @@ export default function SimulatePanel({ team, enemyWave }: {
     return (
       <Center py={10}>
         <VStack>
-          <Spinner color="yellow.400" />
+          <Spinner color="accent.400" />
           <Text fontSize="xs" color="gray.500">
             Loading data for: {[...missing, ...enemyMissing].join(', ')}
           </Text>
@@ -245,7 +245,7 @@ export default function SimulatePanel({ team, enemyWave }: {
                 <Flex align="center" justify="space-between" gap={2} mb={2}>
                   <UnitChip unit={u} />
                   <HStack spacing={1}>
-                    <Badge colorScheme="yellow">AP {r.ap}</Badge>
+                    <Badge colorScheme="accent">AP {r.ap}</Badge>
                     <Badge colorScheme="teal">tile {r.tile + 1}</Badge>
                   </HStack>
                 </Flex>
@@ -282,7 +282,7 @@ export default function SimulatePanel({ team, enemyWave }: {
                 <Flex align="center" justify="space-between" gap={2} mb={2}>
                   <EnemyChip id={r.unitId} lv={enemyLvOf(r.tile)} />
                   <HStack spacing={1}>
-                    <Badge colorScheme="yellow">AP {r.ap}</Badge>
+                    <Badge colorScheme="accent">AP {r.ap}</Badge>
                     <Badge colorScheme="red">tile {r.tile + 1}</Badge>
                   </HStack>
                 </Flex>
@@ -321,8 +321,8 @@ export default function SimulatePanel({ team, enemyWave }: {
             {[...result.timeline].reverse().map((group, groupIndex) => (
               <Box key={group.round} pl={groupIndex ? 3 : 0}
                 borderLeftWidth={groupIndex ? '2px' : 0} borderLeftStyle="dashed"
-                borderLeftColor="yellow.400">
-                <Badge colorScheme={group.round === 1 ? 'yellow' : 'gray'} mb={2}>
+                borderLeftColor="accent.400">
+                <Badge colorScheme={group.round === 1 ? 'accent' : 'gray'} mb={2}>
                   Round {group.round} · cycle {group.cycle}
                 </Badge>
                 <HStack spacing={2} align="end">
@@ -341,7 +341,7 @@ export default function SimulatePanel({ team, enemyWave }: {
                           <Image src={img} alt={name}
                             boxSize="48px" borderRadius="lg" objectFit="cover" borderWidth="2px"
                             borderColor={isEnemy ? 'red.500'
-                              : group.round === 1 ? 'yellow.400' : 'surface.border'} />
+                              : group.round === 1 ? 'accent.400' : 'surface.border'} />
                         ) : null}
                         <Text fontSize="2xs" fontWeight="600" noOfLines={1} maxW="68px"
                           color={isEnemy ? 'red.200' : undefined}>
@@ -390,7 +390,7 @@ export default function SimulatePanel({ team, enemyWave }: {
                   <Flex flex="1" align="center" gap={3} wrap="wrap" textAlign="left">
                     {u ? <UnitChip unit={u} /> : <EnemyChip id={r.unitId} lv={enemyLvOf(r.tile)} />}
                     <HStack spacing={2} fontSize="2xs" color="gray.400">
-                      <Text>ATK {r.battle.ATK.toLocaleString()}{r.delta.ATK ? <Text as="span" color="yellow.300"> ({r.delta.ATK > 0 ? '+' : ''}{r.delta.ATK.toLocaleString()})</Text> : null}</Text>
+                      <Text>ATK {r.battle.ATK.toLocaleString()}{r.delta.ATK ? <Text as="span" color="accent.300"> ({r.delta.ATK > 0 ? '+' : ''}{r.delta.ATK.toLocaleString()})</Text> : null}</Text>
                       <Text>SPD {r.spd}</Text>
                       <Text>AP {r.ap}</Text>
                       <Badge colorScheme="teal" fontSize="2xs">
