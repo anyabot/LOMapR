@@ -55,9 +55,9 @@ export default function EquipPicker({ isOpen, onClose, equip, unit, slotType, on
                 onChange={(e) => setQuery(e.target.value)} autoFocus />
             </WrapItem>
             <WrapItem>
-              <ButtonGroup isAttached size="xs" variant="outline" colorScheme="yellow">
+              <ButtonGroup isAttached size="xs" variant="outline" colorScheme="accent">
                 {GRADES.map((g) => (
-                  <Button key={g} {...filterActiveProps('yellow', grade === g)}
+                  <Button key={g} {...filterActiveProps('accent', grade === g)}
                     color={grade === g ? rankColor(g) : undefined}
                     onClick={() => setGrade(grade === g ? 0 : g)}>{rankTag(g)}</Button>
                 ))}

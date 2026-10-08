@@ -69,12 +69,12 @@ export default function NpcsPage() {
         <VStack align="stretch" spacing={3} bg="surface.elevated" borderWidth="1px"
           borderColor="surface.border" borderRadius="xl" p={4}>
           <HStack flexWrap="wrap" spacing={2}>
-            <Button size="sm" colorScheme={category === 'all' ? 'yellow' : 'gray'}
+            <Button size="sm" colorScheme={category === 'all' ? 'accent' : 'gray'}
               variant={category === 'all' ? 'solid' : 'outline'} onClick={() => setCategory('all')}>
               All <Badge ml={2}>{NPCS.length}</Badge>
             </Button>
             {AVAILABLE_CATEGORIES.map((key) => (
-              <Button key={key} size="sm" colorScheme={category === key ? 'yellow' : 'gray'}
+              <Button key={key} size="sm" colorScheme={category === key ? 'accent' : 'gray'}
                 variant={category === key ? 'solid' : 'outline'} onClick={() => setCategory(key)}>
                 {CATEGORY_LABELS[key]}
               </Button>
@@ -92,10 +92,10 @@ export default function NpcsPage() {
               const isSelected = entry.id === selected.id;
               return (
                 <Box as="button" key={entry.id} onClick={() => selectNpc(entry)} minW={0}
-                  borderWidth="2px" borderColor={isSelected ? 'yellow.400' : 'surface.border'}
-                  bg={isSelected ? 'yellowAlpha.100' : 'surface.elevated'} borderRadius="lg" overflow="hidden"
+                  borderWidth="2px" borderColor={isSelected ? 'accent.400' : 'surface.border'}
+                  bg={isSelected ? 'var(--hub-accent-soft)' : 'surface.elevated'} borderRadius="lg" overflow="hidden"
                   transition="border-color .12s ease, transform .12s ease"
-                  _hover={{ borderColor: 'yellow.300', transform: 'translateY(-2px)' }}>
+                  _hover={{ borderColor: 'accent.300', transform: 'translateY(-2px)' }}>
                   <Box position="relative" w="100%" pt="100%" bg="blackAlpha.400">
                     <Image src={isSelected ? activeThumbnail : entry.thumbnail} alt={t(entry.name)}
                       position="absolute" inset={0} w="100%" h="100%" objectFit="cover" />
@@ -127,7 +127,7 @@ export default function NpcsPage() {
             {selected.models.length > 1 && (
               <ButtonGroup size="sm" isAttached variant="outline">
                 {selected.models.map((model) => (
-                  <Button key={model.key} colorScheme={activeModel.key === model.key ? 'yellow' : 'gray'}
+                  <Button key={model.key} colorScheme={activeModel.key === model.key ? 'accent' : 'gray'}
                     variant={activeModel.key === model.key ? 'solid' : 'outline'}
                     onClick={() => selectModel(model.key)}>
                     {model.thumbnail && <Image src={model.thumbnail} alt="" boxSize="24px" objectFit="cover" mr={1.5} />}

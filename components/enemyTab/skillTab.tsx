@@ -35,7 +35,7 @@ export default function SkillTab({
         }
         else if (e.match(/^\[[^\]]+?\]$/)) {
           // [skill / effect reference] -> highlighted in the accent color
-          return <Text as="b" color="yellow.300" key={count++}>{e}</Text>;
+          return <Text as="b" color="accent.300" key={count++}>{e}</Text>;
         }
 
         else return e;

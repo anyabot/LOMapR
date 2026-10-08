@@ -2,17 +2,14 @@
   --max-width: 1100px;
   --border-radius: 12px;
 
-  /* Dark theme palette (the app is dark by design). */
-  --bg: #0f1115;            /* page background */
-  --bg-elevated: #181b22;   /* cards / panels */
-  --bg-elevated-2: #21252e; /* hover / nested surfaces */
-  --border: #2c313c;
-  --text: #e8eaed;
-  --text-muted: #9aa0aa;
+  --bg: var(--hub-bg);
+  --bg-elevated: var(--hub-surface);
+  --bg-elevated-2: var(--hub-surface-raised);
+  --border: var(--hub-border);
+  --text: var(--hub-text);
+  --text-muted: var(--hub-text-muted);
 
-  /* Accents (match the Chakra colorSchemes already used in the app). */
-  --primary: #ecc94b;       /* yellow */
-  --primary-rgb: 236, 201, 75;
+  --primary: var(--hub-accent);
   --accent-teal: #2f9e8f;
   --accent-red: #e05555;
 
@@ -50,36 +47,10 @@ a {
 /* Link hover styling is handled per-component (Chakra _hover), not globally —
    a blanket a:hover color leaks into card/banner link wrappers. */
 
-/* Native <select> dropdown options are browser-rendered and can't be styled via
-   Chakra props — force them dark globally so the dropdown list isn't white.
-   !important to beat Bootstrap's reboot (imported after this in _app). */
+/* Native <select> option lists are browser-rendered and ignore Chakra props. */
 select,
 select option,
 select optgroup {
   background-color: var(--bg-elevated) !important;
   color: var(--text) !important;
-}
-
-/* Thin accent scrollbars. */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: var(--border) transparent;
-}
-
-*::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-*::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-*::-webkit-scrollbar-thumb {
-  background-color: var(--border);
-  border-radius: 8px;
-}
-
-*::-webkit-scrollbar-thumb:hover {
-  background-color: var(--primary);
 }

@@ -14,12 +14,14 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "gen:images": "node scripts/gen-public-images.js",
-    "cf:build": "node scripts/sync-local-data.js --clean && opennextjs-cloudflare build && node scripts/copy-prerendered-assets.js",
+    "hub:update": "npm install --no-save github:Altterisk/game-hub",
+    "cf:build": "npm run hub:update && node scripts/sync-local-data.js --clean && opennextjs-cloudflare build && node scripts/copy-prerendered-assets.js",
     "cf:preview": "npm run cf:build && opennextjs-cloudflare preview",
     "cf:deploy": "npm run cf:build && opennextjs-cloudflare deploy",
     "postinstall": "patch-package"
   },
   "dependencies": {
+    "@altterisk/game-hub": "github:Altterisk/game-hub",
     "@chakra-ui/icons": "^2.0.18",
     "@chakra-ui/react": "^2.5.5",
     "@dagrejs/dagre": "^3.0.0",

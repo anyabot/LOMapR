@@ -6,6 +6,7 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import dagre from '@dagrejs/dagre';
 import { AIGraph } from '@/interfaces/ai';
+import { tokens } from '@altterisk/game-hub';
 
 const NODE_W = 190;
 const NODE_H = 52;
@@ -59,7 +60,7 @@ function RoutedEdge({ id, data, style, markerEnd, label, labelStyle }: EdgeProps
               position: 'absolute',
               transform: `translate(-50%,-50%) translate(${mid.x}px,${mid.y}px)`,
               fontSize: 10, fontWeight: 700, padding: '0 3px', borderRadius: 3,
-              background: '#0f1115', ...(labelStyle as object),
+              background: tokens.color.bg, ...(labelStyle as object),
             }}
           >
             {label}
@@ -108,8 +109,8 @@ function layout(graph: AIGraph): { nodes: Node[]; edges: Edge[] } {
         lineHeight: 1.25,
         padding: 6,
         borderRadius: isCond ? 14 : 6,
-        background: isCond ? '#2c313c' : '#1f5c54',
-        color: '#e8eaed',
+        background: isCond ? tokens.color.border : '#1f5c54',
+        color: tokens.color.text,
         border: `1px solid ${isCond ? '#5e81ac' : '#3fb6a5'}`,
         textAlign: 'center' as const,
         whiteSpace: 'normal' as const,
@@ -140,7 +141,7 @@ export default function AIGraphView({ graph }: { graph: AIGraph }) {
   const { nodes, edges } = useMemo(() => layout(graph), [graph]);
 
   return (
-    <div style={{ width: '100%', height: 440, background: '#0f1115', borderRadius: 8 }}>
+    <div style={{ width: '100%', height: 440, background: tokens.color.bg, borderRadius: 8 }}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -154,7 +155,7 @@ export default function AIGraphView({ graph }: { graph: AIGraph }) {
         elementsSelectable={false}
         proOptions={{ hideAttribution: true }}
       >
-        <Background color="#2c313c" gap={18} />
+        <Background color={tokens.color.border} gap={18} />
         <Controls showInteractive={false} />
       </ReactFlow>
     </div>

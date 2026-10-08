@@ -387,10 +387,10 @@ export default function TeamBuilder() {
       <VStack align="stretch" spacing={4} py={4}>
         <Flex align="center" gap={3} wrap="wrap">
           <Heading size="lg">Team Builder</Heading>
-          <Badge colorScheme="yellow" fontSize="2xs">round-1 simulator included</Badge>
+          <Badge colorScheme="accent" fontSize="2xs">round-1 simulator included</Badge>
         </Flex>
 
-        <Tabs colorScheme="yellow" variant="enclosed" isLazy>
+        <Tabs colorScheme="accent" variant="enclosed" isLazy>
           <TabList flexWrap="wrap">
             <Tab>Builder</Tab>
             <Tab>Simulate (Round 1)</Tab>
@@ -405,7 +405,7 @@ export default function TeamBuilder() {
                       <Text fontSize="xs" color="gray.500" fontWeight="700">Teams</Text>
                       <ButtonGroup isAttached size="xs">
                         {slotCodes.map((_, i) => (
-                          <Button key={i} colorScheme="yellow"
+                          <Button key={i} colorScheme="accent"
                             variant={i === slotIdx ? 'solid' : 'outline'}
                             onClick={() => switchSlot(i)}>
                             {i + 1}
@@ -477,7 +477,7 @@ export default function TeamBuilder() {
                       ) : null}
                     </Center>
                     {aoe ? (
-                      <Text fontSize="2xs" color="yellow.300" textAlign="center" mt={1}>
+                      <Text fontSize="2xs" color="accent.300" textAlign="center" mt={1}>
                         Highlighted: tiles the clicked skill reaches. Click the skill again to clear.
                       </Text>
                     ) : null}
@@ -486,9 +486,9 @@ export default function TeamBuilder() {
                   <Box borderWidth="1px" borderColor="surface.border" borderRadius="xl" bg="surface.elevated" p={4}>
                     <Heading size="xs" mb={2}>Share / Restore</Heading>
                     <HStack spacing={2} mb={2} flexWrap="wrap">
-                      <Button size="xs" colorScheme="yellow" variant="outline" onClick={shareCode}
+                      <Button size="xs" colorScheme="accent" variant="outline" onClick={shareCode}
                         isDisabled={!team.some((s) => s)}>Copy team code</Button>
-                      <Button size="xs" colorScheme="yellow" variant="outline" onClick={shareLink}
+                      <Button size="xs" colorScheme="accent" variant="outline" onClick={shareLink}
                         isDisabled={!team.some((s) => s)}>Copy link</Button>
                       <Button size="xs" colorScheme="teal" variant="outline" onClick={exportImage}
                         isLoading={exporting} loadingText="Exporting"
@@ -499,7 +499,7 @@ export default function TeamBuilder() {
                         onChange={(e) => setLoadCode(e.target.value)}
                         onKeyDown={(e) => { if (e.key === 'Enter') applyCode(); }} />
                       <InputRightElement w="3.6rem">
-                        <Button size="xs" colorScheme="yellow" onClick={applyCode}
+                        <Button size="xs" colorScheme="accent" onClick={applyCode}
                           isDisabled={!loadCode.trim()}>Load</Button>
                       </InputRightElement>
                     </InputGroup>

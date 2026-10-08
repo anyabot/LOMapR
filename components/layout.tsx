@@ -21,7 +21,7 @@ export default function Layout({children}: Props) {
         <GlobalLoader />
         <EnemyModal/>
         <EquipModal/>
-        <Container maxWidth={["container.sm", "container.sm", "container.md", "container.lg", "container.xl"]} mb={8} flex="1">{children}</Container>
+        <Container maxWidth={["container.sm", "container.sm", "container.md", "container.lg", "container.xl"]} mt={6} mb={8} flex="1">{children}</Container>
         <Footer />
       </Flex>
       <ScrollTop />

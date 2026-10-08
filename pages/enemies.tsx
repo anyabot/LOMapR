@@ -105,7 +105,7 @@ export default function Home() {
       <VStack align="stretch" spacing={4} py={4}>
         <HStack>
           <Heading size="xl">Enemies</Heading>
-          <Badge colorScheme="yellow" borderRadius="full" px={2}>{list.length}</Badge>
+          <Badge colorScheme="accent" borderRadius="full" px={2}>{list.length}</Badge>
         </HStack>
 
         {/* Toolbar: filters + search */}
@@ -133,7 +133,7 @@ export default function Home() {
                 onClick={() => handleSwitch(ty)}>{ty}</Button>
             ))}
           </ButtonGroup>
-          <Button size="sm" variant="outline" colorScheme="yellow" {...filterModeProps('yellow', usedMode)}
+          <Button size="sm" variant="outline" colorScheme="accent" {...filterModeProps('accent', usedMode)}
             onClick={() => setUsedMode(nextFilterMode(usedMode))}>
             {usedMode === 1 ? 'Used only' : usedMode === -1 ? 'Unused only' : 'Used'}
           </Button>

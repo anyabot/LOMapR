@@ -25,7 +25,7 @@ export default function ScrollTop() {
       zIndex={1000}
       size="md"
       borderRadius="full"
-      colorScheme="yellow"
+      colorScheme="accent"
       opacity={0.75}
       _hover={{ opacity: 1 }}
       boxShadow="lg"

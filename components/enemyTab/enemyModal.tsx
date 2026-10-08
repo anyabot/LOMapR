@@ -240,7 +240,7 @@ export default function EnemyModal() {
           <Center py={20}>
             {fullStatus === 'failed'
               ? <Text color="red.300">Failed to load enemy data.</Text>
-              : <Spinner size="xl" color="yellow.400" thickness="3px" speed="0.7s" emptyColor="whiteAlpha.200" />
+              : <Spinner size="xl" color="accent.400" thickness="3px" speed="0.7s" emptyColor="whiteAlpha.200" />
             }
           </Center>
         )}

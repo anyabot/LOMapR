@@ -2,9 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 import { Stage, StageSubType, STAGE_ICON_SRC } from '@/interfaces/world';
 import { t } from '@/lib/strings';
 import { useTranslationVersion } from '@/lib/translationVersion';
+import { accentScale, getGame, tokens } from '@altterisk/game-hub';
 
 // Canvas-rendered stage map: rows by subtype, ordered by `pos`, with `next`
 // progression links drawn behind the icons. Fixed cell size, horizontal scroll.
+
+const ACCENT = accentScale(getGame('lo').accent);
 
 const ICON = 40;          // stage icon size (px) — smaller than the cell
 const BANNER_H = 28;       // banner height (px)
@@ -123,10 +126,10 @@ export default function StageGrid({ stages, selected, onSelect }: Props) {
       // banner background (drawn before the icon so the icon overlaps it)
       ctx.save();
       rr(bx, by, BANNER_W, BANNER_H, 6);
-      ctx.fillStyle = isSel ? "rgba(255,212,0,0.20)" : "rgba(18,20,26,0.92)";
+      ctx.fillStyle = isSel ? `${ACCENT[300]}33` : "rgba(18,24,37,0.92)";
       ctx.fill();
       ctx.lineWidth = isSel ? 2 : 1;
-      ctx.strokeStyle = isSel ? "#ffd400" : isHover ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.18)";
+      ctx.strokeStyle = isSel ? ACCENT[300] : isHover ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.18)";
       ctx.stroke();
       ctx.restore();
 
@@ -141,7 +144,7 @@ export default function StageGrid({ stages, selected, onSelect }: Props) {
       ctx.font = "600 12px sans-serif";
       ctx.textAlign = "left";
       ctx.textBaseline = "middle";
-      ctx.fillStyle = isSel ? "#ffe680" : "#e8eaed";
+      ctx.fillStyle = isSel ? ACCENT[200] : tokens.color.text;
       ctx.fillText(name, textL + 4, by + BANNER_H / 2);
       ctx.restore();
 
@@ -150,12 +153,12 @@ export default function StageGrid({ stages, selected, onSelect }: Props) {
         ctx.save();
         ctx.beginPath();
         ctx.arc(x + ICON / 2, y + ICON / 2, ICON / 2 + 3, 0, Math.PI * 2);
-        ctx.fillStyle = isSel ? "rgba(255,212,0,0.30)" : "rgba(255,255,255,0.16)";
+        ctx.fillStyle = isSel ? `${ACCENT[300]}4d` : "rgba(255,255,255,0.16)";
         ctx.fill();
         if (isSel) {
           ctx.lineWidth = 3;
-          ctx.strokeStyle = "#ffd400";
-          ctx.shadowColor = "#ffd400";
+          ctx.strokeStyle = ACCENT[300];
+          ctx.shadowColor = ACCENT[300];
           ctx.shadowBlur = 10;
           ctx.stroke();
         }

@@ -33,7 +33,7 @@ export default function SimpleCard({
       transition="transform .12s ease, border-color .12s ease, box-shadow .12s ease"
       _hover={{
         transform: 'translateY(-4px)',
-        borderColor: 'yellow.400',
+        borderColor: 'accent.400',
         boxShadow: '0 8px 20px rgba(0,0,0,.45)',
       }}
       role="group"
