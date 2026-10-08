@@ -80,15 +80,15 @@ export default function Equipment() {
       <VStack align="stretch" spacing={4} py={4}>
         <HStack>
           <Heading size="xl">Equipment</Heading>
-          <Badge colorScheme="yellow" borderRadius="full" px={2}>{shown.length}</Badge>
+          <Badge colorScheme="accent" borderRadius="full" px={2}>{shown.length}</Badge>
         </HStack>
 
         <Flex gap={3} wrap="wrap" align="center"
           bg="surface.elevated" borderWidth="1px" borderColor="surface.border" borderRadius="xl" p={3}>
           <ButtonGroup isAttached size="sm">
             {TYPES.map((ty) => (
-              <Button key={ty} variant="outline" colorScheme="yellow"
-                {...filterModeProps('yellow', types[ty])}
+              <Button key={ty} variant="outline" colorScheme="accent"
+                {...filterModeProps('accent', types[ty])}
                 onClick={() => setTypes({ ...types, [ty]: nextFilterMode(types[ty]) })}>
                 {ty}
               </Button>

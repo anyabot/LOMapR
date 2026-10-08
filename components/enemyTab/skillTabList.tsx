@@ -81,7 +81,7 @@ export default function SkillTabList({skills, atk, info, rank, enemyId} : {skill
     opacity: 0.55,
     transition: 'all .12s ease',
     _hover: { opacity: 0.85, bg: 'whiteAlpha.100' },
-    _selected: { opacity: 1, borderBottomColor: 'yellow.400', bg: 'whiteAlpha.100' },
+    _selected: { opacity: 1, borderBottomColor: 'accent.400', bg: 'whiteAlpha.100' },
   } as const;
 
   const stringsReady = skillReady && buffReady;
@@ -92,7 +92,7 @@ export default function SkillTabList({skills, atk, info, rank, enemyId} : {skill
       <Box
         w="20px" h="20px" borderRadius="full"
         border="2px solid" borderColor="gray.600"
-        borderTopColor="yellow.400"
+        borderTopColor="accent.400"
         style={{ animation: 'spin 0.7s linear infinite' }}
       />
       <Text fontSize="sm">Loading skill data…</Text>

@@ -51,7 +51,7 @@ export default function Home() {
         </Button>
         <HStack>
           <Heading size="xl">{t(w.title)}</Heading>
-          <Badge colorScheme="yellow" borderRadius="full" px={2}>{w.zones.length} zones</Badge>
+          <Badge colorScheme="accent" borderRadius="full" px={2}>{w.zones.length} zones</Badge>
           <CopyLink path={`/world/detail?id=${encodeURIComponent(id)}`} />
         </HStack>
         <Divider />

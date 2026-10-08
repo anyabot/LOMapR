@@ -56,7 +56,7 @@ export default function Home() {
       <VStack align="stretch" spacing={3}>
         <HStack>
           <Heading size="xl">{title}</Heading>
-          <Badge colorScheme="yellow" borderRadius="full" px={2}>{items.length}</Badge>
+          <Badge colorScheme="accent" borderRadius="full" px={2}>{items.length}</Badge>
         </HStack>
         <Divider />
         <SimpleGrid columns={[1, 2, 2, 3]} spacing={4}>
@@ -73,7 +73,7 @@ export default function Home() {
                 transition="transform .12s ease, border-color .12s ease, box-shadow .12s ease"
                 _hover={{
                   transform: 'translateY(-4px)',
-                  borderColor: 'yellow.400',
+                  borderColor: 'accent.400',
                   boxShadow: '0 8px 20px rgba(0,0,0,.45)',
                 }}
                 role="group"

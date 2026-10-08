@@ -57,7 +57,7 @@ export default function EnemyGrid({wave}: Props) {
               w="100%" h={nameH} display="flex" alignItems="center" justifyContent="center">
               {t(details[e.id]?.name)}
             </Text>
-            <Tag size="sm" variant="subtle" colorScheme="yellow" fontSize="xs">Lv. {e.lv}</Tag>
+            <Tag size="sm" variant="subtle" colorScheme="accent" fontSize="xs">Lv. {e.lv}</Tag>
           </GridItem>
         )
       } else {

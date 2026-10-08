@@ -63,7 +63,7 @@ export default function Home() {
       <VStack key={title} align="stretch" spacing={3}>
         <HStack>
           <Heading size="xl">{title}</Heading>
-          <Badge colorScheme="yellow" borderRadius="full" px={2}>{items.length}</Badge>
+          <Badge colorScheme="accent" borderRadius="full" px={2}>{items.length}</Badge>
         </HStack>
         <Divider />
         <SimpleGrid columns={[2, 3, 3, 4, 5]} spacing={4}>
@@ -89,7 +89,7 @@ export default function Home() {
       borderWidth="1px"
       borderColor="surface.border"
       transition="transform .12s ease, border-color .12s ease, box-shadow .12s ease"
-      _hover={{ transform: 'translateY(-3px)', borderColor: 'yellow.400', boxShadow: '0 6px 18px rgba(0,0,0,.45)' }}
+      _hover={{ transform: 'translateY(-3px)', borderColor: 'accent.400', boxShadow: '0 6px 18px rgba(0,0,0,.45)' }}
     >
       <AspectRatio ratio={BANNER_RATIO}>
         <EventImage src={getImage(w.banner || w.img)} alt={w.id} fit="contain" />
@@ -115,7 +115,7 @@ export default function Home() {
             bg="surface.elevated"
             borderRadius="xl"
             borderWidth="1px"
-            borderColor="yellow.500"
+            borderColor="accent.500"
             color="white"
             transition="transform .12s ease, box-shadow .12s ease"
             _hover={{ transform: 'translateY(-3px)', boxShadow: '0 8px 24px rgba(0,0,0,.5)', textDecoration: 'none', color: 'white' }}
@@ -124,9 +124,9 @@ export default function Home() {
               <EventImage src={getImage(current.img)} alt={current.id} fit="cover" borderRadius="lg" />
             </Box>
             <VStack align="start" spacing={2} flex={1} minW={0}>
-              <Badge colorScheme="yellow">Current Event</Badge>
+              <Badge colorScheme="accent">Current Event</Badge>
               <Heading size={['lg', 'xl', '2xl']} lineHeight={1.1} color="white">{t(current.title)}</Heading>
-              <HStack color="yellow.300" fontSize={['sm', 'md']}>
+              <HStack color="accent.300" fontSize={['sm', 'md']}>
                 <Text>View stages</Text>
                 <ArrowForwardIcon />
               </HStack>
@@ -140,7 +140,7 @@ export default function Home() {
           <VStack align="stretch" spacing={3}>
             <HStack>
               <Heading size="xl">Permanent Events</Heading>
-              <Badge colorScheme="yellow" borderRadius="full" px={2}>{permanent.length}</Badge>
+              <Badge colorScheme="accent" borderRadius="full" px={2}>{permanent.length}</Badge>
             </HStack>
             <Divider />
             <SimpleGrid columns={[2, 3, 4, 4]} spacing={4}>

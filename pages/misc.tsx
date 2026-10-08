@@ -298,7 +298,7 @@ function BuffLookup({ unitById }: { unitById: Record<string, UnitData> }) {
           .map(({ g, n }) => (
             <WrapItem key={g.key}>
               <Button size="xs" variant={selected === g.key ? 'solid' : 'outline'}
-                colorScheme={selected === g.key ? 'yellow' : 'gray'}
+                colorScheme={selected === g.key ? 'accent' : 'gray'}
                 onClick={() => { setSelected(selected === g.key ? null : g.key); setSearch(''); setTrigger('any'); }}>
                 {g.name}
                 <Box as="span" ml={1} opacity={0.65}>{n}</Box>
@@ -315,8 +315,8 @@ function BuffLookup({ unitById }: { unitById: Record<string, UnitData> }) {
         <Box borderWidth="1px" borderColor="surface.border" borderRadius="xl" overflow="hidden" bg="surface.elevated">
           <Box px={4} py={2} bg="blackAlpha.300" borderBottomWidth="1px" borderBottomColor="surface.border">
             <HStack>
-              <Heading size="sm" color="yellow.200">{activeGroup.name}</Heading>
-              <Badge colorScheme="yellow" borderRadius="full" px={2}>{rows.length}</Badge>
+              <Heading size="sm" color="accent.200">{activeGroup.name}</Heading>
+              <Badge colorScheme="accent" borderRadius="full" px={2}>{rows.length}</Badge>
             </HStack>
           </Box>
           <Box overflowX="auto">
@@ -393,7 +393,7 @@ function AoeList({ unitById }: { unitById: Record<string, UnitData> }) {
               onClick={() => setMinCells(n)}>{n}+ cells</Button>
           ))}
         </ButtonGroup>
-        <Badge colorScheme="yellow" borderRadius="full" px={2}>
+        <Badge colorScheme="accent" borderRadius="full" px={2}>
           {groups.reduce((n, g) => n + g.entries.length, 0)} skills · {groups.length} shapes
         </Badge>
         <InputGroup size="sm" maxW="260px" ml="auto">
@@ -420,7 +420,7 @@ function AoeList({ unitById }: { unitById: Record<string, UnitData> }) {
                   _hover={{ bg: 'blackAlpha.400' }}>
                   <SkillArea area={g.area} center={g.center} size={13} />
                   <Text fontSize="sm" color="orange.200" fontWeight="bold" ml={4}>{g.cells} cells</Text>
-                  <Badge colorScheme="yellow" borderRadius="full" px={2} ml={3}>{g.entries.length}</Badge>
+                  <Badge colorScheme="accent" borderRadius="full" px={2} ml={3}>{g.entries.length}</Badge>
                   <AccordionIcon ml="auto" color="gray.400" />
                 </AccordionButton>
                 <AccordionPanel p={0} borderTopWidth="1px" borderTopColor="surface.border">
@@ -553,7 +553,7 @@ export default function Misc() {
         ) : status === 'loading' ? (
           <Center py={20}><Spinner /></Center>
         ) : (
-          <Tabs variant="soft-rounded" colorScheme="yellow" size="sm" isLazy>
+          <Tabs variant="soft-rounded" colorScheme="accent" size="sm" isLazy>
             <TabList flexWrap="wrap" gap={1}>
               <Tab>Buff Lookup</Tab>
               <Tab>AoE Skills</Tab>

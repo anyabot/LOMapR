@@ -1,3 +1,5 @@
+import { tokens } from '@altterisk/game-hub';
+
 // Official unit rank (StartGrade) tags + colors, shared by the unit list/detail.
 
 export const RANK_TAG: Record<number, string> = { 2: 'B', 3: 'A', 4: 'S', 5: 'SS', 6: 'SSS' };
@@ -12,7 +14,7 @@ export const RANK_COLOR: Record<number, string> = {
 };
 
 export const rankTag = (g: number): string => RANK_TAG[g] ?? String(g);
-export const rankColor = (g: number): string => RANK_COLOR[g] ?? '#9aa0aa';
+export const rankColor = (g: number): string => RANK_COLOR[g] ?? tokens.color.textMuted;
 
 // Official role+rank badge sprite (UI_Icon_CHA_<Class><Rank>_Big); null when none exists.
 const ROLE_SYMBOL: Record<string, string> = {

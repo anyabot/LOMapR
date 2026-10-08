@@ -150,7 +150,7 @@ export default function WavePicker({ isOpen, onClose, initial, onPick }: Props) 
           <ButtonGroup isAttached size="xs" mb={3}>
             {([['world', 'World'], ['sanctum', 'Sanctum'], ['iw', 'Infinite War']] as [Src, string][])
               .map(([key, label]) => (
-                <Button key={key} colorScheme="yellow" variant={src === key ? 'solid' : 'outline'}
+                <Button key={key} colorScheme="accent" variant={src === key ? 'solid' : 'outline'}
                   onClick={() => { setSrc(key); setWaveIdx(0); }}>
                   {label}
                 </Button>
@@ -227,7 +227,7 @@ export default function WavePicker({ isOpen, onClose, initial, onPick }: Props) 
           )}
 
           {resolved.loading ? (
-            <Center py={10}><Spinner color="yellow.400" /></Center>
+            <Center py={10}><Spinner color="accent.400" /></Center>
           ) : resolved.cells ? (
             <Box>
               {resolved.waveCount > 1 ? (
@@ -257,7 +257,7 @@ export default function WavePicker({ isOpen, onClose, initial, onPick }: Props) 
         </ModalBody>
         <ModalFooter gap={2}>
           <Button size="sm" variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button size="sm" colorScheme="yellow" isDisabled={!resolved.ref || enemyCount === 0}
+          <Button size="sm" colorScheme="accent" isDisabled={!resolved.ref || enemyCount === 0}
             onClick={() => { if (resolved.ref) onPick(resolved.ref); }}>
             Use this wave ({enemyCount} {enemyCount === 1 ? 'enemy' : 'enemies'})
           </Button>

@@ -60,7 +60,8 @@ there is a real server.
 ## Deploy
 
 ```
-npm run cf:build     # sync-local-data --clean → next build (prebuild regenerates
+npm run cf:build     # hub:update (game-hub from GitHub main, lock untouched)
+                     # → sync-local-data --clean → next build (prebuild regenerates
                      # lib/publicImages.json) → OpenNext transform → .open-next/
                      # → scripts/copy-prerendered-assets.js
 npm run cf:preview   # cf:build + run the real Worker locally (workerd)

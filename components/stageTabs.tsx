@@ -306,7 +306,7 @@ function MissionRow({ mission: m }: { mission: StageMission }) {
     const label = u ? unitDisplayName(u) : shortKey(id);
     return (
       <UnitHoverCard unitId={id} inline>
-        <Box as="span" color="yellow.300" fontWeight="semibold" cursor="pointer"
+        <Box as="span" color="accent.300" fontWeight="semibold" cursor="pointer"
           _hover={{ textDecoration: 'underline' }}>{label}</Box>
       </UnitHoverCard>
     );

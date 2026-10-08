@@ -63,7 +63,7 @@ export default function UnitHoverCard({
                     No. {String(unit.profile.number).padStart(3, '0')}
                   </Text>
                 ) : null}
-                <Text fontSize="sm" fontWeight="bold" color="gray.100" noOfLines={2} _groupHover={{ color: 'yellow.300' }}>
+                <Text fontSize="sm" fontWeight="bold" color="gray.100" noOfLines={2} _groupHover={{ color: 'accent.300' }}>
                   {name}
                 </Text>
                 <Wrap spacing={1}>

@@ -52,12 +52,12 @@ export default function FormationGrid({
               sx={{ aspectRatio: '1' }}
               borderRadius="lg"
               borderWidth="2px"
-              borderColor={isSel ? 'yellow.400' : isCaster ? 'teal.300' : isHi ? 'yellow.300' : 'surface.border'}
+              borderColor={isSel ? 'accent.400' : isCaster ? 'teal.300' : isHi ? 'accent.300' : 'surface.border'}
               bg={isHi ? 'rgba(242,200,60,0.18)' : 'blackAlpha.500'}
               boxShadow={isHi ? '0 0 12px rgba(242,200,60,0.45)' : undefined}
               overflow="hidden"
               transition="border-color .15s, background .15s, box-shadow .15s"
-              _hover={{ borderColor: isSel ? 'yellow.400' : 'yellow.200' }}
+              _hover={{ borderColor: isSel ? 'accent.400' : 'accent.200' }}
               draggable={!!slot}
               cursor={slot ? 'grab' : 'pointer'}
               onDragStart={(e) => {

@@ -80,7 +80,7 @@ export default function Units() {
       <VStack align="stretch" spacing={4} py={4}>
         <HStack>
           <Heading size="xl">Units</Heading>
-          <Badge colorScheme="yellow" borderRadius="full" px={2}>{shown.length}</Badge>
+          <Badge colorScheme="accent" borderRadius="full" px={2}>{shown.length}</Badge>
         </HStack>
 
         {/* Toolbar: type / role / body / grade filters + search */}
@@ -203,7 +203,7 @@ function UnitTile({ unit, onClick }: { unit: UnitData; onClick: () => void }) {
       <Box position="relative" boxSize="88px" borderRadius="lg" overflow="hidden" bg="blackAlpha.500"
         borderWidth="1px" borderColor="surface.border"
         transition="border-color .12s ease, transform .12s ease"
-        _groupHover={{ borderColor: 'yellow.400', transform: 'translateY(-2px)' }}>
+        _groupHover={{ borderColor: 'accent.400', transform: 'translateY(-2px)' }}>
         {unit.icon ? (
           <Image src={`/images/icons/${unit.icon}.png`} alt={unit.icon} objectFit="cover" w="100%" h="100%"
             _groupHover={{ transform: 'scale(1.05)' }} transition="transform .2s ease" />
