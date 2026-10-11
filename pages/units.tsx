@@ -1,14 +1,15 @@
 import { useAppSelector, useAppDispatch } from '@/hooks';
 import { selectUnits, selectUnitStatus, fetchUnitsAsync } from '@/store/unitSlice';
 import { useEffect, useState } from 'react';
+import { useTranslationVersion } from '@/lib/translationVersion';
 import { UnitData } from '@/interfaces/unit';
 import {
   VStack, HStack, Center, Text, Heading, Badge, Box, Image, Wrap, WrapItem,
 } from '@chakra-ui/react';
 import { useRouter } from 'next/router';
 import { ListToolbar, SearchBox, FilterPanel, FilterRow, FilterChip, EmptyState } from '@altterisk/game-hub';
-import { rankTag, rankColor, roleRankIcon, typeIcon, roleIcon, bodyIcon,
-  filterValueAllowed, unitDisplayName } from '@/lib/rank';
+import { rankTag, rankColor, roleRankIcon, typeIcon, roleIcon, bodyIcon, factionIcon, factionKey,
+  factionName, filterValueAllowed, unitDisplayName } from '@/lib/rank';
 import { chipColor, countActive, fillModes, useListUrl, useUrlText } from '@/lib/listUrl';
 import Head from 'next/head';
 
@@ -22,11 +23,12 @@ const GRADES = [2, 3, 4, 5] as const;  // B -> SS, top row first is SS below
 type TypeKey = (typeof TYPES)[number];
 type RoleKey = (typeof ROLES)[number];
 type BodyKey = (typeof BODIES)[number];
-const FILTER_KEYS = ['type', 'role', 'body', 'grade'];
+const FILTER_KEYS = ['type', 'role', 'body', 'grade', 'faction'];
 
 const unitName = unitDisplayName;
 
 export default function Units() {
+  useTranslationVersion();
   const units = useAppSelector(selectUnits);
   const status = useAppSelector(selectUnitStatus);
   const dispatch = useAppDispatch();
@@ -42,14 +44,32 @@ export default function Units() {
   const roles = fillModes(ROLES, list.modes('role'));
   const bodies = fillModes(BODIES, list.modes('body'));
   const grades = fillModes(GRADES, list.modes('grade'));
+  const factions = list.modes('faction');
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const activeFilters = countActive(types, roles, bodies, grades);
+  const activeFilters = countActive(types, roles, bodies, grades, factions);
+
+  const factionChips = (() => {
+    const byKey = new Map<string, { icon: string; names: Map<string, number> }>();
+    for (const u of Object.values(units)) {
+      if (!u.faction) continue;
+      const key = factionKey(u.faction.icon);
+      const f = byKey.get(key) ?? { icon: u.faction.icon, names: new Map() };
+      const name = factionName(u.faction.name);
+      if (name !== u.faction.name && !/^\d+$/.test(name)) f.names.set(name, (f.names.get(name) ?? 0) + 1);
+      byKey.set(key, f);
+    }
+    return Array.from(byKey, ([key, f]) => {
+      const best = Array.from(f.names).sort((a, b) => b[1] - a[1])[0];
+      return { key, icon: f.icon, label: best ? best[0] : key.replace(/([a-z])([A-Z])/g, '$1 $2') };
+    }).sort((a, b) => a.label.localeCompare(b.label));
+  })();
 
   function matches(u: UnitData) {
     if (!filterValueAllowed(u.type as TypeKey, types)) return false;
     if (!filterValueAllowed(u.role as RoleKey, roles)) return false;
     if (!filterValueAllowed(u.body as BodyKey, bodies)) return false;
     if (!filterValueAllowed(u.rarity, grades)) return false;
+    if (!filterValueAllowed(u.faction ? factionKey(u.faction.icon) : '', factions)) return false;
     if (searchTerm) {
       const q = searchTerm.toLowerCase();
       if (!unitName(u).toLowerCase().includes(q) && !(u.id || '').replace(/^Char_[^_]+_/, '').toLowerCase().includes(q)) return false;
@@ -115,6 +135,14 @@ export default function Units() {
               {GRADES.map((g) => (
                 <FilterChip key={g} mode={grades[g]} color={rankColor(g)} onClick={() => list.cycleMode('grade', String(g))}>
                   {rankTag(g)}
+                </FilterChip>
+              ))}
+            </FilterRow>
+            <FilterRow label="Faction">
+              {factionChips.map((f) => (
+                <FilterChip key={f.key} mode={factions[f.key] ?? 0} color={chipColor('blue')}
+                  onClick={() => list.cycleMode('faction', f.key)}>
+                  {factionIcon(f.icon) ? <Image src={factionIcon(f.icon)!} alt="" boxSize="16px" /> : null}{f.label}
                 </FilterChip>
               ))}
             </FilterRow>

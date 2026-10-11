@@ -67,11 +67,16 @@ export const equipIcon = (kind: string): string | null =>
 export const factionIcon = (key: string): string | null =>
   key ? `/images/common/${key}.png` : null;
 
+export const factionKey = (icon: string) => icon.replace(/^UI_TroopIcon_/, '');
+
 // canonName (unit_names.json) is hand-curated and wins over the loc id.
 import { t } from '@/lib/strings';
 import type { UnitData } from '@/interfaces/unit';
 export const unitDisplayName = (u: { canonName?: string; name: string; profile?: { engName?: string } | null }): string =>
   u.canonName || u.profile?.engName || t(u.name);
+
+// Squad names carry a trailing roman numeral; the faction is the name without it.
+export const factionName = (name: string) => t(name).replace(/\s+(?:II|III|IV|V)$/i, '');
 
 // Equip exchange-shop source -> display label + badge color (Sanctum / Infinite War).
 export const EXCHANGE_META: Record<'Sanctum' | 'IW', { label: string; color: string }> = {

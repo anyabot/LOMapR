@@ -35,7 +35,8 @@ import RewardList from '@/components/rewardList';
 import SkillTab from '@/components/enemyTab/skillTab';
 import SkinViewer from '@/components/skinViewer';
 import CopyLink from '@/components/copyLink';
-import { rankTag, rankColor, roleRankIcon, typeIcon, roleIcon, bodyIcon, equipIcon, factionIcon, unitDisplayName } from '@/lib/rank';
+import StatHeading from '@/components/statHeading';
+import { rankTag, rankColor, roleRankIcon, typeIcon, roleIcon, bodyIcon, equipIcon, factionIcon, factionKey, factionName, unitDisplayName } from '@/lib/rank';
 import { NPCS, NpcEntry } from '@/lib/npcs';
 import { getGame, tokens } from '@altterisk/game-hub';
 
@@ -245,7 +246,8 @@ export default function UnitDetail() {
                   icon={bodyIcon(unit.body) ? <Image src={bodyIcon(unit.body)!} alt="" /> : undefined} />
               ) : null}
               {unit.faction ? (
-                <MetaChip value={t(unit.faction.name)}
+                <MetaChip renderLink={nextLink} href={`/units?faction=${encodeURIComponent(factionKey(unit.faction.icon))}`}
+                  value={factionName(unit.faction.name)}
                   icon={factionIcon(unit.faction.icon) ? <Image src={factionIcon(unit.faction.icon)!} alt="" /> : undefined} />
               ) : null}
             </MetaChips>
@@ -314,20 +316,19 @@ function FactionSection({ unit, units }: { unit: UnitData; units: UnitData[] }) 
   }
   if (squads.size === 0) return null;
 
-  const factionName = t(factionUnits[0]?.faction?.name || unit.faction.name)
-    .replace(/\s+(?:II|III|IV|V)$/i, '');
+  const title = factionName(factionUnits[0]?.faction?.name || unit.faction.name);
 
   return (
     <Box borderWidth="1px" borderColor="surface.border" borderRadius="xl" bg="surface.elevated" overflow="hidden">
       <HStack px={4} py={3} bg="blackAlpha.300" borderBottomWidth="1px" borderBottomColor="surface.border">
         {factionIcon(unit.faction.icon) ? (
-          <Image src={factionIcon(unit.faction.icon)!} alt={factionName} boxSize="30px" />
+          <Image src={factionIcon(unit.faction.icon)!} alt={title} boxSize="30px" />
         ) : null}
         <Box>
           <Text fontSize="2xs" color="gray.500" fontWeight="bold" textTransform="uppercase" letterSpacing="wide">
             Faction
           </Text>
-          <Heading size="sm">{factionName}</Heading>
+          <Heading size="sm">{title}</Heading>
         </Box>
       </HStack>
 
@@ -636,9 +637,7 @@ function InfoTab({
 
         {st ? (
           <VStack align="stretch" spacing={3}>
-            <Text fontSize="2xs" letterSpacing="wider" textTransform="uppercase" color="accent.400" fontWeight="700">
-              {`${rankTag(grade)} · Lv ${Math.min(level, LV_CAP)}`}
-            </Text>
+            <StatHeading>{`${rankTag(grade)} · Lv ${Math.min(level, LV_CAP)}`}</StatHeading>
             <StatRows rows={[
               { label: 'HP', value: lerp(st.HP, level).toLocaleString(), icon: statIcon('/images/icon_HP.png', 'HP') },
               { label: 'SPD', value: st.SPD, icon: statIcon('/images/icon_SPD.png', 'SPD') },
@@ -648,9 +647,7 @@ function InfoTab({
               { label: 'EVA', value: `${st.EVA}%`, icon: statIcon('/images/icon_EVA.png', 'EVA') },
               { label: 'CRIT', value: `${st.CRI}%`, icon: statIcon('/images/icon_CRIT.png', 'CRIT') },
             ]} />
-            <Text fontSize="2xs" letterSpacing="wider" textTransform="uppercase" color="accent.400" fontWeight="700">
-              Resist
-            </Text>
+            <StatHeading>Resist</StatHeading>
             <StatRows columns={3} rows={[
               { label: 'Fire', value: `${st.resist.fire}%`, icon: statIcon('/images/fire.png', 'fire') },
               { label: 'Ice', value: `${st.resist.ice}%`, icon: statIcon('/images/ice.png', 'ice') },

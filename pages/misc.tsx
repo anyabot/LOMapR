@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Head from 'next/head';
 import {
-  Accordion, AccordionButton, AccordionIcon, AccordionItem, AccordionPanel,
-  Badge, Box, Button, ButtonGroup, Center, Flex, HStack, Heading, IconButton, Image,
+  Badge, Box, Center, Flex, HStack, Heading, IconButton, Image,
   Input, InputGroup, InputRightElement, Select, Spinner, Text, VStack, Wrap, WrapItem,
 } from '@chakra-ui/react';
 import { CloseIcon, SearchIcon } from '@chakra-ui/icons';
@@ -19,7 +18,7 @@ import { selectRegion } from '@/store/regionSlice';
 import { BUFF_TYPE_NAMES, BuffCondTags, BuffEffectRow, TRIGGER_LABELS } from '@/components/buffList';
 import SkillArea from '@/components/enemyTab/skillArea';
 import UnitHoverCard from '@/components/unitHoverCard';
-import { filterActiveProps, rankColor, rankTag, unitDisplayName } from '@/lib/rank';
+import { rankColor, rankTag, unitDisplayName } from '@/lib/rank';
 import { t } from '@/lib/strings';
 import { useTranslationVersion } from '@/lib/translationVersion';
 import { MiscAoeEntry, MiscBuffEntry, MiscBuffTypeMeta, MiscSkillMeta } from '@/interfaces/misc';
@@ -375,12 +374,10 @@ function AoeList({ unitById }: { unitById: Record<string, UnitData> }) {
     <VStack align="stretch" spacing={3}>
       <Flex gap={3} wrap="wrap" align="center"
         bg="surface.elevated" borderWidth="1px" borderColor="surface.border" borderRadius="xl" p={3}>
-        <ButtonGroup isAttached size="sm" variant="outline" colorScheme="orange">
-          {[2, 3, 4, 6, 9].map((n) => (
-            <Button key={n} {...filterActiveProps('orange', minCells === n)}
-              onClick={() => setMinCells(n)}>{n}+ cells</Button>
-          ))}
-        </ButtonGroup>
+        <SegmentedButtons label="Minimum cells"
+          options={[2, 3, 4, 6, 9].map((n) => ({ value: String(n), label: `${n}+ cells` }))}
+          selected={String(minCells)}
+          onToggle={(v) => setMinCells(Number(v))} />
         <Badge colorScheme="accent" borderRadius="full" px={2}>
           {groups.reduce((n, g) => n + g.entries.length, 0)} skills · {groups.length} shapes
         </Badge>
@@ -396,42 +393,31 @@ function AoeList({ unitById }: { unitById: Record<string, UnitData> }) {
         </InputGroup>
       </Flex>
 
-      {/* one collapsible card per AoE shape (collapsed by default; the shape +
-          counts in the header are enough to decide whether to open it) */}
-      <Accordion allowMultiple borderColor="transparent">
-        <VStack align="stretch" spacing={3}>
-          {groups.map((g, gi) => (
-            <AccordionItem key={gi} border="none">
-              <Box borderWidth="1px" borderColor="surface.border" borderRadius="xl"
-                overflow="hidden" bg="surface.elevated">
-                <AccordionButton px={4} py={2} gap={4} bg="blackAlpha.300"
-                  _hover={{ bg: 'blackAlpha.400' }}>
-                  <SkillArea area={g.area} center={g.center} size={13} />
-                  <Text fontSize="sm" color="orange.200" fontWeight="bold" ml={4}>{g.cells} cells</Text>
-                  <Badge colorScheme="accent" borderRadius="full" px={2} ml={3}>{g.entries.length}</Badge>
-                  <AccordionIcon ml="auto" color="gray.400" />
-                </AccordionButton>
-                <AccordionPanel p={0} borderTopWidth="1px" borderTopColor="surface.border">
-                  <Box overflowX="auto">
-                    <Box as="table" w="100%" minW="620px" style={{ borderCollapse: 'collapse' }}>
-                      <Box as="tbody">
-                        {g.entries.map((e, i) => (
-                          <Box as="tr" key={`${e.unit}-${e.skill}-${i}`}>
-                            <Box {...tdProps} w="240px"><UnitCell unit={unitById[e.unit]} /></Box>
-                            <Box {...tdProps}><SkillCell e={e} /></Box>
-                            <Box {...tdProps} w="90px"><Text fontSize="sm" color="gray.300">AP {e.ap || '—'}</Text></Box>
-                            <Box {...tdProps} w="90px"><Text fontSize="sm" color="gray.300">Range {e.range || '—'}</Text></Box>
-                          </Box>
-                        ))}
-                      </Box>
-                    </Box>
-                  </Box>
-                </AccordionPanel>
+      {/* collapsed by default: the shape and counts are enough to decide whether to open one */}
+      <div className="hub-group-grid">
+        {groups.map((g) => (
+          <GroupCard key={`${g.area.join('')}@${g.center}`} title={`${g.cells} cells`} count={g.entries.length}>
+            <Box my={2}><SkillArea area={g.area} center={g.center} size={13} /></Box>
+            <details>
+              <Box as="summary" cursor="pointer" fontSize="sm" color="gray.400">
+                Show {g.entries.length} skill{g.entries.length === 1 ? '' : 's'}
               </Box>
-            </AccordionItem>
-          ))}
-        </VStack>
-      </Accordion>
+              <Box as="table" className="hub-table--stack" w="100%" mt={2} sx={{ borderCollapse: 'collapse' }}>
+                <Box as="tbody">
+                  {g.entries.map((e, i) => (
+                    <Box as="tr" key={`${e.unit}-${e.skill}-${i}`}>
+                      <Box {...tdProps} data-label="Unit"><UnitCell unit={unitById[e.unit]} /></Box>
+                      <Box {...tdProps} data-label="Skill"><SkillCell e={e} /></Box>
+                      <Box {...tdProps} w="70px" data-label="AP"><Text fontSize="sm" color="gray.300">{e.ap || '—'}</Text></Box>
+                      <Box {...tdProps} w="70px" data-label="Range"><Text fontSize="sm" color="gray.300">{e.range || '—'}</Text></Box>
+                    </Box>
+                  ))}
+                </Box>
+              </Box>
+            </details>
+          </GroupCard>
+        ))}
+      </div>
     </VStack>
   );
 }
@@ -464,17 +450,13 @@ function DamageList({ unitById }: { unitById: Record<string, UnitData> }) {
     <VStack align="stretch" spacing={3}>
       <Flex gap={3} wrap="wrap" align="center"
         bg="surface.elevated" borderWidth="1px" borderColor="surface.border" borderRadius="xl" p={3}>
-        <ButtonGroup isAttached size="sm" variant="outline">
-          {Object.entries(DMG_META).map(([k, m]) => (
-            <Button key={k} colorScheme={m.color} {...filterActiveProps(m.color, dmg === k)}
-              onClick={() => setDmg(k)}>
-              {m.label}
-              <Box as="span" ml={1} opacity={0.65}>
-                {new Set((index?.damage?.[k] ?? []).map((e) => e.unit)).size}
-              </Box>
-            </Button>
-          ))}
-        </ButtonGroup>
+        <SegmentedButtons label="Damage type"
+          options={Object.entries(DMG_META).map(([k, m]) => ({
+            value: k,
+            label: <>{m.label} <Box as="span" opacity={0.65}>{new Set((index?.damage?.[k] ?? []).map((e) => e.unit)).size}</Box></>,
+          }))}
+          selected={dmg}
+          onToggle={setDmg} />
         <InputGroup size="sm" maxW="260px" ml="auto">
           <Input placeholder="Filter units" value={search} borderColor="surface.border"
             onChange={(e) => setSearch(e.target.value)} />
@@ -487,9 +469,10 @@ function DamageList({ unitById }: { unitById: Record<string, UnitData> }) {
         </InputGroup>
       </Flex>
 
-      <Box borderWidth="1px" borderColor="surface.border" borderRadius="xl" overflow="hidden" bg="surface.elevated">
-        <Box overflowX="auto">
-          <Box as="table" w="100%" minW="560px" style={{ borderCollapse: 'collapse' }}>
+      <div className="hub-group-grid hub-group-grid--wide">
+        <GroupCard title={DMG_META[dmg].label} count={rows.length}>
+          <Box as="table" className="hub-table--stack" w="100%"
+            sx={{ borderCollapse: 'collapse', '@media (min-width: 600px)': { minW: '560px' } }}>
             <Box as="thead">
               <Box as="tr">
                 <Box {...thProps} w="240px">Unit</Box>
@@ -500,17 +483,17 @@ function DamageList({ unitById }: { unitById: Record<string, UnitData> }) {
             <Box as="tbody">
               {rows.map((e, i) => (
                 <Box as="tr" key={`${e.unit}-${e.skill}-${i}`}>
-                  <Box {...tdProps}><UnitCell unit={unitById[e.unit]} /></Box>
-                  <Box {...tdProps}><SkillCell e={e} /></Box>
-                  <Box {...tdProps}>
+                  <Box {...tdProps} data-label="Unit"><UnitCell unit={unitById[e.unit]} /></Box>
+                  <Box {...tdProps} data-label="Skill"><SkillCell e={e} /></Box>
+                  <Box {...tdProps} data-label="Power">
                     <Text fontSize="sm" color={`${DMG_META[dmg].color}.300`}>×{e.rate}</Text>
                   </Box>
                 </Box>
               ))}
             </Box>
           </Box>
-        </Box>
-      </Box>
+        </GroupCard>
+      </div>
     </VStack>
   );
 }

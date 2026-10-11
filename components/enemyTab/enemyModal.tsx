@@ -29,7 +29,8 @@ import {
 import SkillTabList from './skillTabList';
 import ApperanceList from './appearanceList';
 import CopyLink from '@/components/copyLink';
-import { StatRow, StatPair, StatSection } from '@/components/statBlock';
+import { StatRows } from '@altterisk/game-hub';
+import StatHeading from '@/components/statHeading';
 
 import { EnemyFull } from '@/interfaces/enemy';
 import { t } from '@/lib/strings';
@@ -41,6 +42,8 @@ import { selectEnemy, selectEnemyFull, selectEnemyFullStatus, selectActiveEnemy,
 import { selectImage, fetchImageAsync } from '@/store/imageSlice';
 import { fetchEnemySkillsAsync } from '@/store/skillSlice';
 import { fetchEnemyAIAsync } from '@/store/aiSlice';
+
+const statIcon = (src: string, alt: string) => <Image src={src} alt={alt} />;
 
 // Enemy rank is a letter; C has no official colour and falls back to the default badge.
 const ENEMY_RANK_COLOR: Record<string, string> = {
@@ -155,28 +158,31 @@ export default function EnemyModal() {
                       ?
                     </Box>
                   )}
-                  <StatSection title="Profile">
-                    <StatRow label="Type" value={
-                      <HStack spacing={1.5} justify="flex-end">
-                        {typeIcon(realEnemy.type) ? <Image src={typeIcon(realEnemy.type)!} alt={realEnemy.type} boxSize="16px" /> : null}
-                        <span>{realEnemy.type}</span>
-                      </HStack>
-                    } />
-                    <StatRow label="Role" value={
-                      <HStack spacing={1.5} justify="flex-end">
-                        {roleIcon(realEnemy.role) ? <Image src={roleIcon(realEnemy.role)!} alt={realEnemy.role} boxSize="16px" /> : null}
-                        <span>{realEnemy.role}</span>
-                      </HStack>
-                    } />
-                    <StatRow label="Rank" value={
-                      <Badge borderRadius="md" px={1.5}
-                        bg={ENEMY_RANK_COLOR[realEnemy.rank] ?? undefined}
-                        color={ENEMY_RANK_COLOR[realEnemy.rank] ? 'blackAlpha.800' : undefined}
-                        colorScheme={ENEMY_RANK_COLOR[realEnemy.rank] ? undefined : 'yellow'}>
-                        {realEnemy.rank}
-                      </Badge>
-                    } />
-                  </StatSection>
+                  <Box mt={3}>
+                    <StatHeading>Profile</StatHeading>
+                    <StatRows columns={1} rows={[
+                      { label: 'Type', value: (
+                        <HStack as="span" spacing={1.5} justify="flex-end">
+                          {typeIcon(realEnemy.type) ? <Image src={typeIcon(realEnemy.type)!} alt={realEnemy.type} boxSize="16px" /> : null}
+                          <span>{realEnemy.type}</span>
+                        </HStack>
+                      ) },
+                      { label: 'Role', value: (
+                        <HStack as="span" spacing={1.5} justify="flex-end">
+                          {roleIcon(realEnemy.role) ? <Image src={roleIcon(realEnemy.role)!} alt={realEnemy.role} boxSize="16px" /> : null}
+                          <span>{realEnemy.role}</span>
+                        </HStack>
+                      ) },
+                      { label: 'Rank', value: (
+                        <Badge borderRadius="md" px={1.5}
+                          bg={ENEMY_RANK_COLOR[realEnemy.rank] ?? undefined}
+                          color={ENEMY_RANK_COLOR[realEnemy.rank] ? 'blackAlpha.800' : undefined}
+                          colorScheme={ENEMY_RANK_COLOR[realEnemy.rank] ? undefined : 'yellow'}>
+                          {realEnemy.rank}
+                        </Badge>
+                      ) },
+                    ]} />
+                  </Box>
                 </Box>
 
                 {/* right column: level control + grouped stats */}
@@ -193,40 +199,27 @@ export default function EnemyModal() {
                   </InputGroup>
 
                   {/* stats in the game's own grouping/order */}
-                  <StatSection title="Stats">
-                    <StatRow icon="/images/icon_HP.png" label="HP"
-                      value={Math.floor(realEnemy.HP[0] + realEnemy.HP[1] * (realLevel - 1)).toLocaleString()} />
-                    <StatPair
-                      left={{ icon: '/images/icon_ATK.png', label: 'ATK', value: Math.floor(realEnemy.ATK[0] + realEnemy.ATK[1] * (realLevel - 1)).toLocaleString() }}
-                      right={{ icon: '/images/icon_DEF.png', label: 'DEF', value: Math.floor(realEnemy.DEF[0] + realEnemy.DEF[1] * (realLevel - 1)).toLocaleString() }}
-                    />
-                    <StatPair
-                      left={{ icon: '/images/icon_ACC.png', label: 'ACC', value: `${realEnemy.ACC}%` }}
-                      right={{ icon: '/images/icon_EVA.png', label: 'EVA', value: `${realEnemy.EVA}%` }}
-                    />
-                    <StatPair
-                      left={{ icon: '/images/icon_CRIT.png', label: 'CRIT', value: `${realEnemy.CRIT}%` }}
-                      right={{ icon: '/images/icon_SPD.png', label: 'SPD', value: realEnemy.SPD }}
-                    />
-                  </StatSection>
+                  <StatHeading>Stats</StatHeading>
+                  <StatRows rows={[
+                    { label: 'HP', icon: statIcon('/images/icon_HP.png', 'HP'),
+                      value: Math.floor(realEnemy.HP[0] + realEnemy.HP[1] * (realLevel - 1)).toLocaleString() },
+                    { label: 'SPD', icon: statIcon('/images/icon_SPD.png', 'SPD'), value: realEnemy.SPD },
+                    { label: 'ATK', icon: statIcon('/images/icon_ATK.png', 'ATK'),
+                      value: Math.floor(realEnemy.ATK[0] + realEnemy.ATK[1] * (realLevel - 1)).toLocaleString() },
+                    { label: 'DEF', icon: statIcon('/images/icon_DEF.png', 'DEF'),
+                      value: Math.floor(realEnemy.DEF[0] + realEnemy.DEF[1] * (realLevel - 1)).toLocaleString() },
+                    { label: 'ACC', icon: statIcon('/images/icon_ACC.png', 'ACC'), value: `${realEnemy.ACC}%` },
+                    { label: 'EVA', icon: statIcon('/images/icon_EVA.png', 'EVA'), value: `${realEnemy.EVA}%` },
+                    { label: 'CRIT', icon: statIcon('/images/icon_CRIT.png', 'CRIT'), value: `${realEnemy.CRIT}%` },
+                  ]} />
 
                   <Box mt={3}>
-                    <StatSection title="Resist">
-                      <HStack justify="space-around" py={1.5} px={2}>
-                        <HStack spacing={1}>
-                          <Image alt="fire resist" src="/images/fire.png" boxSize="1rem" />
-                          <Text fontSize="sm" fontWeight="600">{realEnemy.resist[0]}%</Text>
-                        </HStack>
-                        <HStack spacing={1}>
-                          <Image alt="ice resist" src="/images/ice.png" boxSize="1rem" />
-                          <Text fontSize="sm" fontWeight="600">{realEnemy.resist[1]}%</Text>
-                        </HStack>
-                        <HStack spacing={1}>
-                          <Image alt="electric resist" src="/images/electric.png" boxSize="1rem" />
-                          <Text fontSize="sm" fontWeight="600">{realEnemy.resist[2]}%</Text>
-                        </HStack>
-                      </HStack>
-                    </StatSection>
+                    <StatHeading>Resist</StatHeading>
+                    <StatRows columns={3} rows={[
+                      { label: 'Fire', icon: statIcon('/images/fire.png', 'fire resist'), value: `${realEnemy.resist[0]}%` },
+                      { label: 'Ice', icon: statIcon('/images/ice.png', 'ice resist'), value: `${realEnemy.resist[1]}%` },
+                      { label: 'Electric', icon: statIcon('/images/electric.png', 'electric resist'), value: `${realEnemy.resist[2]}%` },
+                    ]} />
                   </Box>
                 </Box>
               </SimpleGrid>
