@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Box, HStack, Text, Wrap, WrapItem, Tooltip, SimpleGrid } from '@chakra-ui/react';
+import { Panel } from '@altterisk/game-hub';
 import { RewardEntry } from '@/interfaces/world';
 import { useAppSelector, useAppDispatch } from '@/hooks';
 import { selectItems, ItemInfo } from '@/store/itemSlice';
@@ -255,17 +256,9 @@ export function RewardPanel({
 }) {
   if (!rewards.length) return null;
   return (
-    <Box borderWidth="1px" borderColor="surface.border" borderRadius="xl" overflow="hidden" bg="surface.elevated">
-      {/* title is a div (not <p>/Text): it may contain block content like an
-          HStack with an icon, which is invalid inside a <p>. */}
-      <Box px={4} py={2} bg="blackAlpha.300" borderBottomWidth="1px" borderBottomColor="surface.border"
-        fontSize="sm" fontWeight="bold" color="gray.200">
-        {title}
-      </Box>
-      <Box p={3}>
-        <RewardList rewards={rewards} tone={tone} columns={columns} sort={sort} />
-      </Box>
-    </Box>
+    <Panel title={title}>
+      <RewardList rewards={rewards} tone={tone} columns={columns} sort={sort} />
+    </Panel>
   );
 }
 

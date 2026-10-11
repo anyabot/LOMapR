@@ -1,9 +1,11 @@
 import {
-  Box, Button, HStack, VStack, Text, Image, Center, IconButton, SimpleGrid,
-  Tabs, TabList, Tab, TabPanels, TabPanel, Tag, Divider, Link,
+  Box, Button, HStack, VStack, Text, Image, Center, SimpleGrid, Tag, Divider, Link,
 } from '@chakra-ui/react';
-import { ArrowLeftIcon, ArrowRightIcon, StarIcon } from '@chakra-ui/icons';
+import { StarIcon } from '@chakra-ui/icons';
 import NextLink from 'next/link';
+import { useRouter } from 'next/router';
+import { Panel, StatRows, UrlTabs, TabPanel, tabParam, WaveNav, type StatItem } from '@altterisk/game-hub';
+import { nextRouterAdapter } from '@altterisk/game-hub/filters';
 import { Stage, WaveDrop, RewardEntry, StageMission, isBattleStage } from '@/interfaces/world';
 import { encodeWaveRef } from '@/lib/waveRef';
 import { t } from '@/lib/strings';
@@ -17,21 +19,6 @@ import EnemyGrid from '@/components/enemyGrid';
 import UnitHoverCard from '@/components/unitHoverCard';
 import { RewardPanel } from '@/components/rewardList';
 import styles from '@/styles/custom.module.css';
-
-// A titled panel card matching the reference layout (header strip + body).
-function Panel({ title, children }: { title: React.ReactNode; children: React.ReactNode }) {
-  return (
-    <Box borderWidth="1px" borderColor="surface.border" borderRadius="xl" overflow="hidden" bg="surface.elevated">
-      {/* title wrapper is a div (not Text/<p>) so JSX titles with block content
-          like an icon HStack nest validly. */}
-      <Box px={4} py={2} bg="blackAlpha.300" borderBottomWidth="1px" borderBottomColor="surface.border"
-        fontSize="sm" fontWeight="bold" color="gray.200">
-        {title}
-      </Box>
-      <Box p={3}>{children}</Box>
-    </Box>
-  );
-}
 
 // seconds -> "1h 45m" / "45m" / "30s"
 function fmtTime(s: number): string {
@@ -50,15 +37,17 @@ export default function StageTabs({
   worldId?: string;   // enables the "simulate this wave" team-builder link
 }) {
   useTranslationVersion();
+  const router = useRouter();
   const isBattle = isBattleStage(stage);
   const r = stage.rewards;
-  const tabs: { label: string; icon?: React.ReactNode; panel: React.ReactNode }[] = [];
+  const tabs: { id: string; label: string; panel: React.ReactNode }[] = [];
 
   // ── Clear Rewards: `clear` (EXP) isn't shown here, so it doesn't gate the tab ─
   const hasClearTab = !!(r?.reward_f?.length || r?.reward_am?.length
     || stage.unlock || stage.missions?.length);
   if (hasClearTab) {
     tabs.push({
+      id: 'clear',
       label: 'Clear Rewards',
       panel: (
         <SimpleGrid columns={[1, 1, 2]} spacing={4} alignItems="start">
@@ -68,7 +57,7 @@ export default function StageTabs({
                 panel lists only the first-clear item/unit rewards. */}
             <RewardPanel title="Clear Rewards" rewards={r?.reward_f ?? []} tone="gray" columns={2} />
             <RewardPanel
-              title={<HStack spacing={1}><StarIcon boxSize={3} color="yellow.400" /><Text as="span">All Missions Rewards</Text></HStack>}
+              title={<HStack as="span" spacing={1}><StarIcon boxSize={3} color="yellow.400" /><Text as="span">All Missions Rewards</Text></HStack>}
               rewards={r?.reward_am ?? []}
               tone="yellow"
               columns={2}
@@ -107,6 +96,7 @@ export default function StageTabs({
   const dropPool = aggregateDrops(isBattle ? stage.drops : undefined);
   if (dropPool.items.length || dropPool.units.length) {
     tabs.push({
+      id: 'drops',
       label: 'Drops',
       panel: (
         <SimpleGrid columns={[1, 1, 2]} spacing={4} alignItems="start">
@@ -120,26 +110,22 @@ export default function StageTabs({
   // ── Squad Info ─────────────────────────────────────────────────────────────
   if (stage.squad) {
     const sq = stage.squad;
+    const rows: StatItem[] = [];
+    if (sq.count != null) rows.push({ label: 'Squads', value: String(sq.count) });
+    if (sq.shift != null) rows.push({ label: 'Shift limit', value: String(sq.shift) });
+    rows.push({ label: 'Friend squad', value: sq.friend ? 'Allowed' : 'Not allowed' });
+    if (sq.fixed?.length) rows.push({ label: 'Fixed members', value: sq.fixed.map((c) => c.replace(/^Char_[A-Za-z0-9]+_/, '')).join(', ') });
     tabs.push({
+      id: 'squad',
       label: 'Squad Info',
-      panel: (
-        <Panel title="Squad Info">
-          <VStack align="stretch" spacing={2}>
-            {sq.count != null ? <InfoRow label="Squads" value={String(sq.count)} /> : null}
-            {sq.shift != null ? <InfoRow label="Shift limit" value={String(sq.shift)} /> : null}
-            <InfoRow label="Friend squad" value={sq.friend ? 'Allowed' : 'Not allowed'} />
-            {sq.fixed?.length ? (
-              <InfoRow label="Fixed members" value={sq.fixed.map((c) => c.replace(/^Char_[A-Za-z0-9]+_/, '')).join(', ')} />
-            ) : null}
-          </VStack>
-        </Panel>
-      ),
+      panel: <Panel title="Squad Info"><StatRows rows={rows} columns={1} /></Panel>,
     });
   }
 
   // ── Enemies (the wave grid) ────────────────────────────────────────────────
   if (isBattle) {
     tabs.push({
+      id: 'enemies',
       label: 'Enemies',
       panel: (
         <VStack spacing={3}>
@@ -169,16 +155,12 @@ export default function StageTabs({
               </div>
             ))}
           </HStack>
-          <HStack as={Center} gap={[2, 4, 6]}>
-            <IconButton aria-label="Previous wave" icon={<ArrowLeftIcon />}
-              isRound size="md" variant="outline" colorScheme="gray"
-              isDisabled={currWave === 0} onClick={() => setCurrWave(Math.max(0, currWave - 1))} />
-            {stage.waves[currWave]?.enemies && <EnemyGrid wave={stage.waves[currWave].enemies} />}
-            <IconButton aria-label="Next wave" icon={<ArrowRightIcon />}
-              isRound size="md" variant="outline" colorScheme="gray"
-              isDisabled={currWave === stage.waves.length - 1}
-              onClick={() => setCurrWave(Math.min(stage.waves.length - 1, currWave + 1))} />
-          </HStack>
+          <WaveNav count={stage.waves.length} index={currWave} onChange={setCurrWave} />
+          {stage.waves[currWave]?.enemies && (
+            <Center w="100%">
+              <EnemyGrid wave={stage.waves[currWave].enemies} />
+            </Center>
+          )}
           {worldId ? (
             <Button as={NextLink} size="xs" variant="outline" colorScheme="teal"
               href={`/team?w=${encodeURIComponent(encodeWaveRef({
@@ -195,38 +177,31 @@ export default function StageTabs({
   // ── Exploration (Search) ───────────────────────────────────────────────────
   if (stage.search) {
     const s = stage.search;
+    const rows: StatItem[] = [];
+    if (s.time != null) rows.push({ label: 'Time', value: fmtTime(s.time) });
+    if (s.metal != null) rows.push({ label: 'Metal', value: `+${s.metal}` });
+    if (s.nutrient != null) rows.push({ label: 'Nutrient', value: `+${s.nutrient}` });
+    if (s.power != null) rows.push({ label: 'Power', value: `+${s.power}` });
+    if (s.units != null) rows.push({ label: 'Dispatch units', value: String(s.units) });
+    if (s.unitsLv != null) rows.push({ label: 'Required level', value: String(s.unitsLv) });
     tabs.push({
+      id: 'exploration',
       label: 'Exploration',
-      panel: (
-        <Panel title="Exploration">
-          <VStack align="stretch" spacing={2}>
-            {s.time != null ? <InfoRow label="Time" value={fmtTime(s.time)} /> : null}
-            {s.metal != null ? <InfoRow label="Metal" value={`+${s.metal}`} /> : null}
-            {s.nutrient != null ? <InfoRow label="Nutrient" value={`+${s.nutrient}`} /> : null}
-            {s.power != null ? <InfoRow label="Power" value={`+${s.power}`} /> : null}
-            {s.units != null ? <InfoRow label="Dispatch units" value={String(s.units)} /> : null}
-            {s.unitsLv != null ? <InfoRow label="Required level" value={String(s.unitsLv)} /> : null}
-          </VStack>
-        </Panel>
-      ),
+      panel: <Panel title="Exploration"><StatRows rows={rows} columns={1} /></Panel>,
     });
   }
+
+  const [tab, setTab] = tabParam(nextRouterAdapter(router), tabs.map(({ id, label }) => ({ id, label })));
 
   if (!tabs.length) return null;
 
   return (
-    <Tabs variant="soft-rounded" colorScheme="teal" w="100%" isLazy>
-      <TabList flexWrap="wrap" gap={1}>
-        {tabs.map((tb) => (
-          <Tab key={tb.label} fontSize="sm">{tb.label}</Tab>
-        ))}
-      </TabList>
-      <TabPanels>
-        {tabs.map((tb) => (
-          <TabPanel key={tb.label} px={0}>{tb.panel}</TabPanel>
-        ))}
-      </TabPanels>
-    </Tabs>
+    <Box w="100%">
+      <UrlTabs tabs={tabs} active={tab} onChange={setTab} label="Stage sections" idBase="stage" />
+      {tabs.filter((tb) => tb.id === tab).map((tb) => (
+        <TabPanel key={tb.id} tab={tb.id} idBase="stage">{tb.panel}</TabPanel>
+      ))}
+    </Box>
   );
 }
 
@@ -354,15 +329,6 @@ function MissionRow({ mission: m }: { mission: StageMission }) {
     <HStack spacing={2} py={2} align="center">
       <StarIcon boxSize={3} color="gray.400" flexShrink={0} />
       <Text fontSize="sm" color="gray.200">{goal}{constraint}</Text>
-    </HStack>
-  );
-}
-
-function InfoRow({ label, value }: { label: string; value: string }) {
-  return (
-    <HStack justify="space-between">
-      <Text fontSize="sm" color="gray.400">{label}</Text>
-      <Text fontSize="sm" color="gray.100" fontWeight="medium">{value}</Text>
     </HStack>
   );
 }

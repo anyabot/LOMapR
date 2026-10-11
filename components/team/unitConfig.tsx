@@ -22,7 +22,8 @@ import { Skill } from '@/interfaces/skill';
 import { t } from '@/lib/strings';
 import { useTranslationVersion } from '@/lib/translationVersion';
 import { rankTag, rankColor, equipIcon, unitDisplayName } from '@/lib/rank';
-import { StatSection } from '@/components/statBlock';
+import { StatRows } from '@altterisk/game-hub';
+import StatHeading from '@/components/statHeading';
 import BuffList from '@/components/buffList';
 import {
   LV_MAX, POINTS_PER_LEVEL, POINT_STATS, STAT_PER_POINT, LINK_UNLOCK_LEVELS,
@@ -407,13 +408,12 @@ export default function UnitConfig({ tile, slot, unit, team, enemyWave, onChange
         </Box>
 
         <Box mt={3}>
-          <StatSection title="Resist">
-            <HStack justify="space-around" py={1.5} px={2}>
-              <HStack spacing={1}><Image alt="fire" src="/images/fire.png" boxSize="1rem" /><Text fontSize="sm" fontWeight="600">{stats.total.fireRes}%{fmtBonus(stats.bonus.fireRes, '%')}</Text></HStack>
-              <HStack spacing={1}><Image alt="ice" src="/images/ice.png" boxSize="1rem" /><Text fontSize="sm" fontWeight="600">{stats.total.iceRes}%{fmtBonus(stats.bonus.iceRes, '%')}</Text></HStack>
-              <HStack spacing={1}><Image alt="electric" src="/images/electric.png" boxSize="1rem" /><Text fontSize="sm" fontWeight="600">{stats.total.lightningRes}%{fmtBonus(stats.bonus.lightningRes, '%')}</Text></HStack>
-            </HStack>
-          </StatSection>
+          <StatHeading>Resist</StatHeading>
+          <StatRows columns={3} rows={[
+            { label: 'Fire', icon: <Image alt="fire" src="/images/fire.png" />, value: <>{stats.total.fireRes}%{fmtBonus(stats.bonus.fireRes, '%')}</> },
+            { label: 'Ice', icon: <Image alt="ice" src="/images/ice.png" />, value: <>{stats.total.iceRes}%{fmtBonus(stats.bonus.iceRes, '%')}</> },
+            { label: 'Electric', icon: <Image alt="electric" src="/images/electric.png" />, value: <>{stats.total.lightningRes}%{fmtBonus(stats.bonus.lightningRes, '%')}</> },
+          ]} />
         </Box>
       </Box>
 

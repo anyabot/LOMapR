@@ -1,4 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { browserStorage, createPersisted } from '@altterisk/game-hub/persist';
 import { RootState } from '../store';
 
 // Independent toggles over the always-on official layer. Precedence is
@@ -12,30 +13,23 @@ export interface TranslationState {
   communityLoaded: boolean; // true once community_translation.json has been fetched
 }
 
-const STORAGE_KEY_MTL       = 'lomapr.translation.mtl';
-const STORAGE_KEY_KR_MTL    = 'lomapr.translation.krMtl';
-const STORAGE_KEY_COMMUNITY = 'lomapr.translation.community';
-
-function readBool(key: string, fallback: boolean): boolean {
-  try {
-    const v = typeof window !== 'undefined' && window.localStorage.getItem(key);
-    return v === 'true' ? true : v === 'false' ? false : fallback;
-  } catch {
-    return fallback;
-  }
-}
+const layerStore = (key: string) => createPersisted<boolean>({
+  key,
+  version: 1,
+  empty: () => false,
+  sanitize: (raw) => raw === true || raw === 'true',
+});
+const mtlStore       = layerStore('lomapr.translation.mtl');
+const krMtlStore     = layerStore('lomapr.translation.krMtl');
+const communityStore = layerStore('lomapr.translation.community');
 
 export function loadTranslationLayers(): Partial<TranslationState> | null {
-  try {
-    if (typeof window === 'undefined') return null;
-    return {
-      mtl:       readBool(STORAGE_KEY_MTL,       false),
-      krMtl:     readBool(STORAGE_KEY_KR_MTL,    false),
-      community: readBool(STORAGE_KEY_COMMUNITY, false),
-    };
-  } catch {
-    return null;
-  }
+  if (!browserStorage()) return null;
+  return {
+    mtl:       mtlStore.load(),
+    krMtl:     krMtlStore.load(),
+    community: communityStore.load(),
+  };
 }
 
 const initialState: TranslationState = {
@@ -53,24 +47,15 @@ export const translationSlice = createSlice({
   reducers: {
     setMtl: (state, action: PayloadAction<boolean>) => {
       state.mtl = action.payload;
-      try {
-        if (typeof window !== 'undefined')
-          window.localStorage.setItem(STORAGE_KEY_MTL, String(action.payload));
-      } catch { /* ignore */ }
+      mtlStore.save(action.payload);
     },
     setKrMtl: (state, action: PayloadAction<boolean>) => {
       state.krMtl = action.payload;
-      try {
-        if (typeof window !== 'undefined')
-          window.localStorage.setItem(STORAGE_KEY_KR_MTL, String(action.payload));
-      } catch { /* ignore */ }
+      krMtlStore.save(action.payload);
     },
     setCommunity: (state, action: PayloadAction<boolean>) => {
       state.community = action.payload;
-      try {
-        if (typeof window !== 'undefined')
-          window.localStorage.setItem(STORAGE_KEY_COMMUNITY, String(action.payload));
-      } catch { /* ignore */ }
+      communityStore.save(action.payload);
     },
     setMtlLoaded:       (state) => { state.mtlLoaded       = true; },
     setKrMtlLoaded:     (state) => { state.krMtlLoaded     = true; },

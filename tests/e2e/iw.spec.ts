@@ -4,7 +4,7 @@ import { SAMPLE } from './fixtures';
 test.describe('/iw', () => {
   test('season card opens the raid boss detail', async ({ page }) => {
     await page.goto('/iw');
-    const season = page.getByRole('heading', { name: SAMPLE.iw.seasonLabel, exact: true });
+    const season = page.getByText(SAMPLE.iw.seasonLabel, { exact: true });
     await expect(season).toBeVisible({ timeout: 15_000 });
 
     await season.click();

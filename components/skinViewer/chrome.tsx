@@ -1,215 +1,172 @@
-// Shared overlay chrome: the PixiJS and Unity viewers wear the same UI, fed each
-// viewer's own state, so the markup lives in one place.
-import { useState } from 'react';
-import { Box, Button, CloseButton, Flex, HStack, Image, Input, Select, Spinner, Text, Tooltip } from '@chakra-ui/react';
-import { HamburgerIcon, ViewIcon, ViewOffIcon } from '@chakra-ui/icons';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { HStack, Image, Tooltip, Wrap, WrapItem } from '@chakra-ui/react';
+import {
+  ActionButton, ControlRow, ControlSection, OverlaySelect, SegmentedControl, ToggleRow,
+} from '@altterisk/game-hub/viewer';
+import { canRecordCanvas, startCanvasVideo, type VideoRecording } from '@altterisk/game-hub/spine';
 
-// `active` = highlighted/full-opacity; `inactive` = dimmed with slash.
-export function IconBtn({ src, alt, label, active, onClick, placement = 'left' }: {
-  src: string; alt: string; label: string; active: boolean;
-  onClick: () => void; placement?: 'left' | 'top';
+export const SPEED_OPTIONS = [0.25, 0.5, 1, 1.5, 2].map((v) => ({ value: String(v), label: `${v}×` }));
+
+// Session-wide, so switching skins keeps the chosen speed.
+let sessionSpeed = 1;
+const speedListeners = new Set<() => void>();
+export function useViewerSpeed(): [number, (speed: number) => void] {
+  const speed = useSyncExternalStore(
+    (cb) => { speedListeners.add(cb); return () => { speedListeners.delete(cb); }; },
+    () => sessionSpeed,
+    () => 1,
+  );
+  return [speed, (next) => { sessionSpeed = next; speedListeners.forEach((cb) => cb()); }];
+}
+
+export type CanvasRecorder = { supported: boolean; recording: boolean; toggle: () => void };
+
+export function useCanvasRecorder(getCanvas: () => HTMLCanvasElement | null | undefined, fileName: string): CanvasRecorder {
+  const ref = useRef<VideoRecording | null>(null);
+  const [recording, setRecording] = useState(false);
+  const [supported, setSupported] = useState(false);
+  useEffect(() => setSupported(canRecordCanvas()), []);
+  useEffect(() => () => {
+    ref.current?.cancel();
+    ref.current = null;
+    setRecording(false);
+  }, [fileName]);
+  const toggle = () => {
+    if (ref.current) { ref.current.stop(); return; }
+    const canvas = getCanvas();
+    if (!canvas) return;
+    const rec = startCanvasVideo({
+      canvas, fileName,
+      onStop: () => {
+        if (ref.current !== rec) return;
+        ref.current = null;
+        setRecording(false);
+      },
+    });
+    if (!rec) return;
+    ref.current = rec;
+    setRecording(true);
+  };
+  return { supported, recording, toggle };
+}
+
+export function PlaybackSection({ playing, onTogglePlay, onRestart, speed, onSpeed }: {
+  playing?: boolean;
+  onTogglePlay?: () => void;
+  onRestart?: () => void;
+  speed?: number;
+  onSpeed?: (speed: number) => void;
 }) {
   return (
-    <Tooltip label={label} fontSize="xs" hasArrow placement={placement}>
-      <Box as="button" onClick={onClick} position="relative" boxSize="36px"
-        opacity={active ? 1 : 0.4} transition="opacity 0.15s"
-        _hover={{ opacity: active ? 0.8 : 0.65 }}>
-        <Image src={src} alt={alt} boxSize="36px" objectFit="contain" />
-        {!active && (
-          <Box position="absolute" inset={0} display="flex" alignItems="center" justifyContent="center" pointerEvents="none">
-            <Box w="80%" h="2px" bg="red.400" transform="rotate(-45deg)" borderRadius="full" />
-          </Box>
-        )}
-      </Box>
-    </Tooltip>
+    <ControlSection title="Playback">
+      {(onTogglePlay || onRestart) && (
+        <Wrap spacing={1} justify="flex-end">
+          {onTogglePlay && (
+            <WrapItem>
+              <ActionButton icon={playing ? 'pause' : 'play'} label={playing ? 'Pause' : 'Play'} onClick={onTogglePlay} />
+            </WrapItem>
+          )}
+          {onRestart && <WrapItem><ActionButton icon="reload" label="Restart" onClick={onRestart} /></WrapItem>}
+        </Wrap>
+      )}
+      {onSpeed && speed != null && (
+        <ControlRow label="Speed">
+          <OverlaySelect icon="speed" value={String(speed)} options={SPEED_OPTIONS} minW="0" label="Playback speed"
+            onChange={(v) => onSpeed(Number(v))} />
+        </ControlRow>
+      )}
+    </ControlSection>
   );
 }
 
-// Top-left face-expression dropdown. options carry the raw value + display label.
-export function FaceSelect({ value, options, onChange }: {
+export function CaptureSection({ onSave, saving = false, recorder, theater, onTheater }: {
+  onSave: () => void;
+  saving?: boolean;
+  recorder?: CanvasRecorder;
+  theater: boolean;
+  onTheater: (on: boolean) => void;
+}) {
+  return (
+    <ControlSection title="Capture">
+      <Wrap spacing={1} justify="flex-end">
+        <WrapItem><ActionButton icon="save" label="Save PNG" onClick={onSave} busy={saving} /></WrapItem>
+        {recorder?.supported && (
+          <WrapItem>
+            <ActionButton icon="record" label={recorder.recording ? 'Stop recording' : 'Record video'}
+              active={recorder.recording} onClick={recorder.toggle} />
+          </WrapItem>
+        )}
+      </Wrap>
+      <ToggleRow label="Theatre" value={theater} onChange={onTheater} />
+    </ControlSection>
+  );
+}
+
+export function FaceRow({ value, options, onChange }: {
   value: string;
   options: { value: string; label: string }[];
-  onChange: (v: string) => void;
+  onChange: (value: string) => void;
 }) {
+  if (!options.length) return null;
   return (
-    <Box position="absolute" top={2} left={2} bg="blackAlpha.700" borderRadius="md" display="inline-flex">
-      <Box position="relative" display="inline-flex" alignItems="center" px={2} py={1} minW="120px">
-        <Image src="/images/shop/UI_ICON_EditFace.png" alt="Face"
-          boxSize="22px" objectFit="contain" flexShrink={0} pointerEvents="none" mr={1} />
-        <Text fontSize="xs" color="gray.200" whiteSpace="nowrap" pointerEvents="none">
-          {options.find((o) => o.value === value)?.label || '(none)'}
-        </Text>
-        <Select position="absolute" inset={0} w="100%" h="100%"
-          opacity={0} cursor="pointer" size="xs"
-          value={value}
-          onChange={(e: React.ChangeEvent<HTMLSelectElement>) => onChange(e.target.value)}
-          sx={{ appearance: 'none', WebkitAppearance: 'none' }}>
-          {options.map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
-          ))}
-        </Select>
-      </Box>
-    </Box>
+    <ControlRow label="Face">
+      <OverlaySelect icon="face" value={value} options={options} onChange={onChange} minW="0" label="Face expression" />
+    </ControlRow>
   );
 }
 
-// `saving` shows a spinner while an async capture is in flight.
-export function SaveButton({ onClick, saving = false }: { onClick: () => void; saving?: boolean }) {
-  return (
-    <Tooltip label="Save visible area as PNG" fontSize="xs" hasArrow placement="left">
-      <Box as="button" onClick={onClick} boxSize="36px" display="flex" alignItems="center"
-        justifyContent="center" opacity={saving ? 0.5 : 0.8} _hover={{ opacity: 1 }} transition="opacity 0.15s">
-        {saving
-          ? <Spinner size="sm" />
-          : <Image src="/images/shop/UI_Common_Icon_Save_1.png" alt="Save" boxSize="24px" objectFit="contain" />}
-      </Box>
-    </Tooltip>
-  );
-}
-
-// `dim` lightly fades it (e.g. inactive zones toggle).
-function OverlayIconButton({ src, alt, label, onClick, dim = false }: {
-  src: string; alt: string; label: string; onClick: () => void; dim?: boolean;
-}) {
-  return (
-    <Tooltip label={label} fontSize="xs" hasArrow placement="left">
-      <Box as="button" onClick={onClick} boxSize="36px" display="flex" alignItems="center"
-        justifyContent="center" opacity={dim ? 0.4 : 0.8} _hover={{ opacity: 1 }} transition="opacity 0.15s">
-        <Image src={src} alt={alt} boxSize="24px" objectFit="contain" />
-      </Box>
-    </Tooltip>
-  );
-}
-
-// Reload-skin (rotate) icon button.
-export function ReloadButton({ onClick }: { onClick: () => void }) {
-  return (
-    <OverlayIconButton src="/images/shop/UI_Icon_Rotate_2.png" alt="Reload"
-      label="Reload skin" onClick={onClick} />
-  );
-}
-
-// Play/pause toggle icon button.
-export function PlayPauseButton({ playing, onToggle }: { playing: boolean; onToggle: () => void }) {
-  return (
-    <OverlayIconButton
-      src={playing ? '/images/shop/UI_Common_Icon_Pause.png' : '/images/shop/UI_Common_Icon_Play.png'}
-      alt={playing ? 'Pause' : 'Play'}
-      label={playing ? 'Pause' : 'Play'}
-      onClick={onToggle} />
-  );
-}
-
-// Zones (eye) toggle icon button — dimmed when off.
-export function ZonesButton({ shown, onToggle }: { shown: boolean; onToggle: () => void }) {
-  return (
-    <OverlayIconButton src="/images/shop/UI_Icon_Eye.png" alt="Zones"
-      label={shown ? 'Hide zones' : 'Show zones'} onClick={onToggle} dim={!shown} />
-  );
-}
-
-// Layer-editor toggle (spine only) — opens the per-slot visibility panel.
-export function LayersButton({ active, onToggle }: { active: boolean; onToggle: () => void }) {
-  return (
-    <Tooltip label={active ? 'Close layer editor' : 'Layer editor'} fontSize="xs" hasArrow placement="left">
-      <Box as="button" onClick={onToggle} boxSize="36px" display="flex" alignItems="center"
-        justifyContent="center" opacity={active ? 1 : 0.6} _hover={{ opacity: 1 }} transition="opacity 0.15s">
-        <HamburgerIcon boxSize="20px" color={active ? 'accent.300' : 'gray.200'} />
-      </Box>
-    </Tooltip>
-  );
-}
-
-// Rows are front-most first (Spine draws back-to-front), matching an image editor.
-// `top` shifts the panel below the face dropdown when that one is present.
-export function LayerPanel({ slots, hidden, top = 2, onToggle, onSetAll, onClose }: {
-  slots: string[];
-  hidden: Set<string>;
-  top?: number;
-  onToggle: (slot: string) => void;
-  onSetAll: (visible: boolean) => void;
-  onClose: () => void;
-}) {
-  const [filter, setFilter] = useState('');
-  const query = filter.trim().toLowerCase();
-  const rows = slots.filter((s) => !query || s.toLowerCase().includes(query)).reverse();
-  const visibleCount = slots.reduce((n, s) => hidden.has(s) ? n : n + 1, 0);
-  return (
-    <Flex position="absolute" top={top} left={2} zIndex={2} direction="column"
-      w={{ base: '160px', sm: '200px' }} maxW="60%" maxH="75%"
-      bg="blackAlpha.800" borderRadius="md" overflow="hidden">
-      <Flex align="center" gap={1} pl={2} pr={1} pt={1}>
-        <Text fontSize="xs" fontWeight="bold" color="gray.200" flex="1" whiteSpace="nowrap">
-          Layers {visibleCount}/{slots.length}
-        </Text>
-        <Button size="xs" variant="ghost" h="20px" minW={0} px={1} fontSize="10px"
-          color="gray.300" onClick={() => onSetAll(true)}>All</Button>
-        <Button size="xs" variant="ghost" h="20px" minW={0} px={1} fontSize="10px"
-          color="gray.300" onClick={() => onSetAll(false)}>None</Button>
-        <CloseButton size="sm" color="gray.300" onClick={onClose} />
-      </Flex>
-      <Box px={2} py={1}>
-        <Input size="xs" borderRadius="sm" placeholder="filter" value={filter}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFilter(e.target.value)} />
-      </Box>
-      <Box flex="1" minH={0} overflowY="auto" px={1} pb={1}>
-        {rows.map((s) => {
-          const off = hidden.has(s);
-          return (
-            <Flex as="button" key={s} onClick={() => onToggle(s)} w="100%" align="center" gap={1}
-              px={1} py="2px" borderRadius="sm" textAlign="left" _hover={{ bg: 'whiteAlpha.200' }}>
-              {off
-                ? <ViewOffIcon boxSize="12px" color="gray.500" flexShrink={0} />
-                : <ViewIcon boxSize="12px" color="accent.300" flexShrink={0} />}
-              <Text fontSize="xs" color={off ? 'gray.500' : 'gray.100'} isTruncated title={s}>{s}</Text>
-            </Flex>
-          );
-        })}
-        {rows.length === 0 && (
-          <Text fontSize="xs" color="gray.500" px={1} py={1}>no match</Text>
-        )}
-      </Box>
-    </Flex>
-  );
-}
-
-// `base` is a function because its icon depends on whether a KR variant exists.
-export function variantMeta(key: string, hasKr: boolean): { icon: string; label: string } {
-  const map: Record<string, { icon: string; label: string }> = {
-    base:  { icon: hasKr ? '/images/shop/icon-platform-vfun.png' : '/images/shop/icon-platform-onestore.png', label: 'Uncensored' },
-    kr:    { icon: '/images/shop/icon-platform-onestore.png', label: 'KR (Uncensored)' },
-    sfw:   { icon: '/images/shop/icon-platform-google.png',   label: 'Censored (Google Play)' },
-    rplus: { icon: '/images/shop/icon-secret-marks.png',      label: 'R+ (Uncensored)' },
+// `base` depends on whether a KR variant exists.
+export function variantMeta(key: string, hasKr: boolean): { icon: string; label: string; short: string } {
+  const map: Record<string, { icon: string; label: string; short: string }> = {
+    base:  { icon: hasKr ? '/images/shop/icon-platform-vfun.png' : '/images/shop/icon-platform-onestore.png', label: 'Uncensored', short: 'Original' },
+    kr:    { icon: '/images/shop/icon-platform-onestore.png', label: 'KR (Uncensored)', short: 'KR' },
+    sfw:   { icon: '/images/shop/icon-platform-google.png',   label: 'Censored (Google Play)', short: 'Censored' },
+    rplus: { icon: '/images/shop/icon-secret-marks.png',      label: 'R+ (Uncensored)', short: 'R+' },
   };
-  return map[key] ?? { icon: '/images/shop/icon-platform-onestore.png', label: key };
+  return map[key] ?? { icon: '/images/shop/icon-platform-onestore.png', label: key, short: key };
 }
 
-// Bottom-right platform/variant radio strip (base / kr / sfw / rplus, etc).
-export function VariantStrip({ variants, active, onSelect }: {
-  variants: { key: string; icon: string; label: string }[];
+export function VariantRow({ keys, active, hasKr, onSelect }: {
+  keys: string[];
   active: string;
+  hasKr: boolean;
   onSelect: (key: string) => void;
 }) {
-  if (variants.length === 0) return null;
+  if (keys.length < 2) return null;
   return (
-    <HStack bg="blackAlpha.500" borderRadius="md" px={1} py={1} spacing={1}>
-      {variants.map((v) => {
-        const isActive = active === v.key;
-        return (
-          <Tooltip key={v.key} label={v.label} fontSize="xs" hasArrow placement="top">
-            <Box as="button" onClick={() => { if (!isActive) onSelect(v.key); }}
-              position="relative" boxSize="36px"
-              opacity={isActive ? 1 : 0.4} transition="opacity 0.15s"
-              _hover={{ opacity: isActive ? 0.8 : 0.65 }}
-              outline={isActive ? '2px solid' : 'none'}
-              outlineColor="accent.400"
-              borderRadius="sm">
-              <Image src={v.icon} alt={v.label} boxSize="36px" objectFit="contain" />
-            </Box>
-          </Tooltip>
-        );
-      })}
-    </HStack>
+    <ControlRow label="Version">
+      <SegmentedControl value={active} onChange={onSelect} ariaLabel="Skin version"
+        options={keys.map((key) => {
+          const meta = variantMeta(key, hasKr);
+          return { value: key, label: meta.short, title: meta.label, image: meta.icon };
+        })} />
+    </ControlRow>
   );
 }
 
+export const PARTS_META: Record<string, { icon: string; label: string }> = {
+  LOBBY_ANIMATION:        { icon: '/images/shop/UI_ShopL2DIcon.png',        label: 'Live 2D lobby animation' },
+  VOICE:                  { icon: '/images/shop/UI_ShopVoiceIcon.png',       label: 'Voice' },
+  SD_EFFECT:              { icon: '/images/shop/UI_ShopFxIcon.png',          label: 'SD battle effects' },
+  SD_ANIMATION:           { icon: '/images/shop/UI_ShopSDAnimIcon.png',      label: 'SD battle animation' },
+  PROPS:                  { icon: '/images/shop/UI_ShopObjectIcon.png',      label: 'Props / objects' },
+  DAMAGE_IMAGE:           { icon: '/images/shop/UI_ShopDamagedIcon.png',     label: 'Damaged skin image' },
+  DAMAGE_LOBBY_ANIMATION: { icon: '/images/shop/UI_ShopDamagedL2DIcon.png', label: 'Damaged Live 2D animation' },
+};
+
+export function IncludedSection({ parts }: { parts: string[] }) {
+  const known = parts.filter((p) => PARTS_META[p]);
+  return (
+    <ControlSection title="Skin includes">
+      {known.length > 0 && (
+        <HStack spacing={1} flexWrap="wrap">
+          {known.map((p) => (
+            <Tooltip key={p} label={PARTS_META[p].label} fontSize="xs" hasArrow placement="top">
+              <Image src={PARTS_META[p].icon} alt={PARTS_META[p].label} boxSize="32px" />
+            </Tooltip>
+          ))}
+        </HStack>
+      )}
+    </ControlSection>
+  );
+}

@@ -14,7 +14,7 @@ test.describe('/units', () => {
     await page.getByPlaceholder('Search name or code').fill('zzz-no-such-unit');
     await expect(page.getByText('No units match the current filters.')).toBeVisible();
     // the clear button restores the full grid
-    await page.getByRole('button', { name: 'Clear' }).click();
+    await page.getByRole('button', { name: 'Clear search' }).click();
     await expect(page.getByText('No units match the current filters.')).toBeHidden();
   });
 

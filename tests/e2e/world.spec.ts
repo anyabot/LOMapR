@@ -19,8 +19,8 @@ test.describe('world drill-down', () => {
     await expect(page).toHaveURL(new RegExp(`/world/stage\\?id=${W.id}&zone=1`));
     await expect(page.getByRole('heading', { name: W.zone1Title, exact: true })).toBeVisible({ timeout: 15_000 });
 
-    // back button (a link-styled button) returns to the zone list
-    await page.getByRole('link', { name: 'Back', exact: true }).click();
+    // the breadcrumb's world link returns to the zone list
+    await page.getByRole('navigation', { name: 'Breadcrumb' }).getByRole('link', { name: W.title, exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`/world/detail\\?id=${W.id}`));
   });
 

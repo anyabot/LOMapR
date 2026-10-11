@@ -1,5 +1,6 @@
 // Browser-side data layer. Shaping applied here: KR to global fallback, image merge
 // and rewrite to bundled /public art, empty-array fill, and id-stamping from the key.
+import { createJsonLoader } from '@altterisk/game-hub/data';
 import PUBLIC_IMAGES from './publicImages.json';
 
 // The key layout maps 1:1 to data/<key>, so local mode only swaps the base URL.
@@ -9,27 +10,29 @@ const BASE = LOCAL ? '/local-data' : R2;
 
 export type Region = 'global' | 'kr';
 
-// Fetch one JSON key from the active source. Returns null on any miss/error.
-async function get(key: string): Promise<any | null> {
-  if (!BASE) return null;
-  try {
-    const res = await fetch(`${BASE}/${key}`);
-    if (!res.ok) return null;
-    return await res.json();
-  } catch {
-    return null;
-  }
+// A `kr/<file>` key falls back to `global/<file>`.
+const loader = createJsonLoader({
+  urls: (key) => {
+    if (!BASE) return [];
+    const kr = /^kr\/(.+)$/.exec(key);
+    return kr ? [`${BASE}/${key}`, `${BASE}/global/${kr[1]}`] : [`${BASE}/${key}`];
+  },
+});
+
+// Cached results are shared and may be frozen by the store, so shapers below write only on change.
+function get(key: string): Promise<any | null> {
+  return loader.load(key).catch(() => null);
 }
 
-// Fetch `<region>/<file>`, falling back to `global/<file>` for non-global regions.
-async function getWithFallback(region: Region, file: string): Promise<any | null> {
-  const data = await get(`${region}/${file}`);
-  if (data != null || region === 'global') return data;
-  return get(`global/${file}`);
+function getWithFallback(region: Region, file: string): Promise<any | null> {
+  return get(`${region}/${file}`);
 }
 
 // ── shapers ──────────────────────────────────────────────────────────────────
 const arr = (v: any): any[] => (Array.isArray(v) ? v : []);
+function ensureArr(obj: any, key: string) {
+  if (!Array.isArray(obj[key])) obj[key] = [];
+}
 
 function shapeSanctum(data: any): any {
   if (!data || typeof data !== 'object') return data;
@@ -37,22 +40,22 @@ function shapeSanctum(data: any): any {
     for (const floors of arr(data[area]))
       for (const f of arr(floors))
         if (f && typeof f === 'object') {
-          f.prohibition = arr(f.prohibition);
-          f.suitability = arr(f.suitability);
-          f.waves = arr(f.waves);
+          ensureArr(f, 'prohibition');
+          ensureArr(f, 'suitability');
+          ensureArr(f, 'waves');
         }
   return data;
 }
 
 function shapeWorld(data: any): any {
   if (!data || typeof data !== 'object') return data;
-  const fixStage = (s: any) => { if (s && typeof s === 'object') s.waves = arr(s.waves); };
+  const fixStage = (s: any) => { if (s && typeof s === 'object') ensureArr(s, 'waves'); };
   for (const id of Object.keys(data)) {
     const w = data[id];
     if (!w || typeof w !== 'object') continue;
     for (const z of arr(w.zones)) {
       if (!z || typeof z !== 'object') continue;
-      z.stages = arr(z.stages);
+      ensureArr(z, 'stages');
       z.stages.forEach(fixStage);
       if (Array.isArray(z.subzones)) z.subzones.forEach((sz: any) => arr(sz).forEach(fixStage));
     }
@@ -64,7 +67,7 @@ function shapeEnemy(data: any): any {
   if (!data || typeof data !== 'object') return data;
   for (const id of Object.keys(data)) {
     const e = data[id];
-    if (e && typeof e === 'object') e.skills = arr(e.skills);
+    if (e && typeof e === 'object') ensureArr(e, 'skills');
   }
   return data;
 }
@@ -72,7 +75,7 @@ function shapeEnemy(data: any): any {
 // Copy each top-level key onto record.id (the old routes did temp[k].id = k).
 function stampId<T extends Record<string, any>>(data: T | null): T {
   if (!data || typeof data !== 'object') return (data ?? {}) as T;
-  for (const k of Object.keys(data)) if (data[k] && typeof data[k] === 'object') data[k].id = k;
+  for (const k of Object.keys(data)) if (data[k] && typeof data[k] === 'object' && data[k].id !== k) data[k].id = k;
   return data;
 }
 
@@ -104,15 +107,10 @@ export async function fetchWorld(region: Region) {
 
 // One world's full record, fetched lazily when a stage page opens that world.
 export async function fetchWorldStage(id: string, region: Region) {
-  const regions: Region[] = region === 'global' ? ['global'] : [region, 'global'];
-  for (const r of regions) {
-    const data = await get(`${r}/split/world/${id}.json`);
-    if (data) {
-      const shaped = shapeWorld({ [id]: data });   // reuse the stage-array shaper
-      return { ...shaped[id], id };
-    }
-  }
-  return null;
+  const data = await getWithFallback(region, `split/world/${id}.json`);
+  if (!data) return null;
+  const shaped = shapeWorld({ [id]: data });   // reuse the stage-array shaper
+  return { ...shaped[id], id };
 }
 
 export async function fetchSkills(region: Region) {
@@ -156,7 +154,7 @@ export async function fetchKrMtl() {
 
 // Images: merge region over global, then prefer bundled /public art.
 export async function fetchImages(region: Region) {
-  const local = await get(`${region}/images.json`);
+  const local = await getWithFallback(region, 'images.json');
   const global = region === 'global' ? null : await get('global/images.json');
   let merged: any = global && local ? { ...global, ...local } : (local ?? global);
   if (!merged) return {};
@@ -165,12 +163,8 @@ export async function fetchImages(region: Region) {
 
 // Full enemy list (records carry all fields). split/enemy_list.json.
 export async function fetchEnemyList(region: Region) {
-  const regions: Region[] = region === 'global' ? ['global'] : [region, 'global'];
-  for (const r of regions) {
-    const data = await get(`${r}/split/enemy_list.json`);
-    if (data) return stampId(shapeEnemy(data));
-  }
-  return {};
+  const data = await getWithFallback(region, 'split/enemy_list.json');
+  return data ? stampId(shapeEnemy(data)) : {};
 }
 
 // A single enemy's full record, pulled from the list.
@@ -186,47 +180,29 @@ export async function fetchEnemy(id: string, region: Region) {
 // Split skill/AI bundles are content-deduplicated at build time and named after the
 // owning enemy id, so callers pass skillsRef/aiRef when the record carries one.
 export async function fetchSplitSkills(ref: string | undefined, region: Region) {
-  if (!ref) return null;
-  const data = await get(`${region}/split/skills/${ref}.json`);
-  if (data || region === 'global') return data;
-  return get(`global/split/skills/${ref}.json`);
+  return ref ? getWithFallback(region, `split/skills/${ref}.json`) : null;
 }
 
 export async function fetchSplitAI(ref: string | undefined, region: Region) {
-  if (!ref) return null;
-  const data = await get(`${region}/split/ai/${ref}.json`);
-  if (data || region === 'global') return data;
-  return get(`global/split/ai/${ref}.json`);
+  return ref ? getWithFallback(region, `split/ai/${ref}.json`) : null;
 }
 
 // ── units (playable characters) ───────────────────────────────────────────────
 
 // Light unit list for the grid and hover card; heavy fields ride in the per-unit bundle.
 export async function fetchUnitList(region: Region) {
-  const regions: Region[] = region === 'global' ? ['global'] : [region, 'global'];
-  for (const r of regions) {
-    const data = await get(`${r}/split/units/unit_list.json`);
-    if (data) return stampId(data);
-  }
-  return {};
+  const data = await getWithFallback(region, 'split/units/unit_list.json');
+  return data ? stampId(data) : {};
 }
 
 // `skills` holds BOTH forms (base + skillsCh); `detail` carries the heavy fields.
 export async function fetchUnitBundle(id: string | undefined, region: Region) {
-  if (!id) return null;
-  const data = await get(`${region}/split/units/${id}.json`);
-  if (data || region === 'global') return data;
-  return get(`global/split/units/${id}.json`);
+  return id ? getWithFallback(region, `split/units/${id}.json`) : null;
 }
 
 // One entry per purchasable skin, with unit context + gallery/filter fields.
 export async function fetchSkinList(region: Region) {
-  const regions: Region[] = region === 'global' ? ['global'] : [region, 'global'];
-  for (const r of regions) {
-    const data = await get(`${r}/split/skins/skin_list.json`);
-    if (data) return data as SkinEntry[];
-  }
-  return [] as SkinEntry[];
+  return ((await getWithFallback(region, 'split/skins/skin_list.json')) ?? []) as SkinEntry[];
 }
 
 export interface SkinEntry {
@@ -296,12 +272,7 @@ export interface GachaPools {
 }
 
 export async function fetchGachaPools(region: Region): Promise<GachaPools | null> {
-  const regions: Region[] = region === 'global' ? ['global'] : [region, 'global'];
-  for (const r of regions) {
-    const data = await get(`${r}/split/gacha/gacha.json`);
-    if (data) return data as GachaPools;
-  }
-  return null;
+  return getWithFallback(region, 'split/gacha/gacha.json');
 }
 
 // ── misc categorization (/misc page) ──────────────────────────────────────────
@@ -313,9 +284,7 @@ export async function fetchMisc(region: Region) {
 
 // All (unit, skill, buff) entries for ONE buff-type ordinal.
 export async function fetchMiscBuff(type: number, region: Region) {
-  const data = await get(`${region}/split/misc/buff_${type}.json`);
-  if (data || region === 'global') return data;
-  return get(`global/split/misc/buff_${type}.json`);
+  return getWithFallback(region, `split/misc/buff_${type}.json`);
 }
 
 // ── equipment ─────────────────────────────────────────────────────────────────
@@ -327,10 +296,6 @@ export async function fetchEquipList(region: Region) {
 
 // One equip family's FULL record (all ranks × levels), loaded when its modal opens.
 export async function fetchEquip(id: string, region: Region) {
-  const regions: Region[] = region === 'global' ? ['global'] : [region, 'global'];
-  for (const r of regions) {
-    const data = await get(`${r}/split/equip/${id}.json`);
-    if (data) return { ...data, id };
-  }
-  return null;
+  const data = await getWithFallback(region, `split/equip/${id}.json`);
+  return data ? { ...data, id } : null;
 }

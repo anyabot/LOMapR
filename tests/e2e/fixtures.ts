@@ -1,7 +1,7 @@
 // Display names resolved through strings.json (en); update if the game data renames one.
 export const SAMPLE = {
   unit: { id: 'Char_3P_ConstantiaS2_N', name: 'Constantia S2' },
-  equip: { id: 'Equip_Chip_Atk', name: 'Attack Chip EX' },
+  equip: { id: 'Equip_Chip_Atk', name: 'Output Enhancement Circuit SSS' },
   enemy: { id: 'NightChick_N', name: 'Knight Chick' },
   world: {
     id: 'Story',

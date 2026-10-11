@@ -1,16 +1,15 @@
 import { useEffect, useState } from 'react';
 import {
-  Button, ButtonGroup, Flex, InputGroup, Input, InputRightElement,
-  VStack, HStack, Center, Text, Heading, Badge, IconButton, Box, Image, SimpleGrid,
+  VStack, HStack, Center, Text, Heading, Badge, Box, Image, SimpleGrid,
 } from '@chakra-ui/react';
-import { CloseIcon, SearchIcon } from '@chakra-ui/icons';
+import { ListToolbar, SearchBox, FilterPanel, FilterRow, FilterChip, EmptyState } from '@altterisk/game-hub';
 import { useAppSelector, useAppDispatch } from '@/hooks';
 import { selectEquip, selectEquipStatus, fetchEquipAsync, setActiveEquip } from '@/store/equipSlice';
 import { EquipData } from '@/interfaces/equip';
 import { t } from '@/lib/strings';
 import { useTranslationVersion } from '@/lib/translationVersion';
-import { rankTag, rankColor, equipIcon, EXCHANGE_META, filterModeProps,
-  filterValueAllowed, nextFilterMode, FilterMode } from '@/lib/rank';
+import { rankTag, rankColor, equipIcon, EXCHANGE_META, filterValueAllowed } from '@/lib/rank';
+import { chipColor, countActive, fillModes, useListUrl, useUrlText } from '@/lib/listUrl';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 
@@ -25,6 +24,7 @@ const EXCHANGES = ['Sanctum', 'IW'] as const;
 // Exclusive (pcLimit set) cuts across slots, so it is a filter, not a list section.
 const TYPES = ['Chip', 'OS', 'Item', 'Exclusive'] as const;
 type TypeFilter = typeof TYPES[number];
+const FILTER_KEYS = ['type', 'grade', 'exchange'];
 const isExclusive = (e: EquipData) => !!e.pcLimit;
 
 export default function Equipment() {
@@ -42,12 +42,13 @@ export default function Equipment() {
     if (router.isReady && id && equip[id]) dispatch(setActiveEquip(id));
   }, [router.isReady, router.query.equip, equip, dispatch]);
 
-  const [searchTerm, setSearchTerm] = useState('');
-  const [grades, setGrades] = useState<Record<number, FilterMode>>(
-    Object.fromEntries(GRADES.map((g) => [g, 0])) as Record<number, FilterMode>,
-  );
-  const [exchanges, setExchanges] = useState<Record<typeof EXCHANGES[number], FilterMode>>({ Sanctum: 0, IW: 0 });
-  const [types, setTypes] = useState<Record<TypeFilter, FilterMode>>({ Chip: 0, OS: 0, Item: 0, Exclusive: 0 });
+  const { list, ready } = useListUrl();
+  const [searchTerm, setSearchTerm] = useUrlText(list, ready);
+  const grades = fillModes(GRADES, list.modes('grade'));
+  const exchanges = fillModes(EXCHANGES, list.modes('exchange'));
+  const types = fillModes(TYPES, list.modes('type'));
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const activeFilters = countActive(grades, exchanges, types);
 
   function matches(e: EquipData) {
     if (!filterValueAllowed(e.grade, grades)) return false;
@@ -78,59 +79,41 @@ export default function Equipment() {
     <>
       <Head><title>Equipment</title></Head>
       <VStack align="stretch" spacing={4} py={4}>
-        <HStack>
-          <Heading size="xl">Equipment</Heading>
-          <Badge colorScheme="accent" borderRadius="full" px={2}>{shown.length}</Badge>
-        </HStack>
+        <Heading size="xl">Equipment</Heading>
 
-        <Flex gap={3} wrap="wrap" align="center"
-          bg="surface.elevated" borderWidth="1px" borderColor="surface.border" borderRadius="xl" p={3}>
-          <ButtonGroup isAttached size="sm">
-            {TYPES.map((ty) => (
-              <Button key={ty} variant="outline" colorScheme="accent"
-                {...filterModeProps('accent', types[ty])}
-                onClick={() => setTypes({ ...types, [ty]: nextFilterMode(types[ty]) })}>
-                {ty}
-              </Button>
-            ))}
-          </ButtonGroup>
-          <ButtonGroup isAttached size="sm">
-            {GRADES.map((g) => (
-              <Button key={g} variant="outline"
-                bg={grades[g] === 1 ? rankColor(g) : grades[g] === -1 ? 'red.900' : undefined}
-                color={grades[g] === 1 ? 'blackAlpha.800' : rankColor(g)}
-                borderColor={grades[g] === -1 ? 'red.500' : rankColor(g)}
-                opacity={grades[g] === 0 ? 0.5 : 1}
-                textDecoration={grades[g] === -1 ? 'line-through' : undefined}
-                _hover={{ bg: grades[g] === 1 ? rankColor(g) : 'whiteAlpha.100' }}
-                onClick={() => setGrades({ ...grades, [g]: nextFilterMode(grades[g]) })}>{rankTag(g)}</Button>
-            ))}
-          </ButtonGroup>
-          <ButtonGroup isAttached size="sm">
-            {EXCHANGES.map((x) => (
-              <Button key={x} variant="outline" {...filterModeProps(EXCHANGE_META[x].color, exchanges[x])}
-                colorScheme={EXCHANGE_META[x].color}
-                onClick={() => setExchanges({ ...exchanges, [x]: nextFilterMode(exchanges[x]) })}>
-                {EXCHANGE_META[x].label}
-              </Button>
-            ))}
-          </ButtonGroup>
-          <InputGroup size="sm" maxW="260px" ml="auto">
-            <Input placeholder="Search name or code" value={searchTerm} borderColor="surface.border"
-              onChange={(e) => setSearchTerm(e.target.value)} />
-            <InputRightElement>
-              {searchTerm ? (
-                <IconButton aria-label="Clear" icon={<CloseIcon boxSize={2.5} />} size="xs"
-                  variant="ghost" onClick={() => setSearchTerm('')} />
-              ) : (
-                <SearchIcon color="gray.500" boxSize={3} />
-              )}
-            </InputRightElement>
-          </InputGroup>
-        </Flex>
+        <Box>
+          <ListToolbar
+            search={<SearchBox value={searchTerm} onChange={setSearchTerm} placeholder="Search name or code" />}
+            count={`${shown.length} items`}
+            activeFilters={activeFilters + (searchTerm ? 1 : 0)}
+            onClearFilters={() => { setSearchTerm(''); list.clear(FILTER_KEYS); }}
+          />
+          <FilterPanel open={filtersOpen} onToggle={() => setFiltersOpen((o) => !o)} activeCount={activeFilters}>
+            <FilterRow label="Type">
+              {TYPES.map((ty) => (
+                <FilterChip key={ty} mode={types[ty]} onClick={() => list.cycleMode('type', ty)}>{ty}</FilterChip>
+              ))}
+            </FilterRow>
+            <FilterRow label="Grade">
+              {GRADES.map((g) => (
+                <FilterChip key={g} mode={grades[g]} color={rankColor(g)} onClick={() => list.cycleMode('grade', String(g))}>
+                  {rankTag(g)}
+                </FilterChip>
+              ))}
+            </FilterRow>
+            <FilterRow label="Exchange">
+              {EXCHANGES.map((x) => (
+                <FilterChip key={x} mode={exchanges[x]} color={chipColor(EXCHANGE_META[x].color)}
+                  onClick={() => list.cycleMode('exchange', x)}>
+                  {EXCHANGE_META[x].label}
+                </FilterChip>
+              ))}
+            </FilterRow>
+          </FilterPanel>
+        </Box>
 
         {shown.length === 0 ? (
-          <Center py={16}><Text color="gray.500">No equipment matches the current filters.</Text></Center>
+          <EmptyState title="No equipment matches the current filters." />
         ) : (
           SLOTS.map((slot) => {
             const items = shown.filter((e) => e.slot === slot.label)

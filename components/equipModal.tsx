@@ -16,7 +16,8 @@ import { EquipRank } from '@/interfaces/equip';
 import { t } from '@/lib/strings';
 import { rankTag, rankColor, typeIcon, roleIcon, equipIcon, EXCHANGE_META, unitDisplayName } from '@/lib/rank';
 import { STAT_PER_POINT } from '@/lib/team';
-import { StatRow, StatSection } from '@/components/statBlock';
+import { StatRows, type StatItem } from '@altterisk/game-hub';
+import StatHeading from '@/components/statHeading';
 import BuffList from '@/components/buffList';
 import UnitHoverCard from '@/components/unitHoverCard';
 import CopyLink from '@/components/copyLink';
@@ -261,37 +262,31 @@ export default function EquipModal() {
               {/* ── stats at this level (+ allocation-point worth) ── */}
               {lvl && lvl.stats.length ? (
                 <Box mb={3}>
-                  <StatSection title="Stats">
-                    {lvl.stats.map((st, i) => {
+                  <StatHeading>Stats</StatHeading>
+                  <StatRows columns={1} rows={(() => {
+                    const rows: StatItem[] = lvl.stats.map((st) => {
                       const pts = statPoints(st.attr, st.value);
-                      return (
-                        <StatRow key={i} label={
-                          <HStack spacing={1.5}>
-                            {STAT_ICON[st.attr] ? <Image alt={st.attr} src={STAT_ICON[st.attr]} boxSize="0.95rem" /> : null}
-                            <Text as="span">{st.attr}</Text>
+                      return {
+                        icon: STAT_ICON[st.attr] ? <Image alt={st.attr} src={STAT_ICON[st.attr]} /> : undefined,
+                        label: (
+                          <>
+                            {st.attr}{' '}
                             <Text as="span" color="gray.100" fontWeight="600" sx={{ fontVariantNumeric: 'tabular-nums' }}>
                               {statText(st.value, st.pct)}
                             </Text>
-                          </HStack>
-                        } value={
-                          pts != null ? (
-                            <Text as="span" fontSize="xs" color="gray.500" fontWeight="600">{fmtPoints(pts)} pt</Text>
-                          ) : null
-                        } />
-                      );
-                    })}
-                    {(() => {
-                      const total = lvl.stats.reduce(
-                        (s, st) => s + (statPoints(st.attr, st.value) ?? 0), 0);
-                      const hasPts = lvl.stats.some((st) => statPoints(st.attr, st.value) != null);
-                      if (!hasPts) return null;
-                      return (
-                        <StatRow label="Stat Points" value={
-                          <Text as="span" color="accent.300" fontWeight="700">{fmtPoints(total)} pt</Text>
-                        } />
-                      );
-                    })()}
-                  </StatSection>
+                          </>
+                        ),
+                        value: pts != null
+                          ? <Text as="span" fontSize="xs" color="gray.500" fontWeight="600">{fmtPoints(pts)} pt</Text>
+                          : null,
+                      };
+                    });
+                    if (lvl.stats.some((st) => statPoints(st.attr, st.value) != null)) {
+                      const total = lvl.stats.reduce((s, st) => s + (statPoints(st.attr, st.value) ?? 0), 0);
+                      rows.push({ label: 'Stat Points', value: <Text as="span" color="accent.300" fontWeight="700">{fmtPoints(total)} pt</Text> });
+                    }
+                    return rows;
+                  })()} />
                 </Box>
               ) : null}
 

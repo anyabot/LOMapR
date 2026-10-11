@@ -6,11 +6,15 @@ import {
   Box, Button, ButtonGroup, Center, Flex, Heading, HStack, VStack, Text, Tag, Wrap, WrapItem,
   SimpleGrid, Spinner, Image, Badge, Tooltip,
   Table, Thead, Tbody, Tfoot, Tr, Th, Td, TableContainer,
-  InputGroup, InputLeftAddon, NumberInput, NumberInputField, NumberInputStepper,
-  NumberIncrementStepper, NumberDecrementStepper, Slider, SliderTrack, SliderFilledTrack, SliderThumb,
   Accordion, AccordionItem, AccordionButton, AccordionPanel, AccordionIcon,
-  Tabs, Tab, TabList, TabPanels, TabPanel,
+  Tabs, Tab, TabList, TabPanels,
 } from '@chakra-ui/react';
+import {
+  Breadcrumbs, PageHeader, MetaChips, MetaChip, Panel, StatRows, UrlTabs, TabPanel, tabParam, LevelControl,
+  type StatItem, type TabItem,
+} from '@altterisk/game-hub';
+import { nextRouterAdapter } from '@altterisk/game-hub/filters';
+import { nextLink } from '@/lib/hubLink';
 import { ArrowBackIcon } from '@chakra-ui/icons';
 import { useAppSelector, useAppDispatch } from '@/hooks';
 import {
@@ -31,8 +35,8 @@ import RewardList from '@/components/rewardList';
 import SkillTab from '@/components/enemyTab/skillTab';
 import SkinViewer from '@/components/skinViewer';
 import CopyLink from '@/components/copyLink';
-import { StatRow, StatPair, StatSection } from '@/components/statBlock';
-import { rankTag, rankColor, roleRankIcon, typeIcon, roleIcon, bodyIcon, equipIcon, factionIcon, unitDisplayName } from '@/lib/rank';
+import StatHeading from '@/components/statHeading';
+import { rankTag, rankColor, roleRankIcon, typeIcon, roleIcon, bodyIcon, equipIcon, factionIcon, factionKey, factionName, unitDisplayName } from '@/lib/rank';
 import { NPCS, NpcEntry } from '@/lib/npcs';
 import { getGame, tokens } from '@altterisk/game-hub';
 
@@ -212,124 +216,83 @@ export default function UnitDetail() {
     <>
       <Head><title>{name} — Unit</title></Head>
       <VStack align="stretch" spacing={4} py={4}>
-        <Button as={Link} href="/units" leftIcon={<ArrowBackIcon />} colorScheme="gray" variant="outline" size="sm" alignSelf="start">
-          Units
-        </Button>
+        <Breadcrumbs renderLink={nextLink} items={[{ label: 'Units', href: '/units' }, { label: name }]} />
 
-        {/* Header: portrait + identity (always visible above the tabs) */}
-        <Flex gap={4} align="center" wrap="wrap"
-          bg="surface.elevated" borderWidth="1px" borderColor="surface.border" borderRadius="xl" p={4}>
-          <Box boxSize="96px" borderRadius="lg" overflow="hidden" bg="blackAlpha.500" flexShrink={0}>
-            {unit.icon ? (
-              <Image src={`/images/icons/${unit.icon}.png`} alt={unit.icon} objectFit="cover" w="100%" h="100%" />
-            ) : null}
-          </Box>
-          <VStack align="start" spacing={2} minW={0}>
-            <HStack>
-              <Heading size="lg">{name}</Heading>
-              <CopyLink path={`/units/detail?id=${encodeURIComponent(unit.id)}`} />
-            </HStack>
-            <HStack spacing={3} align="center">
-              {roleRankIcon(unit.role, unit.rarity) ? (
-                <Image src={`/images/icons/${roleRankIcon(unit.role, unit.rarity)}.png`}
-                  alt={`${rankTag(unit.rarity)} ${unit.role}`} h="40px" objectFit="contain" />
-              ) : (
-                <RankTag grade={unit.rarity} />
-              )}
-              <Wrap spacing={2}>
-                <WrapItem>
-                  <Tag colorScheme="red" gap={1}>
-                    {roleIcon(unit.role) ? <Image src={roleIcon(unit.role)!} alt={unit.role} boxSize="14px" /> : null}
-                    {unit.role}
-                  </Tag>
-                </WrapItem>
-                <WrapItem>
-                  <Tag colorScheme="green" gap={1}>
-                    {typeIcon(unit.type) ? <Image src={typeIcon(unit.type)!} alt={unit.type} boxSize="14px" /> : null}
-                    {unit.type}
-                  </Tag>
-                </WrapItem>
-                {unit.body ? (
-                  <WrapItem>
-                    <Tag colorScheme="gray" gap={1}>
-                      {bodyIcon(unit.body) ? <Image src={bodyIcon(unit.body)!} alt={unit.body} boxSize="14px" /> : null}
-                      {unit.body}
-                    </Tag>
-                  </WrapItem>
-                ) : null}
-                {unit.faction ? (
-                  <WrapItem>
-                    <Tag colorScheme="blue" gap={1}>
-                      {factionIcon(unit.faction.icon) ? (
-                        <Image src={factionIcon(unit.faction.icon)!} alt={t(unit.faction.name)} boxSize="14px" />
-                      ) : null}
-                      {t(unit.faction.name)}
-                    </Tag>
-                  </WrapItem>
-                ) : null}
-              </Wrap>
-            </HStack>
-            <Text fontSize="xs" color="gray.500">{unit.id}</Text>
-          </VStack>
-        </Flex>
+        <PageHeader
+          art={
+            <Box boxSize="96px" borderRadius="lg" overflow="hidden" bg="blackAlpha.500">
+              {unit.icon ? (
+                <Image src={`/images/icons/${unit.icon}.png`} alt={unit.icon} objectFit="cover" w="100%" h="100%" />
+              ) : null}
+            </Box>
+          }
+          title={name}
+          id={unit.id}
+          badges={roleRankIcon(unit.role, unit.rarity) ? (
+            <Image src={`/images/icons/${roleRankIcon(unit.role, unit.rarity)}.png`}
+              alt={`${rankTag(unit.rarity)} ${unit.role}`} h="40px" objectFit="contain" alignSelf="center" />
+          ) : (
+            <RankTag grade={unit.rarity} />
+          )}
+          actions={<CopyLink path={`/units/detail?id=${encodeURIComponent(unit.id)}`} />}
+          meta={
+            <MetaChips>
+              <MetaChip renderLink={nextLink} href={`/units?role=${encodeURIComponent(unit.role)}`} value={unit.role}
+                icon={roleIcon(unit.role) ? <Image src={roleIcon(unit.role)!} alt="" /> : undefined} />
+              <MetaChip renderLink={nextLink} href={`/units?type=${encodeURIComponent(unit.type)}`} value={unit.type}
+                icon={typeIcon(unit.type) ? <Image src={typeIcon(unit.type)!} alt="" /> : undefined} />
+              {unit.body ? (
+                <MetaChip renderLink={nextLink} href={`/units?body=${encodeURIComponent(unit.body)}`} value={unit.body}
+                  icon={bodyIcon(unit.body) ? <Image src={bodyIcon(unit.body)!} alt="" /> : undefined} />
+              ) : null}
+              {unit.faction ? (
+                <MetaChip renderLink={nextLink} href={`/units?faction=${encodeURIComponent(factionKey(unit.faction.icon))}`}
+                  value={factionName(unit.faction.name)}
+                  icon={factionIcon(unit.faction.icon) ? <Image src={factionIcon(unit.faction.icon)!} alt="" /> : undefined} />
+              ) : null}
+            </MetaChips>
+          }
+        />
         {(!detailLoaded && !lastFullRef.current) ? (
           <Center py={20}><Spinner color="accent.400" /></Center>
         ) : (() => {
         // Fall back to last-known during a region switch, so the tabs stay mounted.
         const full = (detailLoaded ? unit : lastFullRef.current) as FullUnitData;
+        const tabs: TabItem[] = [
+          { id: 'stats', label: 'Stats' },
+          { id: 'skills', label: 'Skills', hidden: !full.skills?.length },
+          { id: 'profile', label: 'Profile', hidden: !full.profile },
+          { id: 'drops', label: 'Drop Location', hidden: !Object.keys(full.source || {}).length },
+          { id: 'promotion', label: 'Promotion', hidden: !full.promotions.length },
+          { id: 'limit-break', label: 'Limit Break', hidden: !full.lvLimits.length },
+          { id: 'skin', label: 'Skin', hidden: !full.skins?.length },
+        ];
+        const [tab, setTab] = tabParam(nextRouterAdapter(router), tabs);
         return (
-        <Tabs colorScheme="accent" variant="enclosed" isLazy>
-          <TabList flexWrap="wrap">
-            <Tab>Stats</Tab>
-            <Tab>Skills</Tab>
-            <Tab>Profile</Tab>
-            <Tab>Drop Location</Tab>
-            <Tab>Promotion</Tab>
-            <Tab>Limit Break</Tab>
-            <Tab>Skin</Tab>
-          </TabList>
-
-          <TabPanels>
-            {/* ── Tab 1: stats calculator + manufacturing / favor / link bonus ── */}
-            <TabPanel px={0}>
-              <VStack align="stretch" spacing={4}>
-                <ExclusiveEquip unit={full} equip={equip} />
-                <InfoTab unit={full} gradeIdx={gradeIdx} setGradeIdx={setGradeIdx}
-                  level={level} setLevel={setLevel} />
-              </VStack>
+          <Box>
+            <UrlTabs tabs={tabs} active={tab} onChange={setTab} label="Unit sections" idBase="unit" />
+            <TabPanel tab={tab} idBase="unit">
+              {tab === 'stats' ? (
+                <VStack align="stretch" spacing={4}>
+                  <ExclusiveEquip unit={full} equip={equip} />
+                  <InfoTab unit={full} gradeIdx={gradeIdx} setGradeIdx={setGradeIdx}
+                    level={level} setLevel={setLevel} />
+                </VStack>
+              ) : tab === 'skills' ? (
+                <SkillsTab unit={full} skills={detailLoaded ? skills : lastSkillsRef.current} headerAtk={headerAtk} skillStatus={skillStatus} />
+              ) : tab === 'profile' ? (
+                <ProfileTab unit={full} />
+              ) : tab === 'drops' ? (
+                <DropTab unit={full} world={world} />
+              ) : tab === 'promotion' ? (
+                <PromotionTab unit={full} />
+              ) : tab === 'limit-break' ? (
+                <LimitBreakTab unit={full} />
+              ) : (
+                <SkinTab unit={full} />
+              )}
             </TabPanel>
-
-            {/* ── Tab 2: skills (with a form toggle for transform units) ────── */}
-            <TabPanel px={0}>
-              <SkillsTab unit={full} skills={detailLoaded ? skills : lastSkillsRef.current} headerAtk={headerAtk} skillStatus={skillStatus} />
-            </TabPanel>
-
-            {/* ── Tab 3: profile (collection flavor) ───────────────────────── */}
-            <TabPanel px={0}>
-              <ProfileTab unit={full} />
-            </TabPanel>
-
-            {/* ── Tab 4: drop / acquisition locations ──────────────────────── */}
-            <TabPanel px={0}>
-              <DropTab unit={full} world={world} />
-            </TabPanel>
-
-            {/* ── Tab 4: promotion ─────────────────────────────────────────── */}
-            <TabPanel px={0}>
-              <PromotionTab unit={full} />
-            </TabPanel>
-
-            {/* ── Tab 5: limit break (level-cap unlock costs) ──────────────── */}
-            <TabPanel px={0}>
-              <LimitBreakTab unit={full} />
-            </TabPanel>
-
-            {/* ── Tab 6: skin viewer ───────────────────────────────────────── */}
-            <TabPanel px={0}>
-              <SkinTab unit={full} />
-            </TabPanel>
-          </TabPanels>
-        </Tabs>
+          </Box>
         );
         })()}
         <FactionSection unit={unit} units={Object.values(units)} />
@@ -353,20 +316,19 @@ function FactionSection({ unit, units }: { unit: UnitData; units: UnitData[] }) 
   }
   if (squads.size === 0) return null;
 
-  const factionName = t(factionUnits[0]?.faction?.name || unit.faction.name)
-    .replace(/\s+(?:II|III|IV|V)$/i, '');
+  const title = factionName(factionUnits[0]?.faction?.name || unit.faction.name);
 
   return (
     <Box borderWidth="1px" borderColor="surface.border" borderRadius="xl" bg="surface.elevated" overflow="hidden">
       <HStack px={4} py={3} bg="blackAlpha.300" borderBottomWidth="1px" borderBottomColor="surface.border">
         {factionIcon(unit.faction.icon) ? (
-          <Image src={factionIcon(unit.faction.icon)!} alt={factionName} boxSize="30px" />
+          <Image src={factionIcon(unit.faction.icon)!} alt={title} boxSize="30px" />
         ) : null}
         <Box>
           <Text fontSize="2xs" color="gray.500" fontWeight="bold" textTransform="uppercase" letterSpacing="wide">
             Faction
           </Text>
-          <Heading size="sm">{factionName}</Heading>
+          <Heading size="sm">{title}</Heading>
         </Box>
       </HStack>
 
@@ -537,13 +499,7 @@ function SkillsTab({
 
           {/* skill level */}
           <HStack spacing={2} minW="200px" flex="1">
-            <Text fontSize="xs" color="gray.500" whiteSpace="nowrap">Skill Lv</Text>
-            <Slider aria-label="skill level" value={level} min={1} max={10} flex="1"
-              onChange={setLevel} focusThumbOnChange={false}>
-              <SliderTrack bg="whiteAlpha.200"><SliderFilledTrack bg="accent.400" /></SliderTrack>
-              <SliderThumb boxSize={4} />
-            </Slider>
-            <Badge colorScheme="accent" minW="2.2em" textAlign="center">{level}</Badge>
+            <LevelControl label="Skill level" value={level} min={1} max={10} onChange={setLevel} />
           </HStack>
         </Flex>
 
@@ -617,25 +573,24 @@ function ProfileTab({ unit }: { unit: FullUnitData }) {
   // bio uses '&n' for line breaks and carries a mojibake em-dash.
   const bio = p.desc ? t(p.desc).replace(/&n/g, '\n').replace(/�/g, '—') : '';
 
+  const vitals: StatItem[] = [];
+  if (p.number) vitals.push({ label: 'No.', value: String(p.number).padStart(3, '0') });
+  if (p.height) vitals.push({ label: 'Height', value: p.height });
+  if (p.weight) vitals.push({ label: 'Weight', value: p.weight });
+  p.weapons.forEach((w, i) => vitals.push({ label: `Weapon ${i + 1}`, value: t(w) }));
+  vitals.push({ label: 'Secret room', value: unit.secretRoom || '—' });
+  vitals.push({ label: 'Marriage', value: unit.marriage ? 'Available' : '—' });
+
   return (
-    <SimpleGrid columns={[1, 1, 2]} spacing={4}>
-      <Box borderWidth="1px" borderColor="surface.border" borderRadius="xl" bg="surface.elevated" p={4}>
-        <Heading size="sm" mb={3}>Profile</Heading>
+    <SimpleGrid columns={[1, 1, 2]} spacing={4} alignItems="start">
+      <Panel title="Profile">
         <Center mb={2}><RadarChart values={p.chart} /></Center>
-        <StatSection title="Vitals">
-          {p.number ? <StatRow label="No." value={String(p.number).padStart(3, '0')} /> : null}
-          {p.height ? <StatRow label="Height" value={p.height} /> : null}
-          {p.weight ? <StatRow label="Weight" value={p.weight} /> : null}
-          {p.weapons.map((w, i) => <StatRow key={i} label={`Weapon ${i + 1}`} value={t(w)} />)}
-          <StatRow label="Secret room" value={unit.secretRoom || '—'} />
-          <StatRow label="Marriage" value={unit.marriage ? 'Available' : '—'} />
-        </StatSection>
-      </Box>
+        <StatRows rows={vitals} columns={1} />
+      </Panel>
       {bio ? (
-        <Box borderWidth="1px" borderColor="surface.border" borderRadius="xl" bg="surface.elevated" p={4}>
-          <Heading size="sm" mb={3}>Introduction</Heading>
+        <Panel title="Introduction">
           <Text fontSize="sm" color="gray.300" whiteSpace="pre-wrap" lineHeight="1.6">{bio}</Text>
-        </Box>
+        </Panel>
       ) : null}
     </SimpleGrid>
   );
@@ -656,11 +611,8 @@ function InfoTab({
   const grade = unit.rarity + idx;
 
   return (
-    <SimpleGrid columns={[1, 1, 2]} spacing={4}>
-      {/* Stat calculator */}
-      <Box borderWidth="1px" borderColor="surface.border" borderRadius="xl" bg="surface.elevated" p={4}>
-        <Heading size="sm" mb={3}>Stats</Heading>
-
+    <SimpleGrid columns={[1, 1, 2]} spacing={4} alignItems="start">
+      <Panel title="Stats">
         {/* grade selector (swap promotion level) */}
         <HStack mb={3} spacing={2} align="center">
           <Text fontSize="xs" color="gray.500" textTransform="uppercase" letterSpacing="wide">Grade</Text>
@@ -679,65 +631,43 @@ function InfoTab({
           </ButtonGroup>
         </HStack>
 
-        {/* level control: number input + slider */}
-        <InputGroup size="sm" mb={2}>
-          <InputLeftAddon bg="surface.border" color="white" borderColor="surface.border" fontWeight="700">Lv.</InputLeftAddon>
-          <NumberInput value={level} min={1} max={LV_CAP} w="100%" size="sm"
-            onChange={(_, n) => setLevel(Number.isFinite(n) ? n : 1)}>
-            <NumberInputField borderColor="surface.border" />
-            <NumberInputStepper>
-              <NumberIncrementStepper color="gray.300" borderColor="surface.border" _hover={{ bg: 'whiteAlpha.200' }} />
-              <NumberDecrementStepper color="gray.300" borderColor="surface.border" _hover={{ bg: 'whiteAlpha.200' }} />
-            </NumberInputStepper>
-          </NumberInput>
-        </InputGroup>
-        <Slider aria-label="level" value={Math.min(level, LV_CAP)} min={1} max={LV_CAP} mb={4}
-          onChange={setLevel} focusThumbOnChange={false}>
-          <SliderTrack bg="whiteAlpha.200"><SliderFilledTrack bg="accent.400" /></SliderTrack>
-          <SliderThumb boxSize={4} />
-        </Slider>
+        <Box mb={4}>
+          <LevelControl label="Level" value={Math.min(level, LV_CAP)} min={1} max={LV_CAP} onChange={setLevel} />
+        </Box>
 
         {st ? (
           <VStack align="stretch" spacing={3}>
-            <StatSection title={`${rankTag(grade)} · Lv ${Math.min(level, LV_CAP)}`}>
-              <StatRow icon="/images/icon_HP.png" label="HP" value={lerp(st.HP, level).toLocaleString()} />
-              <StatPair
-                left={{ icon: '/images/icon_ATK.png', label: 'ATK', value: lerp(st.ATK, level).toLocaleString() }}
-                right={{ icon: '/images/icon_DEF.png', label: 'DEF', value: lerp(st.DEF, level).toLocaleString() }}
-              />
-              <StatPair
-                left={{ icon: '/images/icon_ACC.png', label: 'ACC', value: st.ACC }}
-                right={{ icon: '/images/icon_EVA.png', label: 'EVA', value: `${st.EVA}%` }}
-              />
-              <StatPair
-                left={{ icon: '/images/icon_CRIT.png', label: 'CRIT', value: `${st.CRI}%` }}
-                right={{ icon: '/images/icon_SPD.png', label: 'SPD', value: st.SPD }}
-              />
-            </StatSection>
-            <StatSection title="Resist">
-              <HStack justify="space-around" py={1.5} px={2}>
-                <HStack spacing={1}><Image alt="fire" src="/images/fire.png" boxSize="1rem" /><Text fontSize="sm" fontWeight="600">{st.resist.fire}%</Text></HStack>
-                <HStack spacing={1}><Image alt="ice" src="/images/ice.png" boxSize="1rem" /><Text fontSize="sm" fontWeight="600">{st.resist.ice}%</Text></HStack>
-                <HStack spacing={1}><Image alt="electric" src="/images/electric.png" boxSize="1rem" /><Text fontSize="sm" fontWeight="600">{st.resist.lightning}%</Text></HStack>
-              </HStack>
-            </StatSection>
+            <StatHeading>{`${rankTag(grade)} · Lv ${Math.min(level, LV_CAP)}`}</StatHeading>
+            <StatRows rows={[
+              { label: 'HP', value: lerp(st.HP, level).toLocaleString(), icon: statIcon('/images/icon_HP.png', 'HP') },
+              { label: 'SPD', value: st.SPD, icon: statIcon('/images/icon_SPD.png', 'SPD') },
+              { label: 'ATK', value: lerp(st.ATK, level).toLocaleString(), icon: statIcon('/images/icon_ATK.png', 'ATK') },
+              { label: 'DEF', value: lerp(st.DEF, level).toLocaleString(), icon: statIcon('/images/icon_DEF.png', 'DEF') },
+              { label: 'ACC', value: st.ACC, icon: statIcon('/images/icon_ACC.png', 'ACC') },
+              { label: 'EVA', value: `${st.EVA}%`, icon: statIcon('/images/icon_EVA.png', 'EVA') },
+              { label: 'CRIT', value: `${st.CRI}%`, icon: statIcon('/images/icon_CRIT.png', 'CRIT') },
+            ]} />
+            <StatHeading>Resist</StatHeading>
+            <StatRows columns={3} rows={[
+              { label: 'Fire', value: `${st.resist.fire}%`, icon: statIcon('/images/fire.png', 'fire') },
+              { label: 'Ice', value: `${st.resist.ice}%`, icon: statIcon('/images/ice.png', 'ice') },
+              { label: 'Electric', value: `${st.resist.lightning}%`, icon: statIcon('/images/electric.png', 'electric') },
+            ]} />
           </VStack>
         ) : (
           <Text color="gray.500" fontSize="sm">No stat data.</Text>
         )}
-      </Box>
+      </Panel>
 
       {/* Profile column: manufacturing + favor */}
       <VStack align="stretch" spacing={4}>
-        <Box borderWidth="1px" borderColor="surface.border" borderRadius="xl" bg="surface.elevated" p={4}>
-          <Heading size="sm" mb={3}>Manufacturing</Heading>
-          <StatSection title="Info">
-            <StatRow label="Craft time" value={unit.craft ? fmtTime(unit.craft) : '—'} />
-            <StatRow label="Max grade" value={rankTag(unit.maxGrade)} />
-          </StatSection>
-        </Box>
-        <Box borderWidth="1px" borderColor="surface.border" borderRadius="xl" bg="surface.elevated" p={4}>
-          <Heading size="sm" mb={3}>Equipment Slots</Heading>
+        <Panel title="Manufacturing">
+          <StatRows columns={1} rows={[
+            { label: 'Craft time', value: unit.craft ? fmtTime(unit.craft) : '—' },
+            { label: 'Max grade', value: rankTag(unit.maxGrade) },
+          ]} />
+        </Panel>
+        <Panel title="Equipment Slots">
           <HStack spacing={3} justify="space-around">
             {unit.equip.map((s) => (
               <VStack key={s.level} spacing={1}>
@@ -752,26 +682,18 @@ function InfoTab({
               </VStack>
             ))}
           </HStack>
-        </Box>
-        <Box borderWidth="1px" borderColor="surface.border" borderRadius="xl" bg="surface.elevated" p={4}>
-          <Heading size="sm" mb={3}>Favor Gain</Heading>
-          <StatSection title="Per source">
-            {/* assistant & gift are MULTIPLIERS (×); battle clear is a flat add (+);
-                on-death is a flat subtract (−). */}
-            <StatPair
-              left={{ label: 'Battle clear', value: `+${unit.favor.clear}` }}
-              right={{ label: 'On death', value: `−${unit.favor.death}` }}
-            />
-            <StatPair
-              left={{ label: 'Assistant', value: `+${unit.favor.assistant}` }}
-              right={{ label: 'Gift', value: `×${unit.favor.present}` }}
-            />
-          </StatSection>
-        </Box>
+        </Panel>
+        <Panel title="Favor Gain">
+          <StatRows rows={[
+            { label: 'Battle clear', value: `+${unit.favor.clear}` },
+            { label: 'On death', value: `−${unit.favor.death}` },
+            { label: 'Assistant', value: `+${unit.favor.assistant}` },
+            { label: 'Gift', value: `×${unit.favor.present}` },
+          ]} />
+        </Panel>
 
         {unit.linkBonus.length > 0 || unit.fullLinkBonus.length > 0 ? (
-          <Box borderWidth="1px" borderColor="surface.border" borderRadius="xl" bg="surface.elevated" p={4}>
-            <Heading size="sm" mb={3}>Core Link Bonus</Heading>
+          <Panel title="Core Link Bonus">
             {unit.linkBonus.length > 0 ? (
               <Box mb={3}>
                 <Text fontSize="xs" color="gray.500" mb={1}>
@@ -800,12 +722,14 @@ function InfoTab({
                 </Wrap>
               </Box>
             ) : null}
-          </Box>
+          </Panel>
         ) : null}
       </VStack>
     </SimpleGrid>
   );
 }
+
+const statIcon = (src: string, alt: string) => <Image src={src} alt={alt} />;
 
 // ── Exclusive gear: equipment locked to this unit via pcLimit ────────────────
 function ExclusiveEquip({ unit, equip }: { unit: UnitData; equip: Record<string, EquipData> }) {
@@ -813,8 +737,7 @@ function ExclusiveEquip({ unit, equip }: { unit: UnitData; equip: Record<string,
   const ids = unit.exclusiveEquip || [];
   if (!ids.length) return null;
   return (
-    <Box borderWidth="1px" borderColor="surface.border" borderRadius="xl" bg="surface.elevated" p={4}>
-      <Heading size="sm" mb={3} textAlign="center">Exclusive Equipment</Heading>
+    <Panel title="Exclusive Equipment">
       <Wrap spacing={3} justify="center">
         {ids.map((eid) => {
           const e = equip[eid];
@@ -838,7 +761,7 @@ function ExclusiveEquip({ unit, equip }: { unit: UnitData; equip: Record<string,
           );
         })}
       </Wrap>
-    </Box>
+    </Panel>
   );
 }
 

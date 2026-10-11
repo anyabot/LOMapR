@@ -4,6 +4,7 @@ import { Skill } from '@/interfaces/skill';
 import { Team, TeamSlot, TeamEquipSel, StatKey, StatMap, ComputedStats } from '@/interfaces/team';
 import { t } from '@/lib/strings';
 import skillUnlockRanks from '@/lib/skillUnlockRanks.json';
+import { ByteReader, ByteWriter, base64url } from '@altterisk/game-hub/codec';
 import teamCodeIds from '@/lib/teamCodeIds.json';
 
 // ── level / slot gating ───────────────────────────────────────────────────────
@@ -310,70 +311,6 @@ const EQUIP_IDS = teamCodeIds.equips as string[];
 const UNIT_INDEX = new Map(UNIT_IDS.map((id, i) => [id, i + 1]));
 const EQUIP_INDEX = new Map(EQUIP_IDS.map((id, i) => [id, i + 1]));
 
-class ByteWriter {
-  bytes: number[] = [];
-  byte(n: number) { this.bytes.push(n & 0xff); }
-  varint(n: number) {
-    n = Math.max(0, Math.floor(n));
-    while (n >= 0x80) { this.byte((n & 0x7f) | 0x80); n = Math.floor(n / 128); }
-    this.byte(n);
-  }
-  text(value: string) {
-    const encoded = new TextEncoder().encode(value);
-    this.varint(encoded.length);
-    for (let i = 0; i < encoded.length; i++) this.byte(encoded[i]);
-  }
-  id(value: string, index: Map<string, number>) {
-    const ref = index.get(value) ?? 0;
-    this.varint(ref);
-    if (!ref) this.text(value);
-  }
-}
-
-class ByteReader {
-  pos = 0;
-  constructor(private bytes: Uint8Array) {}
-  byte(): number {
-    if (this.pos >= this.bytes.length) throw new Error('team code ended early');
-    return this.bytes[this.pos++];
-  }
-  varint(): number {
-    let value = 0, mul = 1;
-    for (let i = 0; i < 5; i++) {
-      const b = this.byte();
-      value += (b & 0x7f) * mul;
-      if (!(b & 0x80)) return value;
-      mul *= 128;
-    }
-    throw new Error('invalid team-code varint');
-  }
-  text(): string {
-    const length = this.varint();
-    if (length > this.bytes.length - this.pos) throw new Error('invalid team-code string');
-    const value = new TextDecoder().decode(this.bytes.subarray(this.pos, this.pos + length));
-    this.pos += length;
-    return value;
-  }
-  id(ids: string[]): string {
-    const ref = this.varint();
-    if (!ref) return this.text();
-    const value = ids[ref - 1];
-    if (!value) throw new Error('unknown team-code ID');
-    return value;
-  }
-}
-
-function base64UrlEncode(bytes: number[]): string {
-  const raw = String.fromCharCode(...bytes);
-  return btoa(raw).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
-
-function base64UrlDecode(value: string): Uint8Array {
-  const base64 = value.replace(/-/g, '+').replace(/_/g, '/');
-  const raw = atob(base64 + '='.repeat((4 - base64.length % 4) % 4));
-  return Uint8Array.from(raw, (c) => c.charCodeAt(0));
-}
-
 export function encodeTeam(team: Team): string {
   const w = new ByteWriter();
   w.byte(4);
@@ -405,7 +342,7 @@ export function encodeTeam(team: Team): string {
     w.byte(s.maxAffection ? 1 : 0);
     w.varint(Math.max(s.currentHp ?? 0, 0));
   }
-  return CODE_PREFIX + base64UrlEncode(w.bytes);
+  return CODE_PREFIX + base64url.encode(w.bytes);
 }
 
 const toInt = (v: string, dflt: number) => {
@@ -462,7 +399,7 @@ export function decodeTeam(code: string): Team | null {
   if (!isV4 && !isV3 && !isV2) return decodeLegacyTeam(clean);
   try {
     const prefix = isV4 ? CODE_PREFIX : isV3 ? V3_PREFIX : V2_PREFIX;
-    const r = new ByteReader(base64UrlDecode(clean.slice(prefix.length)));
+    const r = new ByteReader(base64url.decode(clean.slice(prefix.length)), 'team code');
     const version = r.byte();
     if (version !== (isV4 ? 4 : isV3 ? 3 : 2)) return null;
     const mask = r.byte() | (r.byte() << 8);

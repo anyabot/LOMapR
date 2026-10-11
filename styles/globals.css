@@ -54,3 +54,21 @@ select optgroup {
   background-color: var(--bg-elevated) !important;
   color: var(--text) !important;
 }
+
+.stage-header {
+  margin-bottom: 0;
+  padding: 10px 16px;
+  align-items: center;
+  background: var(--hub-surface);
+  border: 1px solid var(--hub-border);
+  border-radius: 16px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .35);
+}
+
+.stage-header--battle {
+  border-color: #319795;
+}
+
+.hub-banner-card__art .chakra-aspect-ratio img {
+  height: 100%;
+}

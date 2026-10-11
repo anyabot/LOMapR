@@ -1,4 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { createPersisted } from '@altterisk/game-hub/persist';
 import { RootState } from '../store';
 
 export type Region = 'global' | 'kr';
@@ -7,17 +8,17 @@ export interface RegionState {
   region: Region;
 }
 
-export const STORAGE_KEY = 'lomapr.region';
+const regionStore = createPersisted<Region | null>({
+  key: 'lomapr.region',
+  version: 1,
+  empty: () => null,
+  sanitize: (raw) => (raw === 'kr' || raw === 'global' ? raw : null),
+});
 
 // NOT used for initialState: the store must start identical on server and client, so
 // the persisted value is applied after mount (see RegionSync in _app).
 export function loadRegion(): Region | null {
-  try {
-    const v = typeof window !== 'undefined' && window.localStorage.getItem(STORAGE_KEY);
-    return v === 'kr' || v === 'global' ? v : null;
-  } catch {
-    return null;
-  }
+  return regionStore.load();
 }
 
 // Always 'global' initially so SSR and first client render agree.
@@ -31,13 +32,7 @@ export const regionSlice = createSlice({
   reducers: {
     setRegion: (state, action: PayloadAction<Region>) => {
       state.region = action.payload;
-      try {
-        if (typeof window !== 'undefined') {
-          window.localStorage.setItem(STORAGE_KEY, action.payload);
-        }
-      } catch {
-        /* ignore storage errors */
-      }
+      regionStore.save(action.payload);
     },
   },
 });
