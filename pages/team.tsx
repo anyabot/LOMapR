@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { useStore } from 'react-redux';
+import { createPersisted } from '@altterisk/game-hub/persist';
 import {
   Box, Button, ButtonGroup, Center, Flex, Heading, HStack, VStack, Text, Badge,
   Input, InputGroup, InputRightElement, SimpleGrid, useToast,
@@ -35,32 +36,29 @@ import WavePicker from '@/components/team/wavePicker';
 
 // /team - team builder on the 3x3 formation map plus round-1 battle simulation.
 
-const STORAGE_KEY = 'lomapr.team.v1';          // legacy single-team key, migrated once
-// { active, teams: string[], waves: (WaveRef|null)[] }
-const STORAGE_KEY_MULTI = 'lomapr.teams.v1';
+const LEGACY_TEAM_KEY = 'lomapr.team.v1';
 const EMPTY_TEAM: Team = Array(9).fill(null);
 
 interface StoredTeams { active: number; teams: string[]; waves: (WaveRef | null)[] }
 
-function readStoredTeams(): StoredTeams | null {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY_MULTI);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed?.teams) && parsed.teams.length > 0 &&
-          parsed.teams.every((c: unknown) => typeof c === 'string')) {
-        const active = Number.isInteger(parsed.active)
-          ? Math.min(Math.max(parsed.active, 0), parsed.teams.length - 1) : 0;
-        const rawWaves = Array.isArray(parsed.waves) ? parsed.waves : [];
-        const waves = parsed.teams.map((_: string, i: number) => sanitizeWaveRef(rawWaves[i]));
-        return { active, teams: parsed.teams, waves };
-      }
-    }
-    const legacy = localStorage.getItem(STORAGE_KEY);
-    if (legacy) return { active: 0, teams: [legacy], waves: [null] };
-  } catch { /* ignore */ }
-  return null;
-}
+const teamsStore = createPersisted<StoredTeams | null>({
+  key: 'lomapr.teams.v1',
+  version: 1,
+  legacyKeys: [LEGACY_TEAM_KEY],
+  empty: () => null,
+  migrate: (raw, _from, source) => (source === LEGACY_TEAM_KEY && typeof raw === 'string'
+    ? { active: 0, teams: [raw], waves: [null] }
+    : raw),
+  sanitize: (raw: any) => {
+    if (!Array.isArray(raw?.teams) || raw.teams.length === 0 ||
+        !raw.teams.every((c: unknown) => typeof c === 'string')) return null;
+    const active = Number.isInteger(raw.active)
+      ? Math.min(Math.max(raw.active, 0), raw.teams.length - 1) : 0;
+    const rawWaves = Array.isArray(raw.waves) ? raw.waves : [];
+    const waves = raw.teams.map((_: string, i: number) => sanitizeWaveRef(rawWaves[i]));
+    return { active, teams: raw.teams, waves };
+  },
+});
 
 export default function TeamBuilder() {
   useTranslationVersion();
@@ -109,7 +107,7 @@ export default function TeamBuilder() {
   useEffect(() => {
     if (restored.current || !router.isReady) return;
     restored.current = true;
-    const stored = readStoredTeams() ?? { active: 0, teams: [''], waves: [null] };
+    const stored = teamsStore.load() ?? { active: 0, teams: [''], waves: [null] };
     const fromUrl = typeof router.query.t === 'string' ? decodeTeam(router.query.t) : null;
     const waveFromUrl = typeof router.query.w === 'string' ? decodeWaveRef(router.query.w) : null;
     let teams = stored.teams, waves = stored.waves, idx = stored.active;
@@ -143,10 +141,7 @@ export default function TeamBuilder() {
   // …and persist all slots
   useEffect(() => {
     if (!hydrated) return;
-    try {
-      localStorage.setItem(STORAGE_KEY_MULTI,
-        JSON.stringify({ active: slotIdx, teams: slotCodes, waves: waveSels }));
-    } catch { /* ignore */ }
+    teamsStore.save({ active: slotIdx, teams: slotCodes, waves: waveSels });
   }, [hydrated, slotCodes, slotIdx, waveSels]);
 
   const usedIds = useMemo(

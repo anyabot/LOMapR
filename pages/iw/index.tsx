@@ -2,12 +2,13 @@ import { useAppSelector, useAppDispatch } from '@/hooks';
 import { selectIW, selectIWStatus, fetchIWAsync } from '@/store/IWSlice';
 import { selectImage, fetchImageAsync } from '@/store/imageSlice';
 import { useEffect } from 'react';
-import Link from 'next/link'
 import { Season } from '@/interfaces/iw';
 import {
   SimpleGrid, Heading, Divider, HStack, Badge, Center, VStack, Text,
-  Box, AspectRatio, Image,
+  AspectRatio, Image,
 } from '@chakra-ui/react';
+import { BannerCard } from '@altterisk/game-hub';
+import { nextLink } from '@/lib/hubLink';
 import Head from 'next/head';
 
 // "2025/12/04 02:00:00" -> "Dec 4, 2025"
@@ -51,7 +52,7 @@ export default function Home() {
     return <Frame><></></Frame>;
   }
 
-  const Section = (title: string, items: Season[]) =>
+  const Section = (title: string, items: Season[], highlight: boolean) =>
     items.length === 0 ? null : (
       <VStack align="stretch" spacing={3}>
         <HStack>
@@ -61,59 +62,24 @@ export default function Home() {
         <Divider />
         <SimpleGrid columns={[1, 2, 2, 3]} spacing={4}>
           {items.map((s) => (
-            <Link key={s.key} href={`/iw/detail?id=${encodeURIComponent(s.key)}`}>
-              <Box
-                position="relative"
-                h="100%"
-                borderRadius="xl"
-                overflow="hidden"
-                bg="surface.elevated"
-                borderWidth="1px"
-                borderColor="surface.border"
-                transition="transform .12s ease, border-color .12s ease, box-shadow .12s ease"
-                _hover={{
-                  transform: 'translateY(-4px)',
-                  borderColor: 'accent.400',
-                  boxShadow: '0 8px 20px rgba(0,0,0,.45)',
-                }}
-                role="group"
-              >
-                {/* banner art at native 952x560 ratio */}
+            <BannerCard
+              key={s.key}
+              href={`/iw/detail?id=${encodeURIComponent(s.key)}`}
+              renderLink={nextLink}
+              highlight={highlight}
+              art={
+                // banner art at native 952x560 ratio
                 <AspectRatio ratio={952 / 560}>
                   {getImage(s.monster) ? (
-                    <Image
-                      src={getImage(s.monster)}
-                      alt={s.key}
-                      objectFit="cover"
-                      transition="transform .25s ease"
-                      _groupHover={{ transform: 'scale(1.04)' }}
-                    />
+                    <Image src={getImage(s.monster)} alt={s.key} objectFit="cover" />
                   ) : (
-                    <Center bg="blackAlpha.400" color="gray.500" fontSize="3xl" fontWeight="bold">
-                      ?
-                    </Center>
+                    <Center bg="blackAlpha.400" color="gray.500" fontSize="3xl" fontWeight="bold">?</Center>
                   )}
                 </AspectRatio>
-
-                <Box
-                  position="absolute"
-                  bottom={0}
-                  left={0}
-                  right={0}
-                  px={3}
-                  pt={6}
-                  pb={2}
-                  bgGradient="linear(to-t, blackAlpha.900 30%, blackAlpha.700 70%, transparent)"
-                >
-                  <Heading size={['sm', 'sm', 'md']} color="white" noOfLines={1} lineHeight={1.2}>
-                    {label(s)}
-                  </Heading>
-                  <Text fontSize="xs" color="gray.300" mt={0.5}>
-                    {fmtDate(s.date[0])} &ndash; {fmtDate(s.date[1])}
-                  </Text>
-                </Box>
-              </Box>
-            </Link>
+              }
+              title={label(s)}
+              window={<>{fmtDate(s.date[0])} &ndash; {fmtDate(s.date[1])}</>}
+            />
           ))}
         </SimpleGrid>
       </VStack>
@@ -122,8 +88,8 @@ export default function Home() {
   return (
     <Frame>
       <VStack align="stretch" spacing={8} py={4}>
-        {Section('Current Raid Boss', current)}
-        {Section('Past Raid Bosses', old)}
+        {Section('Current Raid Boss', current, true)}
+        {Section('Past Raid Bosses', old, false)}
       </VStack>
     </Frame>
   );

@@ -11,9 +11,9 @@ import CopyLink from '@/components/copyLink'
 import StageTabs from '@/components/stageTabs'
 import { ClearExp } from '@/components/rewardList'
 import Error from 'next/error';
-import Link from 'next/link';
-import { Box, Image, VStack, HStack, Center, Text, Badge, Heading, Divider, Button, ButtonGroup, Spinner } from '@chakra-ui/react';
-import { ArrowBackIcon } from '@chakra-ui/icons';
+import { Box, Image, VStack, Center, Badge, Heading, Divider, Button, ButtonGroup, Spinner } from '@chakra-ui/react';
+import { Breadcrumbs, PageHeader } from '@altterisk/game-hub';
+import { nextLink } from '@/lib/hubLink';
 import Head from 'next/head';
 
 export default function Home() {
@@ -96,9 +96,11 @@ export default function Home() {
         <title>{t(z.title)}</title>
       </Head>
       <VStack align="stretch" spacing={4} py={4}>
-        <Button as={Link} href={`/world/detail?id=${encodeURIComponent(id)}`} leftIcon={<ArrowBackIcon />} colorScheme="gray" variant="outline" size="sm" alignSelf="start">
-          Back
-        </Button>
+        <Breadcrumbs renderLink={nextLink} items={[
+          { label: 'World', href: '/world' },
+          { label: t(world[id].title), href: `/world/detail?id=${encodeURIComponent(id)}` },
+          { label: t(z.title) },
+        ]} />
         <Heading size="xl">{t(z.title)}</Heading>
 
         {/* subzone switcher (chapters 12/13) — show one sub-map at a time */}
@@ -139,23 +141,15 @@ export default function Home() {
                     />
                   );
                   return (
-                    <HStack
-                      spacing={3}
-                      w="100%"
-                      maxW="container.md"
-                      bg="surface.elevated"
-                      borderWidth="1px"
-                      borderColor={isBattle ? 'teal.500' : 'surface.border'}
-                      borderRadius="2xl"
-                      px={4}
-                      py={2.5}
-                      boxShadow="0 4px 14px rgba(0,0,0,.35)"
-                    >
-                      <Image src={icon} alt={realCurrStage.subtype} boxSize="40px" objectFit="contain"
-                        filter="drop-shadow(0 2px 4px rgba(0,0,0,.5))" />
-                      <Box flex={1} minW={0}>
-                        <HStack spacing={2} align="center">
-                          <Heading size="md" lineHeight={1}>{realCurrStage.title}</Heading>
+                    <Box w="100%" maxW="container.md">
+                      <PageHeader
+                        level={2}
+                        className={isBattle ? 'stage-header stage-header--battle' : 'stage-header'}
+                        art={<Image src={icon} alt={realCurrStage.subtype} boxSize="40px" objectFit="contain"
+                          filter="drop-shadow(0 2px 4px rgba(0,0,0,.5))" />}
+                        title={realCurrStage.title}
+                        subtitle={hasName ? t(realCurrStage.name) : undefined}
+                        badges={
                           <Badge
                             colorScheme={isBattle ? 'teal' : 'purple'}
                             variant="solid"
@@ -166,23 +160,11 @@ export default function Home() {
                           >
                             {isBattle ? 'Battle' : 'Story'}
                           </Badge>
-                          {/* no separate name -> share sits next to the title */}
-                          {!hasName ? shareLink : null}
-                        </HStack>
-                        {hasName ? (
-                          <HStack spacing={2} align="center" mt={0.5}>
-                            <Text fontSize="sm" color="gray.400" noOfLines={1} flex={1} minW={0}>
-                              {t(realCurrStage.name)}
-                            </Text>
-                            {shareLink}
-                          </HStack>
-                        ) : null}
-                        {/* clear EXP (player / unit) under the stage name */}
-                        {realCurrStage.rewards?.clear ? (
-                          <ClearExp rewards={realCurrStage.rewards.clear} />
-                        ) : null}
-                      </Box>
-                    </HStack>
+                        }
+                        actions={shareLink}
+                        meta={realCurrStage.rewards?.clear ? <ClearExp rewards={realCurrStage.rewards.clear} /> : undefined}
+                      />
+                    </Box>
                   );
                 })()
               ) : null}

@@ -3,13 +3,13 @@ import { selectUnits, selectUnitStatus, fetchUnitsAsync } from '@/store/unitSlic
 import { useEffect, useState } from 'react';
 import { UnitData } from '@/interfaces/unit';
 import {
-  Button, ButtonGroup, Flex, InputGroup, Input, InputRightElement,
-  VStack, HStack, Center, Text, Heading, Badge, IconButton, Box, Image, Wrap, WrapItem,
+  VStack, HStack, Center, Text, Heading, Badge, Box, Image, Wrap, WrapItem,
 } from '@chakra-ui/react';
-import { CloseIcon, SearchIcon } from '@chakra-ui/icons';
 import { useRouter } from 'next/router';
-import { rankTag, rankColor, roleRankIcon, typeIcon, roleIcon, bodyIcon, filterModeProps,
-  filterValueAllowed, nextFilterMode, FilterMode, unitDisplayName } from '@/lib/rank';
+import { ListToolbar, SearchBox, FilterPanel, FilterRow, FilterChip, EmptyState } from '@altterisk/game-hub';
+import { rankTag, rankColor, roleRankIcon, typeIcon, roleIcon, bodyIcon,
+  filterValueAllowed, unitDisplayName } from '@/lib/rank';
+import { chipColor, countActive, fillModes, useListUrl, useUrlText } from '@/lib/listUrl';
 import Head from 'next/head';
 
 // One table per class type (rows of the page); columns = role; rows = grade.
@@ -22,6 +22,7 @@ const GRADES = [2, 3, 4, 5] as const;  // B -> SS, top row first is SS below
 type TypeKey = (typeof TYPES)[number];
 type RoleKey = (typeof ROLES)[number];
 type BodyKey = (typeof BODIES)[number];
+const FILTER_KEYS = ['type', 'role', 'body', 'grade'];
 
 const unitName = unitDisplayName;
 
@@ -35,13 +36,14 @@ export default function Units() {
     dispatch(fetchUnitsAsync());
   }, [dispatch]);
 
-  const [searchTerm, setSearchTerm] = useState('');
-  const [types, setTypes] = useState<Record<TypeKey, FilterMode>>({ Light: 0, Air: 0, Heavy: 0 });
-  const [roles, setRoles] = useState<Record<RoleKey, FilterMode>>({ Attacker: 0, Defender: 0, Supporter: 0 });
-  const [bodies, setBodies] = useState<Record<BodyKey, FilterMode>>({ Bioroid: 0, AGS: 0 });
-  const [grades, setGrades] = useState<Record<number, FilterMode>>(
-    Object.fromEntries(GRADES.map((g) => [g, 0])) as Record<number, FilterMode>,
-  );
+  const { list, ready } = useListUrl();
+  const [searchTerm, setSearchTerm] = useUrlText(list, ready);
+  const types = fillModes(TYPES, list.modes('type'));
+  const roles = fillModes(ROLES, list.modes('role'));
+  const bodies = fillModes(BODIES, list.modes('body'));
+  const grades = fillModes(GRADES, list.modes('grade'));
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const activeFilters = countActive(types, roles, bodies, grades);
 
   function matches(u: UnitData) {
     if (!filterValueAllowed(u.type as TypeKey, types)) return false;
@@ -78,64 +80,49 @@ export default function Units() {
     <>
       <Head><title>Units</title></Head>
       <VStack align="stretch" spacing={4} py={4}>
-        <HStack>
-          <Heading size="xl">Units</Heading>
-          <Badge colorScheme="accent" borderRadius="full" px={2}>{shown.length}</Badge>
-        </HStack>
+        <Heading size="xl">Units</Heading>
 
-        {/* Toolbar: type / role / body / grade filters + search */}
-        <Flex gap={3} wrap="wrap" align="center"
-          bg="surface.elevated" borderWidth="1px" borderColor="surface.border" borderRadius="xl" p={3}>
-          <ButtonGroup isAttached size="sm" variant="outline" colorScheme="green">
-            {TYPES.map((ty) => (
-              <Button key={ty} {...filterModeProps('green', types[ty])}
-                leftIcon={typeIcon(ty) ? <Image src={typeIcon(ty)!} alt={ty} boxSize="16px" /> : undefined}
-                onClick={() => setTypes({ ...types, [ty]: nextFilterMode(types[ty]) })}>{ty}</Button>
-            ))}
-          </ButtonGroup>
-          <ButtonGroup isAttached size="sm" variant="outline" colorScheme="red">
-            {ROLES.map((r) => (
-              <Button key={r} {...filterModeProps('red', roles[r])}
-                leftIcon={roleIcon(r) ? <Image src={roleIcon(r)!} alt={r} boxSize="16px" /> : undefined}
-                onClick={() => setRoles({ ...roles, [r]: nextFilterMode(roles[r]) })}>{r}</Button>
-            ))}
-          </ButtonGroup>
-          <ButtonGroup isAttached size="sm" variant="outline" colorScheme="teal">
-            {BODIES.map((b) => (
-              <Button key={b} {...filterModeProps('teal', bodies[b])}
-                leftIcon={bodyIcon(b) ? <Image src={bodyIcon(b)!} alt={b} boxSize="16px" /> : undefined}
-                onClick={() => setBodies({ ...bodies, [b]: nextFilterMode(bodies[b]) })}>{b}</Button>
-            ))}
-          </ButtonGroup>
-          <ButtonGroup isAttached size="sm" variant="outline">
-            {GRADES.map((g) => (
-              <Button key={g}
-                bg={grades[g] === 1 ? `${rankColor(g)}33` : grades[g] === -1 ? 'red.900' : undefined}
-                color={rankColor(g)}
-                borderColor={grades[g] === -1 ? 'red.500' : rankColor(g)}
-                opacity={grades[g] === 0 ? 0.5 : 1}
-                textDecoration={grades[g] === -1 ? 'line-through' : undefined}
-                _hover={{ bg: grades[g] === 1 ? `${rankColor(g)}44` : 'whiteAlpha.100' }}
-                onClick={() => setGrades({ ...grades, [g]: nextFilterMode(grades[g]) })}>{rankTag(g)}</Button>
-            ))}
-          </ButtonGroup>
-
-          <InputGroup size="sm" maxW="260px" ml="auto">
-            <Input placeholder="Search name or code" value={searchTerm} borderColor="surface.border"
-              onChange={(e) => setSearchTerm(e.target.value)} />
-            <InputRightElement>
-              {searchTerm ? (
-                <IconButton aria-label="Clear" icon={<CloseIcon boxSize={2.5} />} size="xs"
-                  variant="ghost" onClick={() => setSearchTerm('')} />
-              ) : (
-                <SearchIcon color="gray.500" boxSize={3} />
-              )}
-            </InputRightElement>
-          </InputGroup>
-        </Flex>
+        <Box>
+          <ListToolbar
+            search={<SearchBox value={searchTerm} onChange={setSearchTerm} placeholder="Search name or code" />}
+            count={`${shown.length} units`}
+            activeFilters={activeFilters + (searchTerm ? 1 : 0)}
+            onClearFilters={() => { setSearchTerm(''); list.clear(FILTER_KEYS); }}
+          />
+          <FilterPanel open={filtersOpen} onToggle={() => setFiltersOpen((o) => !o)} activeCount={activeFilters}>
+            <FilterRow label="Type">
+              {TYPES.map((ty) => (
+                <FilterChip key={ty} mode={types[ty]} color={chipColor('green')} onClick={() => list.cycleMode('type', ty)}>
+                  {typeIcon(ty) ? <Image src={typeIcon(ty)!} alt="" boxSize="16px" /> : null}{ty}
+                </FilterChip>
+              ))}
+            </FilterRow>
+            <FilterRow label="Role">
+              {ROLES.map((r) => (
+                <FilterChip key={r} mode={roles[r]} color={chipColor('red')} onClick={() => list.cycleMode('role', r)}>
+                  {roleIcon(r) ? <Image src={roleIcon(r)!} alt="" boxSize="16px" /> : null}{r}
+                </FilterChip>
+              ))}
+            </FilterRow>
+            <FilterRow label="Body">
+              {BODIES.map((b) => (
+                <FilterChip key={b} mode={bodies[b]} color={chipColor('teal')} onClick={() => list.cycleMode('body', b)}>
+                  {bodyIcon(b) ? <Image src={bodyIcon(b)!} alt="" boxSize="16px" /> : null}{b}
+                </FilterChip>
+              ))}
+            </FilterRow>
+            <FilterRow label="Grade">
+              {GRADES.map((g) => (
+                <FilterChip key={g} mode={grades[g]} color={rankColor(g)} onClick={() => list.cycleMode('grade', String(g))}>
+                  {rankTag(g)}
+                </FilterChip>
+              ))}
+            </FilterRow>
+          </FilterPanel>
+        </Box>
 
         {shown.length === 0 ? (
-          <Center py={16}><Text color="gray.500">No units match the current filters.</Text></Center>
+          <EmptyState title="No units match the current filters." />
         ) : (
           // one table per active class type; columns = active roles, rows = active grades.
           TYPES.filter((ty) => filterValueAllowed(ty, types)).map((type) => (

@@ -24,10 +24,12 @@ import { fetchUnitsAsync } from '@/store/unitSlice'
 import { fetchEquipAsync } from '@/store/equipSlice'
 // fetchEnemyAIAsync is dispatched lazily in skillTabList when an enemy is selected
 import Layout from '@/components/layout'
+import ChangelogNotice from '@/components/changelogNotice'
 
 import { extendTheme } from '@chakra-ui/react'
 import { hubChakraTheme } from '@altterisk/game-hub/chakra'
 import '@altterisk/game-hub/hub.css'
+import '@altterisk/game-hub/components.css'
 
 const theme = extendTheme(hubChakraTheme('lo'), {
   styles: {
@@ -203,6 +205,7 @@ function AppBody({ Component, pageProps }: Pick<AppProps, 'Component' | 'pagePro
           </div>
         )}
         <Component {...pageProps} />
+        <ChangelogNotice />
       </Layout>
     </TranslationVersionContext.Provider>
   );

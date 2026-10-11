@@ -3,10 +3,12 @@ import Head from 'next/head';
 import {
   Accordion, AccordionButton, AccordionIcon, AccordionItem, AccordionPanel,
   Badge, Box, Button, ButtonGroup, Center, Flex, HStack, Heading, IconButton, Image,
-  Input, InputGroup, InputRightElement, Select, Spinner, Tab, TabList, TabPanel,
-  TabPanels, Tabs, Text, VStack, Wrap, WrapItem,
+  Input, InputGroup, InputRightElement, Select, Spinner, Text, VStack, Wrap, WrapItem,
 } from '@chakra-ui/react';
 import { CloseIcon, SearchIcon } from '@chakra-ui/icons';
+import { useRouter } from 'next/router';
+import { FilterChip, GroupCard, SegmentedButtons, TabPanel, UrlTabs, tabParam } from '@altterisk/game-hub';
+import { nextRouterAdapter } from '@altterisk/game-hub/filters';
 import { useAppDispatch, useAppSelector } from '@/hooks';
 import { fetchUnitsAsync, selectUnits } from '@/store/unitSlice';
 import {
@@ -251,18 +253,14 @@ function BuffLookup({ unitById }: { unitById: Record<string, UnitData> }) {
     <VStack align="stretch" spacing={3}>
       <Flex gap={3} wrap="wrap" align="center"
         bg="surface.elevated" borderWidth="1px" borderColor="surface.border" borderRadius="xl" p={3}>
-        <ButtonGroup isAttached size="sm" variant="outline" colorScheme="purple">
-          {ATTR_FILTERS.map((f) => (
-            <Button key={f.label} {...filterActiveProps('purple', attrOn[f.label])}
-              onClick={() => setAttrOn({ ...attrOn, [f.label]: !attrOn[f.label] })}>{f.label}</Button>
-          ))}
-        </ButtonGroup>
-        <ButtonGroup isAttached size="sm" variant="outline" colorScheme="teal">
-          {TARGET_FILTERS.map((f) => (
-            <Button key={f.label} {...filterActiveProps('teal', targetOn[f.label])}
-              onClick={() => setTargetOn({ ...targetOn, [f.label]: !targetOn[f.label] })}>{f.label}</Button>
-          ))}
-        </ButtonGroup>
+        <SegmentedButtons label="Effect kind"
+          options={ATTR_FILTERS.map((f) => ({ value: f.label, label: f.label }))}
+          selected={ATTR_FILTERS.filter((f) => attrOn[f.label]).map((f) => f.label)}
+          onToggle={(v) => setAttrOn({ ...attrOn, [v]: !attrOn[v] })} />
+        <SegmentedButtons label="Target"
+          options={TARGET_FILTERS.map((f) => ({ value: f.label, label: f.label }))}
+          selected={TARGET_FILTERS.filter((f) => targetOn[f.label]).map((f) => f.label)}
+          onToggle={(v) => setTargetOn({ ...targetOn, [v]: !targetOn[v] })} />
         {activeGroup ? (
           <Select size="sm" w="auto" maxW="240px" value={trigger} borderColor="surface.border"
             onChange={(e) => setTrigger(e.target.value)}>
@@ -272,12 +270,10 @@ function BuffLookup({ unitById }: { unitById: Record<string, UnitData> }) {
             ))}
           </Select>
         ) : null}
-        <ButtonGroup isAttached size="sm" variant="outline">
-          {(['unit', 'value'] as const).map((s) => (
-            <Button key={s} {...filterActiveProps('gray', sortBy === s)}
-              onClick={() => setSortBy(s)}>{s === 'unit' ? 'A-Z' : 'By value'}</Button>
-          ))}
-        </ButtonGroup>
+        <SegmentedButtons label="Sort"
+          options={[{ value: 'unit', label: 'A-Z' }, { value: 'value', label: 'By value' }]}
+          selected={sortBy}
+          onToggle={(v) => setSortBy(v as 'unit' | 'value')} />
         <InputGroup size="sm" maxW="260px" ml="auto">
           <Input placeholder={activeGroup ? 'Filter units' : 'Filter effects'} value={search}
             borderColor="surface.border" onChange={(e) => setSearch(e.target.value)} />
@@ -297,12 +293,10 @@ function BuffLookup({ unitById }: { unitById: Record<string, UnitData> }) {
           .filter(({ g, n }) => n > 0 || selected === g.key)
           .map(({ g, n }) => (
             <WrapItem key={g.key}>
-              <Button size="xs" variant={selected === g.key ? 'solid' : 'outline'}
-                colorScheme={selected === g.key ? 'accent' : 'gray'}
+              <FilterChip active={selected === g.key} count={n}
                 onClick={() => { setSelected(selected === g.key ? null : g.key); setSearch(''); setTrigger('any'); }}>
                 {g.name}
-                <Box as="span" ml={1} opacity={0.65}>{n}</Box>
-              </Button>
+              </FilterChip>
             </WrapItem>
           ))}
       </Wrap>
@@ -312,15 +306,10 @@ function BuffLookup({ unitById }: { unitById: Record<string, UnitData> }) {
       ) : loading && rows.length === 0 ? (
         <Center py={10}><Spinner /></Center>
       ) : (
-        <Box borderWidth="1px" borderColor="surface.border" borderRadius="xl" overflow="hidden" bg="surface.elevated">
-          <Box px={4} py={2} bg="blackAlpha.300" borderBottomWidth="1px" borderBottomColor="surface.border">
-            <HStack>
-              <Heading size="sm" color="accent.200">{activeGroup.name}</Heading>
-              <Badge colorScheme="accent" borderRadius="full" px={2}>{rows.length}</Badge>
-            </HStack>
-          </Box>
-          <Box overflowX="auto">
-            <Box as="table" w="100%" minW="980px" style={{ borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+        <div className="hub-group-grid hub-group-grid--wide">
+          <GroupCard title={activeGroup.name} count={rows.length}>
+            <Box as="table" className="hub-table--stack" w="100%"
+              sx={{ borderCollapse: 'collapse', tableLayout: 'fixed', '@media (min-width: 600px)': { minW: '980px' } }}>
               <Box as="thead">
                 <Box as="tr">
                   <Box {...thProps} w="170px">Unit</Box>
@@ -333,24 +322,23 @@ function BuffLookup({ unitById }: { unitById: Record<string, UnitData> }) {
               <Box as="tbody">
                 {rows.map((e, i) => (
                   <Box as="tr" key={`${e.unit}-${e.skill}-${i}`}>
-                    <Box {...tdProps}><UnitCell unit={unitById[e.unit]} /></Box>
-                    <Box {...tdProps}><SkillCell e={e} /></Box>
-                    <Box {...tdProps} p={0}><BuffEffectRow buff={buffWithLevelRange(e.buff)} /></Box>
-                    <Box {...tdProps}>
+                    <Box {...tdProps} data-label="Unit"><UnitCell unit={unitById[e.unit]} /></Box>
+                    <Box {...tdProps} data-label="Skill"><SkillCell e={e} /></Box>
+                    <Box {...tdProps} p={0} data-label="Effect"><BuffEffectRow buff={buffWithLevelRange(e.buff)} /></Box>
+                    <Box {...tdProps} data-label="AoE">
                       {e.area ? <SkillArea area={e.area} center={e.center ?? 5} size={9} />
                         : <Text fontSize="xs" color="gray.600">—</Text>}
                     </Box>
-                    {/* condition pills can carry long char lists — let them wrap
-                        here (they're nowrap in the skill-detail buff list) */}
-                    <Box {...tdProps} sx={{ '& span': { whiteSpace: 'normal' } }}>
+                    {/* condition pills are nowrap in the skill-detail buff list; let them wrap here */}
+                    <Box {...tdProps} data-label="Conditions" sx={{ '& span': { whiteSpace: 'normal' } }}>
                       <BuffCondTags rep={e.buff} />
                     </Box>
                   </Box>
                 ))}
               </Box>
             </Box>
-          </Box>
-        </Box>
+          </GroupCard>
+        </div>
       )}
     </VStack>
   );
@@ -529,12 +517,19 @@ function DamageList({ unitById }: { unitById: Record<string, UnitData> }) {
 
 // ── page ──────────────────────────────────────────────────────────────────────
 
+const MISC_TABS = [
+  { id: 'buffs', label: 'Buff Lookup' },
+  { id: 'aoe', label: 'AoE Skills' },
+  { id: 'damage', label: 'Damage Types' },
+];
+
 export default function Misc() {
   useTranslationVersion();
   const dispatch = useAppDispatch();
   const region = useAppSelector(selectRegion);
   const status = useAppSelector(selectMiscStatus);
   const units = useAppSelector(selectUnits);
+  const [tab, setTab] = tabParam(nextRouterAdapter(useRouter()), MISC_TABS);
 
   useEffect(() => {
     dispatch(fetchMiscAsync());
@@ -553,18 +548,14 @@ export default function Misc() {
         ) : status === 'loading' ? (
           <Center py={20}><Spinner /></Center>
         ) : (
-          <Tabs variant="soft-rounded" colorScheme="accent" size="sm" isLazy>
-            <TabList flexWrap="wrap" gap={1}>
-              <Tab>Buff Lookup</Tab>
-              <Tab>AoE Skills</Tab>
-              <Tab>Damage Types</Tab>
-            </TabList>
-            <TabPanels>
-              <TabPanel px={0}><BuffLookup unitById={units} /></TabPanel>
-              <TabPanel px={0}><AoeList unitById={units} /></TabPanel>
-              <TabPanel px={0}><DamageList unitById={units} /></TabPanel>
-            </TabPanels>
-          </Tabs>
+          <Box>
+            <UrlTabs tabs={MISC_TABS} active={tab} onChange={setTab} label="Categorization" idBase="misc" />
+            <TabPanel tab={tab} idBase="misc">
+              {tab === 'aoe' ? <AoeList unitById={units} />
+                : tab === 'damage' ? <DamageList unitById={units} />
+                  : <BuffLookup unitById={units} />}
+            </TabPanel>
+          </Box>
         )}
       </VStack>
     </>

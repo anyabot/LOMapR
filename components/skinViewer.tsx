@@ -1,15 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Box, Center, HStack, Image, Spinner, Text, Tooltip, VStack } from '@chakra-ui/react';
-import { loadSkinArchive, revokeSkinUrls, readText, loadTexture, urlFor } from '../lib/skinArchive';
+import { Box, Center, Spinner, Text } from '@chakra-ui/react';
+import { readText, revokeArchiveUrls } from '@altterisk/game-hub/archive';
 import {
-  IconBtn, FaceSelect, SaveButton, ReloadButton, PlayPauseButton, ZonesButton, variantMeta, VariantStrip,
-  LayersButton, LayerPanel,
+  attachPanZoom, createPixiApp, loadSpineAtlas, loadTexture, readSkeletonJson, saveStagePng,
+  type PixiAppHandle,
+} from '@altterisk/game-hub/spine';
+import { ControlRow, ControlSection, LayerPanel, SegmentedControl, ToggleRow, ViewerShell } from '@altterisk/game-hub/viewer';
+import { loadSkinArchive } from '../lib/skinArchive';
+import {
+  CaptureSection, FaceRow, IncludedSection, PlaybackSection, VariantRow, useCanvasRecorder, useViewerSpeed,
 } from './skinViewer/chrome';
 import type { SpriteInfo, SkinNode, FixedFace, Layout } from './skinViewer/types';
-import {
-  baseSkinKey, layoutHasVariant, zAngle, attachPanZoom,
-  meshSourcePixelScale, fixBlendAlpha,
-} from './skinViewer/types';
+import { baseSkinKey, layoutHasVariant, zAngle, meshSourcePixelScale } from './skinViewer/types';
 
 // Used when a skinned Pixi archive has not been published yet.
 const UNITY_VIEWER_BASE = (
@@ -35,6 +37,7 @@ function UnityViewer({ skin, height, parts, hasRplus, hasKr, hasBg, hasDam, show
   const [saving, setSaving] = useState(false);
   // bumping this remounts the iframe, reloading the model from scratch (reset).
   const [resetKey, setResetKey] = useState(0);
+  const [theater, setTheater] = useState(false);
 
   // base skin name without region suffix
   const baseSkin = skin.replace(/__kr$/, '');
@@ -97,10 +100,10 @@ function UnityViewer({ skin, height, parts, hasRplus, hasKr, hasBg, hasDam, show
   // key forces a full iframe remount on reset so the Unity model reloads.
   const iframeSrc = `${UNITY_VIEWER_BASE}/index.html?model=${encodeURIComponent(baseSkin)}`;
 
+  const variantKeys = ['base', ...availableVariants];
   return (
-    <Box>
-      <Box h={height} bg="gray.800" borderRadius="md" overflow="hidden" position="relative"
-        border="1px solid" borderColor="whiteAlpha.200">
+    <ViewerShell height={height} theater={theater} onTheaterChange={setTheater}
+      stage={
         <Box
           as="iframe"
           key={resetKey}
@@ -111,93 +114,39 @@ function UnityViewer({ skin, height, parts, hasRplus, hasKr, hasBg, hasDam, show
           allow="autoplay"
           sx={{ colorScheme: 'none' }}
         />
-
-        {/* Top-right: play/pause + zones + reload + save */}
-        <VStack position="absolute" top={2} right={2} spacing={1} align="flex-end"
-          bg="blackAlpha.500" borderRadius="md" px={1} py={1}>
-          <PlayPauseButton playing={playing} onToggle={() => setPlaying((v) => !v)} />
-          <ZonesButton shown={showZones} onToggle={() => setShowZones((v) => !v)} />
-          <ReloadButton onClick={() => setResetKey((k) => k + 1)} />
-          <SaveButton onClick={handleSave} saving={saving} />
-        </VStack>
-
-        {/* Bottom-left: PARTS_META info icons */}
-        {parts.length > 0 && (
-          <HStack position="absolute" bottom={2} left={2} spacing={1} pointerEvents="none"
-            bg="blackAlpha.500" borderRadius="md" px={1} py={1}>
-            {parts.map((p) => {
-              const meta = PARTS_META[p];
-              if (!meta) return null;
-              return (
-                <Tooltip key={p} label={meta.label} fontSize="xs" hasArrow placement="top">
-                  <Image src={meta.icon} alt={meta.label} boxSize="32px" pointerEvents="auto" />
-                </Tooltip>
-              );
-            })}
-          </HStack>
-        )}
-
-        {/* Top-left: face selector */}
-        {faceList.length > 0 && (
-          <FaceSelect value={face} onChange={setFace}
-            options={[{ value: '', label: '(none)' },
-              ...faceList.map((f) => ({ value: f, label: f.replace(/^face\/.*_/, '') }))]} />
-        )}
-
-        {/* Bottom-right: props/bg group + variant radio group + dam toggle */}
-        <HStack position="absolute" bottom={2} right={2} spacing={1} align="flex-end">
-          {/* Variant radio: base / kr / sfw / kr_sfw / rplus */}
-          <VariantStrip active={variant} onSelect={setVariant}
-            variants={(['base', ...availableVariants]).map((v) => {
-              const meta = variantMeta(v, availableVariants.includes('kr'));
-              return { key: v, icon: meta.icon, label: meta.label };
-            })} />
-          {/* Props/bg/dam group */}
-          {(hasParts || hasBg || hasDam) && (
-            <VStack bg="blackAlpha.500" borderRadius="md" px={1} py={1} spacing={1}>
-              {hasParts && (
-                <IconBtn src="/images/shop/UI_SkinProp_Parts_N.png" alt="Parts"
-                  label={showParts ? 'Hide parts' : 'Show parts'} active={showParts}
-                  onClick={() => setShowParts((v) => !v)} />
-              )}
-              {hasBg && (
-                <IconBtn src="/images/UI_Lobby_Icon_Props_1.png" alt="BG"
-                  label={showBg ? 'Hide BG' : 'Show BG'} active={showBg}
-                  onClick={() => setShowBg((v) => !v)} />
-              )}
-              {hasDam && onToggleDam && (
-                <IconBtn src="/images/shop/UI_Icon_ClothBroken.png" alt="Damaged"
-                  label={showDam ? 'Damaged — click for normal' : 'Normal — click for damaged'} active={!!showDam}
-                  onClick={onToggleDam} />
-              )}
-            </VStack>
+      }
+      panel={<>
+        <PlaybackSection playing={playing} onTogglePlay={() => setPlaying((v) => !v)}
+          onRestart={() => setResetKey((k) => k + 1)} />
+        <CaptureSection onSave={handleSave} saving={saving} theater={theater} onTheater={setTheater} />
+        <ControlSection title="Appearance">
+          {faceList.length > 0 && (
+            <FaceRow value={face} onChange={setFace}
+              options={[{ value: '', label: '(none)' },
+                ...faceList.map((f) => ({ value: f, label: f.replace(/^face\/.*_/, '') }))]} />
           )}
-        </HStack>
-      </Box>
-
-      {/* Credit below canvas (controls are in the top-right overlay group) */}
-      <HStack mt={2} spacing={3} px={1} justify="flex-end">
-        <Text fontSize="xs" color="whiteAlpha.400">
+          {variantKeys.length > 1 && (
+            <VariantRow keys={variantKeys} active={variant} hasKr={availableVariants.includes('kr')} onSelect={setVariant} />
+          )}
+          {hasParts && <ToggleRow label="Parts" value={showParts} onChange={setShowParts} />}
+          {hasBg && <ToggleRow label="Background" value={showBg} onChange={setShowBg} />}
+          {hasDam && onToggleDam && <ToggleRow label="Damaged" value={!!showDam} onChange={() => onToggleDam()} />}
+        </ControlSection>
+        <ControlSection title="Display">
+          <ToggleRow label="Touch zones" value={showZones} onChange={setShowZones} />
+        </ControlSection>
+        <IncludedSection parts={parts} />
+        <Text fontSize="xs" color="whiteAlpha.400" textAlign="right" px={1}>
           Viewer by{' '}
           <Box as="a" href="https://lo.swaytwig.com" target="_blank" rel="noopener noreferrer"
             color="whiteAlpha.500" textDecoration="underline" _hover={{ color: 'whiteAlpha.700' }}>
             Wolfgang
           </Box>
         </Text>
-      </HStack>
-    </Box>
+      </>}
+    />
   );
 }
-
-const PARTS_META: Record<string, { icon: string; label: string }> = {
-  LOBBY_ANIMATION:        { icon: '/images/shop/UI_ShopL2DIcon.png',        label: 'Live 2D lobby animation' },
-  VOICE:                  { icon: '/images/shop/UI_ShopVoiceIcon.png',       label: 'Voice' },
-  SD_EFFECT:              { icon: '/images/shop/UI_ShopFxIcon.png',          label: 'SD battle effects' },
-  SD_ANIMATION:           { icon: '/images/shop/UI_ShopSDAnimIcon.png',      label: 'SD battle animation' },
-  PROPS:                  { icon: '/images/shop/UI_ShopObjectIcon.png',      label: 'Props / objects' },
-  DAMAGE_IMAGE:           { icon: '/images/shop/UI_ShopDamagedIcon.png',     label: 'Damaged skin image' },
-  DAMAGE_LOBBY_ANIMATION: { icon: '/images/shop/UI_ShopDamagedL2DIcon.png', label: 'Damaged Live 2D animation' },
-};
 
 type SkinViewerProps = {
   skin: string; height?: string | number; parts?: string[];
@@ -241,8 +190,13 @@ function SkinnedPixiViewer(props: SkinViewerProps) {
   const [variant, setVariant] = useState('base');
   const [face, setFace] = useState('');
   const [toggles, setToggles] = useState<Record<string, boolean>>({});
+  const [theater, setTheater] = useState(false);
+  const [speed, setSpeed] = useViewerSpeed();
   const playingRef = useRef(playing);
   playingRef.current = playing;
+  const speedRef = useRef(speed);
+  speedRef.current = speed;
+  const recorder = useCanvasRecorder(() => appRef.current?.canvas, skin);
   const archiveSuffix = baseDoc?.variants?.[variant]?.archive ?? '';
   const archiveSkin = `${skin}${archiveSuffix}`;
   const fullVariant = archiveSuffix !== '';
@@ -253,9 +207,7 @@ function SkinnedPixiViewer(props: SkinViewerProps) {
 
   useEffect(() => {
     let destroyed = false;
-    let app: any = null;
-    // destroy() before init() resolves throws in ResizePlugin and kills the page.
-    let appReady = false;
+    let pixi: PixiAppHandle | null = null;
     let detachPanZoom = () => {};
     setLoadState('fetching');
     setFace('');
@@ -275,13 +227,10 @@ function SkinnedPixiViewer(props: SkinViewerProps) {
       }));
       if (destroyed || !hostRef.current) return;
 
-      app = new PIXI.Application();
-      await app.init({ backgroundAlpha: 0, antialias: true, resizeTo: hostRef.current });
-      appReady = true;
-      fixBlendAlpha(app.renderer);
-      if (destroyed) { app.destroy(true); app = null; return; }
+      pixi = await createPixiApp({ PIXI, host: hostRef.current, cancelled: () => destroyed, fixBlend: true });
+      if (!pixi) return;
+      const app = pixi.app;
       appRef.current = app;
-      hostRef.current.replaceChildren(app.canvas);
 
       const view = module.mountSkinnedRig(manifest, textures, 1);
       viewRef.current = view;
@@ -311,7 +260,7 @@ function SkinnedPixiViewer(props: SkinViewerProps) {
       app.renderer.on('resize', fit);
       detachPanZoom = attachPanZoom(app.canvas as HTMLCanvasElement, view.container);
       app.ticker.add((ticker: any) => {
-        if (playingRef.current) view.update(Math.min(ticker.deltaMS / 1000, 1 / 20));
+        if (playingRef.current) view.update(Math.min(ticker.deltaMS / 1000, 1 / 20) * speedRef.current);
       });
       setLoadState('ready');
     })().catch(() => {
@@ -323,8 +272,8 @@ function SkinnedPixiViewer(props: SkinViewerProps) {
       viewRef.current?.destroy();
       viewRef.current = null;
       appRef.current = null;
-      if (app && appReady) { app.destroy(true); app = null; }
-      revokeSkinUrls(archiveSkin);
+      pixi?.dispose();
+      revokeArchiveUrls(archiveSkin);
     };
   }, [skin, resetKey, archiveSkin]);
 
@@ -362,9 +311,8 @@ function SkinnedPixiViewer(props: SkinViewerProps) {
   };
 
   return (
-    <Box>
-      <Box h={height} bg="gray.800" borderRadius="md" overflow="hidden" position="relative"
-        border="1px solid" borderColor="whiteAlpha.200">
+    <ViewerShell height={height} theater={theater} onTheaterChange={setTheater}
+      stage={<>
         <Box ref={hostRef} position="absolute" inset={0} opacity={loadState === 'ready' ? 1 : 0} />
         {loadState !== 'ready' && (
           <Center position="absolute" inset={0} color="gray.500" pointerEvents="none"
@@ -373,64 +321,37 @@ function SkinnedPixiViewer(props: SkinViewerProps) {
             <Text fontSize="sm">{loadState === 'unpacking' ? 'unpacking…' : 'fetching…'}</Text>
           </Center>
         )}
-
-        {doc && doc.faces && doc.faces.length > 0 && (
-          <FaceSelect value={face} onChange={setFace}
-            options={[{ value: '', label: '(none)' },
-              ...doc.faces.map((item) => ({ value: item.key, label: item.key }))]} />
-        )}
-
-        <VStack position="absolute" top={2} right={2} spacing={1} align="flex-end"
-          bg="blackAlpha.500" borderRadius="md" px={1} py={1}>
-          <PlayPauseButton playing={playing} onToggle={() => setPlaying((value) => !value)} />
-          {(doc?.colliders?.length ?? 0) > 0 && (
-            <ZonesButton shown={zones} onToggle={() => setZones((value) => !value)} />
+      </>}
+      panel={<>
+        <PlaybackSection playing={playing} onTogglePlay={() => setPlaying((value) => !value)}
+          onRestart={() => { setVariant('base'); setResetKey((value) => value + 1); }}
+          speed={speed} onSpeed={setSpeed} />
+        <CaptureSection onSave={handleSave} recorder={recorder} theater={theater} onTheater={setTheater} />
+        <ControlSection title="Appearance">
+          {doc && doc.faces && doc.faces.length > 0 && (
+            <FaceRow value={face} onChange={setFace}
+              options={[{ value: '', label: '(none)' },
+                ...doc.faces.map((item) => ({ value: item.key, label: item.key }))]} />
           )}
-          <ReloadButton onClick={() => { setVariant('base'); setResetKey((value) => value + 1); }} />
-          <SaveButton onClick={handleSave} />
-        </VStack>
-
-        {parts.length > 0 && (
-          <HStack position="absolute" bottom={2} left={2} spacing={1} pointerEvents="none"
-            bg="blackAlpha.500" borderRadius="md" px={1} py={1}>
-            {parts.map((part) => {
-              const meta = PARTS_META[part];
-              return meta ? (
-                <Tooltip key={part} label={meta.label} fontSize="xs" hasArrow placement="top">
-                  <Image src={meta.icon} alt={meta.label} boxSize="32px" pointerEvents="auto" />
-                </Tooltip>
-              ) : null;
-            })}
-          </HStack>
-        )}
-
-        <HStack position="absolute" bottom={2} right={2} spacing={1} align="flex-end">
           {variants.length > 1 && (
-            <VariantStrip active={variant} onSelect={setVariant}
-              variants={variants.map((key) => ({ key, ...variantMeta(key, variants.includes('kr')) }))} />
+            <VariantRow keys={variants} active={variant} hasKr={variants.includes('kr')} onSelect={setVariant} />
           )}
-          {(hasPartsToggle || hasBgToggle || hasDam) && (
-            <VStack bg="blackAlpha.500" borderRadius="md" px={1} py={1} spacing={1}>
-              {hasPartsToggle && (
-                <IconBtn src="/images/shop/UI_SkinProp_Parts_N.png" alt="Parts"
-                  label={toggles.parts ? 'Hide parts' : 'Show parts'} active={toggles.parts ?? true}
-                  onClick={() => setToggles((value) => ({ ...value, parts: !(value.parts ?? true) }))} />
-              )}
-              {hasBgToggle && (
-                <IconBtn src="/images/UI_Lobby_Icon_Props_1.png" alt="BG"
-                  label={toggles.bg ? 'Hide BG' : 'Show BG'} active={toggles.bg ?? true}
-                  onClick={() => setToggles((value) => ({ ...value, bg: !(value.bg ?? true) }))} />
-              )}
-              {hasDam && onToggleDam && (
-                <IconBtn src="/images/shop/UI_Icon_ClothBroken.png" alt="Damaged"
-                  label={showDam ? 'Damaged — click for normal' : 'Normal — click for damaged'} active={!!showDam}
-                  onClick={onToggleDam} />
-              )}
-            </VStack>
+          {hasPartsToggle && (
+            <ToggleRow label="Parts" value={toggles.parts ?? true}
+              onChange={(on) => setToggles((value) => ({ ...value, parts: on }))} />
           )}
-        </HStack>
-      </Box>
-    </Box>
+          {hasBgToggle && (
+            <ToggleRow label="Background" value={toggles.bg ?? true}
+              onChange={(on) => setToggles((value) => ({ ...value, bg: on }))} />
+          )}
+          {hasDam && onToggleDam && <ToggleRow label="Damaged" value={!!showDam} onChange={() => onToggleDam()} />}
+        </ControlSection>
+        <ControlSection title="Display">
+          {(doc?.colliders?.length ?? 0) > 0 && <ToggleRow label="Touch zones" value={zones} onChange={setZones} />}
+        </ControlSection>
+        <IncludedSection parts={parts} />
+      </>}
+    />
   );
 }
 
@@ -469,6 +390,11 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
   const [loadState, setLoadState] = useState<'fetching' | 'unpacking' | 'ready' | 'error'>('fetching');
   const [resetKey, setResetKey] = useState(0);
   const filesRef = useRef<Map<string, Blob> | null>(null);
+  const [theater, setTheater] = useState(false);
+  const [speed, setSpeed] = useViewerSpeed();
+  const speedRef = useRef(speed);
+  speedRef.current = speed;
+  const recorder = useCanvasRecorder(() => appRef.current?.canvas, skin);
 
   useEffect(() => {
     if (unavailable && !showDam) return; // unsupported variant — don't fetch
@@ -513,7 +439,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
       });
     return () => {
       cancelled = true;
-      revokeSkinUrls(skin);
+      revokeArchiveUrls(skin);
     };
   }, [skin, resetKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -532,8 +458,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
   useEffect(() => {
     if (!layout || layout.kind === 'spine' || layout.skin !== baseSkinKey(skin)) return;
     let destroyed = false;
-    let app: any = null;
-    let appReady = false;
+    let pixi: PixiAppHandle | null = null;
 
     (async () => {
       const PIXI = await import('pixi.js');
@@ -563,16 +488,11 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
       texturesRef.current = textures;
       if (destroyed) return;
 
-      app = new PIXI.Application();
-      await app.init({ backgroundAlpha: 0, antialias: true, resizeTo: hostRef.current! });
-      fixBlendAlpha(app.renderer);
-      appReady = true;
-      if (destroyed) {
-        app.destroy(true);
-        return;
-      }
+      if (!hostRef.current) return;
+      pixi = await createPixiApp({ PIXI, host: hostRef.current, cancelled: () => destroyed, fixBlend: true });
+      if (!pixi) return;
+      const app = pixi.app;
       appRef.current = app;
-      hostRef.current!.replaceChildren(app.canvas);
 
       const ppu = layout.ppu || 100;
       const byId: Record<string, any> = {};
@@ -739,7 +659,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
       flatMeshesRef.current = [];
       texturesRef.current = {};
       appRef.current = null;
-      if (app && appReady) app.destroy(true);
+      pixi?.dispose();
     };
   }, [layout, skin, resetKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -786,8 +706,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
   useEffect(() => {
     if (!layout || layout.kind !== 'spine' || layout.skin !== baseSkinKey(skin)) return;
     let destroyed = false;
-    let app: any = null;
-    let appReady = false;
+    let pixi: PixiAppHandle | null = null;
     // Clear refs immediately so the swap effect can't act on stale objects from a prior skin
     spineRef.current = null;
     spineSfwRef.current = null;
@@ -800,10 +719,8 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
     (async () => {
       const PIXI = await import('pixi.js');
       pixiRef.current = PIXI;
-      const {
-        Spine, SkeletonJson, AtlasAttachmentLoader, Skin, Physics, TextureAtlas, SpineTexture,
-      } =
-        await import('@esotericsoftware/spine-pixi-v8') as any;
+      const spineModule = await import('@esotericsoftware/spine-pixi-v8') as any;
+      const { Spine, Skin, Physics } = spineModule;
       const files = filesRef.current;
       if (!files) return;
 
@@ -811,22 +728,8 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
       const sfwMeta = layout.sfw ?? null;
       const sfwHasSkel = !!(sfwMeta?.skel);
 
-      // Helper: load a TextureAtlas with base textures, and optionally pre-load sfw textures
-      const loadAtlas = async (atlasName: string, texOverrides: Record<string, string> = {}) => {
-        const atlasText = await readText(files, atlasName);
-        const ta = new TextureAtlas(atlasText);
-        await Promise.all(ta.pages.map(async (page: any) => {
-          const overrideName = texOverrides[page.name];
-          const blobUrl = urlFor(skin, files, overrideName ?? page.name);
-          const texture = await PIXI.Assets.load({
-            src: blobUrl,
-            loadParser: 'loadTextures',
-            data: { alphaMode: page.pma ? 'premultiplied-alpha' : 'premultiply-alpha-on-upload' },
-          });
-          page.setTexture(SpineTexture.from(texture.source));
-        }));
-        return ta;
-      };
+      const loadAtlas = (atlasName: string, overrides: Record<string, string> = {}) =>
+        loadSpineAtlas({ PIXI, spine: spineModule, name: skin, files, atlasName, overrides });
 
       // Always load base atlas/skel
       const baseAtlas = await loadAtlas(layout.atlas);
@@ -856,36 +759,31 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
         spinePageTexRef.current = [];
       }
 
-      const baseSkelJson = JSON.parse(await readText(files, layout.skel));
+      const baseSkelJson = await readText(files, layout.skel);
       if (destroyed) return;
-      const sjson = new SkeletonJson(new AtlasAttachmentLoader(baseAtlas));
-      const skeletonData = sjson.readSkeletonData(baseSkelJson);
+      const skeletonData = readSkeletonJson({ spine: spineModule, atlas: baseAtlas }, baseSkelJson);
 
       // Some prefabs hold several SkeletonMecanim objects; actor zero stays top-level.
       const extraActorData = await Promise.all((layout.actors ?? []).slice(1).map(async (actor) => {
         const atlas = await loadAtlas(actor.atlas);
-        const skelJson = JSON.parse(await readText(files, actor.skel));
-        const parser = new SkeletonJson(new AtlasAttachmentLoader(atlas));
-        return { actor, atlas, skeletonData: parser.readSkeletonData(skelJson) };
+        const skeletonData = readSkeletonJson({ spine: spineModule, atlas }, await readText(files, actor.skel));
+        return { actor, atlas, skeletonData };
       }));
       if (destroyed) return;
 
       // If sfw has a different skeleton, build it too
       let sfwSkeletonData: any = null;
       if (sfwHasSkel && sfwMeta?.skel && sfwAtlas) {
-        const sfwSkelJson = JSON.parse(await readText(files, sfwMeta.skel));
+        const sfwSkelJson = await readText(files, sfwMeta.skel);
         if (destroyed) return;
-        const sfwSjson = new SkeletonJson(new AtlasAttachmentLoader(sfwAtlas));
-        sfwSkeletonData = sfwSjson.readSkeletonData(sfwSkelJson);
+        sfwSkeletonData = readSkeletonJson({ spine: spineModule, atlas: sfwAtlas }, sfwSkelJson);
       }
 
-      app = new PIXI.Application();
-      await app.init({ backgroundAlpha: 0, antialias: true, resizeTo: hostRef.current! });
-      fixBlendAlpha(app.renderer);
-      appReady = true;
-      if (destroyed) { app.destroy(true); return; }
+      if (!hostRef.current) return;
+      pixi = await createPixiApp({ PIXI, host: hostRef.current, cancelled: () => destroyed, fixBlend: true });
+      if (!pixi) return;
+      const app = pixi.app;
       appRef.current = app;
-      hostRef.current!.replaceChildren(app.canvas);
 
       const W = layout.world ?? {};
 
@@ -897,7 +795,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
         const sfwBgName = sfwMeta?.textures?.[W.bg.tex];
         bgTexSfw = sfwBgName ? await loadTexture(PIXI, skin, files, sfwBgName) : null;
       }
-      if (destroyed) { if (appReady) app?.destroy(true); return; }
+      if (destroyed) { pixi?.dispose(); return; }
 
       spineBgTexRef.current = bgTexBase ? { base: bgTexBase, sfw: bgTexSfw ?? bgTexBase } : null;
 
@@ -959,12 +857,11 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
         a.actor.id, { base: a.base, sfw: a.sfw, meta: a.actor },
       ]));
 
-      // The [playing]-only effect won't re-fire for a build triggered by resetKey.
-      if (!playingRef.current) {
-        spine.state.timeScale = 0;
-        if (spineSfw) spineSfw.state.timeScale = 0;
-        for (const a of actorInstances.slice(1)) a.base.state.timeScale = 0;
-      }
+      // The play/speed effect won't re-fire for a build triggered by resetKey.
+      const timeScale = playingRef.current ? speedRef.current : 0;
+      spine.state.timeScale = timeScale;
+      if (spineSfw) spineSfw.state.timeScale = timeScale;
+      for (const a of actorInstances.slice(1)) a.base.state.timeScale = timeScale;
 
       // Apply texture swap immediately if already in sfw mode (texture-only case)
       if (!sfwHasSkel && isSfw) {
@@ -1228,7 +1125,12 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
       spinePixelScaleRef.current = () => nativePixelScale;
       app.renderer.on('resize', fit);
 
-      attachPanZoom(app.canvas as HTMLCanvasElement, root, zoneLayer);
+      attachPanZoom(app.canvas as HTMLCanvasElement, root, zoneLayer ? {
+        onTransform: (r) => {
+          zoneLayer.scale.set(r.scale.x);
+          zoneLayer.position.set(r.position.x, r.position.y);
+        },
+      } : {});
     })().catch((e) => !destroyed && setError(String(e)));
 
     return () => {
@@ -1245,25 +1147,26 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
       spineStateRef.current = 0;
       zoneOverlayRef.current = null;
       appRef.current = null;
-      if (app && appReady) app.destroy(true);
+      pixi?.dispose();
     };
   }, [layout, skin]);
 
   useEffect(() => {
     const spine = spineRef.current;
     // Spine-pixi v8 auto-updates via its own ticker listener; pause by setting timeScale.
+    const timeScale = playing ? speed : 0;
     if (spine) {
       if (spineActorsRef.current.size) {
         for (const a of Array.from(spineActorsRef.current.values())) {
-          a.base.state.timeScale = playing ? 1 : 0;
-          if (a.sfw) a.sfw.state.timeScale = playing ? 1 : 0;
+          a.base.state.timeScale = timeScale;
+          if (a.sfw) a.sfw.state.timeScale = timeScale;
         }
       } else {
-        spine.state.timeScale = playing ? 1 : 0;
-        if (spineSfwRef.current) spineSfwRef.current.state.timeScale = playing ? 1 : 0;
+        spine.state.timeScale = timeScale;
+        if (spineSfwRef.current) spineSfwRef.current.state.timeScale = timeScale;
       }
     }
-  }, [playing]);
+  }, [playing, speed]);
 
   useEffect(() => {
     const spine = spineRef.current;
@@ -1390,246 +1293,122 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
 
   // Save at full skeleton-native resolution (tight-crop, transparent BG).
   const handleSave = () => {
+    const app = appRef.current, root = rootRef.current, PIXI = pixiRef.current;
+    if (!app || !root || !PIXI) return;
+    const overlay = zoneOverlayRef.current;
+    const overlayWasVisible = overlay?.visible ?? false;
+    if (overlay) overlay.visible = false;
+    const pixelScale = layout?.kind === 'spine' ? spinePixelScaleRef.current() : 1 / u2pxRef.current;
     try {
-      const app = appRef.current;
-      const root = rootRef.current;
-      if (!app || !root) return;
-      const PIXI = pixiRef.current;
-      if (!PIXI) return;
-
-      // Hide zone overlay temporarily.
-      const overlayWasVisible = zoneOverlayRef.current?.visible ?? false;
-      if (zoneOverlayRef.current) zoneOverlayRef.current.visible = false;
-
-      // u2px / fitScale scales the screen render up to atlas resolution.
-      const fitScale = root.scale.x;
-      const u2px = layout?.kind === 'spine'
-        ? 1 / spinePixelScaleRef.current()
-        : u2pxRef.current;
-      const exportScale = u2px / fitScale;
-      const screenBounds = root.getBounds(); // screen-pixel bounding box of content
-      const natW = Math.ceil(screenBounds.width * exportScale);
-      const natH = Math.ceil(screenBounds.height * exportScale);
-      console.log('[save] fitScale', fitScale, 'u2px', u2px, 'exportScale', exportScale, 'size', natW, natH, 'screenBounds', screenBounds.x, screenBounds.y, screenBounds.width, screenBounds.height);
-      if (!natW || !natH || natW > 16384 || natH > 16384) { console.warn('[save] bad size', natW, natH); return; }
-
-      // Render stage into a RenderTexture at atlas resolution.
-      const rt = PIXI.RenderTexture.create({ width: natW, height: natH });
-      const matrix = new PIXI.Matrix(exportScale, 0, 0, exportScale, -screenBounds.x * exportScale, -screenBounds.y * exportScale);
-      app.renderer.render({ container: app.stage, target: rt, transform: matrix, clear: true });
-
-      if (zoneOverlayRef.current) zoneOverlayRef.current.visible = overlayWasVisible;
-
-      // canvas() is synchronous in PixiJS v8.
-      const src = app.renderer.extract.canvas({ target: rt }) as HTMLCanvasElement;
-      rt.destroy(true);
-
-      const w = src.width, h = src.height;
-      const ctx = src.getContext('2d')!;
-      const px = ctx.getImageData(0, 0, w, h).data;
-      let minX = w, minY = h, maxX = 0, maxY = 0;
-      for (let y = 0; y < h; y++) {
-        for (let x = 0; x < w; x++) {
-          if (px[(y * w + x) * 4 + 3] > 0) {
-            if (x < minX) minX = x; if (x > maxX) maxX = x;
-            if (y < minY) minY = y; if (y > maxY) maxY = y;
-          }
-        }
-      }
-      if (maxX < minX || maxY < minY) return;
-      const cw = maxX - minX + 1, ch = maxY - minY + 1;
-      const out = document.createElement('canvas');
-      out.width = cw; out.height = ch;
-      out.getContext('2d')!.drawImage(src, minX, minY, cw, ch, 0, 0, cw, ch);
-      const a = document.createElement('a');
-      a.href = out.toDataURL('image/png');
-      a.download = `${skin}.png`;
-      a.click();
-      console.log('[save] done', cw, ch);
-    } catch (e) {
-      console.error('[save] error', e);
+      // The stage is rendered synchronously inside the call, so the overlay can be restored right after.
+      void saveStagePng({ PIXI, app, root, pixelScale, oversize: 'refuse', fileName: `${skin}.png` });
+    } finally {
+      if (overlay) overlay.visible = overlayWasVisible;
     }
   };
+
+  const isSpine = layout?.kind === 'spine';
+  const isFixed = layout?.kind === 'fixed';
+  const spinePartNames = layout?.skinGroups?.parts ?? [];
+  const skinAvail = (k: string) => !spineAvailableSkins || spineAvailableSkins.has(k);
+  const rplusKey = spinePartNames.find((p) => p.toLowerCase() === 'breast/rplus') ?? null;
+  const breastVariants = isSpine ? [
+    spinePartNames.includes('breast/Censorship') && skinAvail('breast/Censorship') && { key: 'breast/Censorship', label: 'Censored' },
+    spinePartNames.includes('breast/Unedited') && skinAvail('breast/Unedited') && { key: 'breast/Unedited', label: 'Unedited' },
+    rplusKey && skinAvail(rplusKey) && { key: rplusKey, label: 'R+' },
+  ].filter(Boolean) as { key: string; label: string }[] : [];
+  const hasZones = isSpine && (layout?.world?.zones?.length ?? 0) > 0;
+  const spinePropParts = isSpine
+    ? spinePartNames.filter((p) => p !== 'default' && !p.startsWith('breast/') && skinAvail(p))
+    : [];
+  const variantKeys = isSpine
+    ? (layout?.sfw ? ['base', 'sfw'] : [])
+    : isFixed && layout
+      ? ['base', ...(['kr', 'sfw', 'rplus'] as const).filter((k) => layoutHasVariant(layout, k))]
+      : [];
+  // Spine learns of a KR build from the prop; fixed from its own variants.
+  const baseHasKr = isSpine ? !!hasKr : variantKeys.includes('kr');
+  const faceOptions = isSpine
+    ? (layout?.skinGroups?.faces ?? []).map((f) => ({ value: f, label: f.replace(/^face\/.*_/, '') }))
+    : isFixed && (layout?.faces?.length ?? 0) > 0
+      ? [{ value: '', label: '(none)' }, ...layout!.faces!.map((f) => ({ value: f.key, label: f.key }))]
+      : [];
+  const toggleLabel = (key: string) => (key === 'bg' ? 'Background' : key === 'parts' ? 'Parts' : key);
+  const layerItems = useMemo(
+    () => [...spineSlots].reverse().map((slot) => ({ slot, attachment: slot, group: 'Front to back' })),
+    [spineSlots],
+  );
 
   return (
     <Box>
       {error && <Text color="red.400" fontSize="sm" mb={1}>{error}</Text>}
-      <Box h={height} bg="gray.800" borderRadius="md" overflow="hidden" position="relative" border="1px solid" borderColor="whiteAlpha.200">
-        <Box ref={hostRef} position="absolute" inset={0} opacity={loadState === 'ready' ? 1 : 0} />
-        {loadState !== 'ready' && !error && (
-          <Center position="absolute" inset={0} color="gray.500" pointerEvents="none" flexDirection="column" gap={2}>
-            <Spinner />
-            <Text fontSize="sm">{loadState === 'unpacking' ? 'unpacking…' : 'fetching…'}</Text>
-          </Center>
-        )}
-
-        {/* Bottom-left: PARTS_META info icons (VOICE, SD_EFFECT, etc.) */}
-        {parts.length > 0 && (
-          <HStack position="absolute" bottom={2} left={2} spacing={1} pointerEvents="none"
-            bg="blackAlpha.500" borderRadius="md" px={1} py={1}>
-            {parts.map((p) => {
-              const meta = PARTS_META[p];
-              if (!meta) return null;
-              return (
-                <Tooltip key={p} label={meta.label} fontSize="xs" hasArrow placement="top">
-                  <Image src={meta.icon} alt={meta.label} boxSize="32px" pointerEvents="auto" />
-                </Tooltip>
-              );
-            })}
-          </HStack>
-        )}
-
-        {/* Top-left: face selector (spine only) — always a face, no (none) */}
-        {layout?.kind === 'spine' && (layout.skinGroups?.faces?.length ?? 0) > 0 && (
-          <FaceSelect value={spineFace} onChange={setSpineFace}
-            options={layout.skinGroups!.faces!.map((f) => ({ value: f, label: f.replace(/^face\/.*_/, '') }))} />
-        )}
-
-        {/* Top-left: face selector (fixed only) — default "(none)", its own entry */}
-        {layout?.kind === 'fixed' && (layout.faces?.length ?? 0) > 0 && (
-          <FaceSelect value={fixedFace} onChange={setFixedFace}
-            options={[{ value: '', label: '(none)' },
-              ...layout.faces!.map((f) => ({ value: f.key, label: f.key }))]} />
-        )}
-
-        {/* Top-left: spine layer editor — stacked under the face dropdown */}
-        {layout?.kind === 'spine' && showLayers && spineSlots.length > 0 && (
-          <LayerPanel
-            slots={spineSlots}
-            hidden={hiddenSlotSet}
-            top={(layout.skinGroups?.faces?.length ?? 0) > 0 ? 12 : 2}
-            onToggle={(slot) => setHiddenSlots((prev) => (
-              prev.includes(slot) ? prev.filter((s) => s !== slot) : [...prev, slot]
-            ))}
-            onSetAll={(visible) => setHiddenSlots(visible ? [] : [...spineSlots])}
-            onClose={() => setShowLayers(false)} />
-        )}
-
-        {/* Top-right: breast variants (spine only) + save button */}
-        {(() => {
-          const isSpine = layout?.kind === 'spine';
-          const spineParts_ = layout?.skinGroups?.parts ?? [];
-          const skinAvail = (k: string) => !spineAvailableSkins || spineAvailableSkins.has(k);
-          const hasCensored = isSpine && spineParts_.includes('breast/Censorship') && skinAvail('breast/Censorship');
-          const hasUnedited = isSpine && spineParts_.includes('breast/Unedited') && skinAvail('breast/Unedited');
-          const rplusKey = spineParts_.find((p) => p.toLowerCase() === 'breast/rplus') ?? null;
-          const hasRplusBreast = isSpine && !!rplusKey && skinAvail(rplusKey);
-          const breastVariants = [
-            hasCensored && { key: 'breast/Censorship', icon: '/images/shop/icon-platform-google.png', label: 'Censored' },
-            hasUnedited && { key: 'breast/Unedited', icon: hasKr ? '/images/shop/icon-platform-vfun.png' : '/images/shop/icon-platform-onestore.png', label: 'Unedited' },
-            hasRplusBreast && { key: rplusKey!, icon: '/images/shop/icon-secret-marks.png', label: 'R+' },
-          ].filter(Boolean) as { key: string; icon: string; label: string }[];
-          const hasZones = isSpine && (layout?.world?.zones?.length ?? 0) > 0;
-          return (
-            <VStack position="absolute" top={2} right={2} spacing={1} align="flex-end"
-              bg="blackAlpha.500" borderRadius="md" px={1} py={1}>
-              {breastVariants.map((v) => (
-                <IconBtn key={v.key} src={v.icon} alt={v.label} label={v.label}
-                  active={spineBreast.includes(v.key)} placement="left"
-                  onClick={() => setSpineBreast((prev) => prev.includes(v.key) ? prev.filter((k) => k !== v.key) : [...prev, v.key])} />
-              ))}
-              {/* spine animates (play/pause) and may have touch zones */}
-              {isSpine && <PlayPauseButton playing={playing} onToggle={() => setPlaying((v) => !v)} />}
-              {hasZones && <ZonesButton shown={showZones} onToggle={() => setShowZones((v) => !v)} />}
-              {isSpine && spineSlots.length > 0 && (
-                <LayersButton active={showLayers} onToggle={() => setShowLayers((v) => !v)} />
-              )}
-              {isSpine && <ReloadButton onClick={() => setResetKey((k) => k + 1)} />}
-              <SaveButton onClick={handleSave} />
-            </VStack>
-          );
-        })()}
-
-        {/* Bottom-right: platform variant toggle + parts toggles + damaged/broken toggle */}
-        {(() => {
-          const fixedToggles = layout?.toggles ?? [];
-          const isSpine = layout?.kind === 'spine';
-          const isFixed = layout?.kind === 'fixed';
-          const spinePropParts = isSpine
-            ? (layout!.skinGroups?.parts ?? []).filter(
-                (p) => p !== 'default' && !p.startsWith('breast/')
-                && (!spineAvailableSkins || spineAvailableSkins.has(p))
-              )
-            : [];
-
-          // Platform/sfw variant keys only (breast handled top-right for spine).
-          const hasSpineSfw = isSpine && !!layout?.sfw;
-          const fixedHasKr    = isFixed && layout ? layoutHasVariant(layout, 'kr') : false;
-          const fixedHasSfw   = isFixed && layout ? layoutHasVariant(layout, 'sfw') : false;
-          const fixedHasRplus = isFixed && layout ? layoutHasVariant(layout, 'rplus') : false;
-          const variantKeys = isSpine
-            ? (hasSpineSfw ? ['base', 'sfw'] : [])
-            : (fixedHasKr || fixedHasSfw || fixedHasRplus)
-              ? ['base', fixedHasKr && 'kr', fixedHasSfw && 'sfw', fixedHasRplus && 'rplus'].filter(Boolean) as string[]
-              : [];
-          // Spine learns of a KR build from the prop; fixed from its own variants.
-          const baseHasKr = isSpine ? !!hasKr : fixedHasKr;
-          const variants = variantKeys.map((k) => {
-            const meta = variantMeta(k, baseHasKr);
-            return { key: k, icon: meta.icon, label: meta.label };
-          });
-
-          const hasProps = fixedToggles.length > 0 || spinePropParts.length > 0 || hasDam || hasKr;
-          const showRightPanel = variants.length > 0 || hasProps;
-          if (!showRightPanel) return null;
-          const multiFixed = fixedToggles.length > 1;
-          const multiSpine = spinePropParts.length > 1;
-          return (
-            <HStack position="absolute" bottom={2} right={2} spacing={1} align="flex-end">
-              <VariantStrip variants={variants} active={variant}
+      <ViewerShell height={height} theater={theater} onTheaterChange={setTheater}
+        stage={<>
+          <Box ref={hostRef} position="absolute" inset={0} opacity={loadState === 'ready' ? 1 : 0} />
+          {loadState !== 'ready' && !error && (
+            <Center position="absolute" inset={0} color="gray.500" pointerEvents="none" flexDirection="column" gap={2}>
+              <Spinner />
+              <Text fontSize="sm">{loadState === 'unpacking' ? 'unpacking…' : 'fetching…'}</Text>
+            </Center>
+          )}
+          {unavailable && (
+            <Box position="absolute" bottom={2} left="50%" transform="translateX(-50%)"
+              bg="blackAlpha.700" borderRadius="md" px={3} py={1} pointerEvents="none" maxW="80%" textAlign="center">
+              <Text fontSize="xs" color="gray.400">{unavailable}</Text>
+            </Box>
+          )}
+        </>}
+        panel={<>
+          {isSpine && (
+            <PlaybackSection playing={playing} onTogglePlay={() => setPlaying((v) => !v)}
+              onRestart={() => setResetKey((k) => k + 1)} speed={speed} onSpeed={setSpeed} />
+          )}
+          <CaptureSection onSave={handleSave} recorder={recorder} theater={theater} onTheater={setTheater} />
+          <ControlSection title="Appearance">
+            {faceOptions.length > 0 && (
+              <FaceRow value={isSpine ? spineFace : fixedFace} options={faceOptions}
+                onChange={isSpine ? setSpineFace : setFixedFace} />
+            )}
+            {variantKeys.length > 1 && (
+              <VariantRow keys={variantKeys} active={variant} hasKr={baseHasKr}
                 onSelect={(k) => setVariant(k as 'base' | 'kr' | 'sfw' | 'rplus')} />
-              {hasProps && (
-              <VStack bg="blackAlpha.500" borderRadius="md" px={1} py={1} spacing={1}>
-              {fixedToggles.map((t, i) => {
-                const on = toggles[t.key] ?? t.default;
-                const KEY_ICONS: Record<string, string> = {
-                  bg: '/images/UI_Lobby_Icon_Props_1.png',
-                };
-                const icon = KEY_ICONS[t.key] ?? (multiFixed ? `/images/shop/UI_SkinProp_Parts_${i + 1}.png` : '/images/shop/UI_SkinProp_Parts_N.png');
-                return (
-                  <IconBtn key={t.key} src={icon} alt={t.key}
-                    label={on ? `Hide ${t.key}` : `Show ${t.key}`} active={on}
-                    onClick={() => setToggles((s) => ({ ...s, [t.key]: !on }))} />
-                );
-              })}
-              {spinePropParts.map((p, i) => {
-                const on = spineParts[p] ?? false;
-                const icon = multiSpine ? `/images/shop/UI_SkinProp_Parts_${i + 1}.png` : '/images/shop/UI_SkinProp_Parts_N.png';
-                const label = p.replace(/^.*\//, '');
-                return (
-                  <IconBtn key={p} src={icon} alt={label}
-                    label={on ? `Hide ${label}` : `Show ${label}`} active={on}
-                    onClick={() => setSpineParts((s) => ({ ...s, [p]: !on }))} />
-                );
-              })}
-              {hasDam && onToggleDam && (
-                <IconBtn src="/images/shop/UI_Icon_ClothBroken.png" alt="Damaged"
-                  label={showDam ? 'Damaged — click for normal' : 'Normal — click for damaged'} active={showDam}
-                  onClick={onToggleDam} />
-              )}
-              {hasKr && onToggleRegion && (
-                <Box as="button" onClick={onToggleRegion}
-                  px={2} py={1} borderRadius="md" fontSize="xs" fontWeight="bold"
-                  bg={viewRegion === 'kr' ? 'yellow.500' : 'whiteAlpha.200'}
-                  color={viewRegion === 'kr' ? 'gray.900' : 'gray.300'}
-                  _hover={{ bg: viewRegion === 'kr' ? 'yellow.400' : 'whiteAlpha.300' }}
-                  transition="background 0.15s" lineHeight="1">
-                  {viewRegion === 'kr' ? 'KR' : 'GL'}
-                </Box>
-              )}
-              </VStack>
-              )}
-            </HStack>
-          );
-        })()}
-
-        {unavailable && (
-          <Box position="absolute" bottom={2} left="50%" transform="translateX(-50%)"
-            bg="blackAlpha.700" borderRadius="md" px={3} py={1} pointerEvents="none" maxW="80%" textAlign="center">
-            <Text fontSize="xs" color="gray.400">{unavailable}</Text>
-          </Box>
-        )}
-      </Box>
+            )}
+            {breastVariants.map((v) => (
+              <ToggleRow key={v.key} label={v.label} value={spineBreast.includes(v.key)}
+                onChange={(on) => setSpineBreast((prev) => (on ? [...prev, v.key] : prev.filter((k) => k !== v.key)))} />
+            ))}
+            {(layout?.toggles ?? []).map((t) => (
+              <ToggleRow key={t.key} label={toggleLabel(t.key)} value={toggles[t.key] ?? t.default}
+                onChange={(on) => setToggles((prev) => ({ ...prev, [t.key]: on }))} />
+            ))}
+            {spinePropParts.map((p) => (
+              <ToggleRow key={p} label={p.replace(/^.*\//, '')} value={spineParts[p] ?? false}
+                onChange={(on) => setSpineParts((prev) => ({ ...prev, [p]: on }))} />
+            ))}
+            {hasDam && onToggleDam && <ToggleRow label="Damaged" value={showDam} onChange={() => onToggleDam()} />}
+            {hasKr && onToggleRegion && (
+              <ControlRow label="Region">
+                <SegmentedControl value={viewRegion === 'kr' ? 'kr' : 'global'} ariaLabel="Skin region"
+                  onChange={() => onToggleRegion()}
+                  options={[{ value: 'global', label: 'GL' }, { value: 'kr', label: 'KR' }]} />
+              </ControlRow>
+            )}
+          </ControlSection>
+          <ControlSection title="Display">
+            {hasZones && <ToggleRow label="Touch zones" value={showZones} onChange={setShowZones} />}
+            {isSpine && spineSlots.length > 0 && <ToggleRow label="Layers" value={showLayers} onChange={setShowLayers} />}
+          </ControlSection>
+          {isSpine && showLayers && spineSlots.length > 0 && (
+            <LayerPanel items={layerItems} hidden={hiddenSlotSet}
+              onSet={(slots, hide) => setHiddenSlots((prev) => (hide
+                ? Array.from(new Set([...prev, ...slots]))
+                : prev.filter((s) => !slots.includes(s))))}
+              onReset={() => setHiddenSlots([])}
+              onClose={() => setShowLayers(false)} />
+          )}
+          <IncludedSection parts={parts} />
+        </>}
+      />
     </Box>
   );
 }
