@@ -3,7 +3,7 @@
 
 export type Lang = 'en' | 'ko';
 export type Region = 'global' | 'kr';
-export type StringChunk = 'common' | 'skill' | 'buff' | 'stage' | 'item' | 'shop';
+export type StringChunk = 'common' | 'skill' | 'buff' | 'stage' | 'item' | 'shop' | 'voice';
 
 type StringTable = { [id: string]: { en?: string; ko?: string } };
 

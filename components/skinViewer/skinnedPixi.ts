@@ -35,6 +35,7 @@ export function mountSkinnedRig(
   doc: SkinnedDoc,
   textures: Record<string, PIXI.Texture>,
   pixelsPerUnit = 100,
+  onTouch?: (zone: string) => void,
 ): SkinnedView {
   const rig = createRig(doc);
   const container = new PIXI.Container();
@@ -303,6 +304,7 @@ export function mountSkinnedRig(
     const local = container.toLocal(event.global);
     const zone = rig.hitZone(local.x, local.y);
     if (!zone) return;
+    onTouch?.(zone.key);
     rig.trigger(zone.key === 'body' ? 'Tep_1' : 'breast');
   });
 

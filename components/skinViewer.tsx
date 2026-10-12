@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Box, Center, Spinner, Text } from '@chakra-ui/react';
 import { readText, revokeArchiveUrls } from '@altterisk/game-hub/archive';
 import {
@@ -11,6 +11,7 @@ import {
   CaptureSection, FaceRow, IncludedSection, PlaybackSection, VariantRow, useCanvasRecorder, useViewerSpeed,
 } from './skinViewer/chrome';
 import type { SpriteInfo, SkinNode, FixedFace, Layout } from './skinViewer/types';
+import type { FixedTouchZone } from '../interfaces/voice';
 import { baseSkinKey, layoutHasVariant, zAngle, meshSourcePixelScale } from './skinViewer/types';
 
 // Used when a skinned Pixi archive has not been published yet.
@@ -153,6 +154,8 @@ type SkinViewerProps = {
   hasDam?: boolean; showDam?: boolean; onToggleDam?: () => void;
   unavailable?: string; viewerKind?: string; hasRplus?: boolean; hasBg?: boolean;
   hasKr?: boolean; viewRegion?: 'global' | 'kr'; onToggleRegion?: () => void;
+  onTouch?: (zone: string) => void; touchZones?: FixedTouchZone[];
+  extraPanel?: ReactNode; stageOverlay?: ReactNode;
 };
 
 // getLocalBounds counts hidden children, which would shrink the model.
@@ -177,7 +180,9 @@ function visibleBounds(container: any) {
 }
 
 function SkinnedPixiViewer(props: SkinViewerProps) {
-  const { skin, height = '70vh', parts = [], hasDam, showDam, onToggleDam } = props;
+  const { skin, height = '70vh', parts = [], hasDam, showDam, onToggleDam, extraPanel, stageOverlay } = props;
+  const onTouchRef = useRef(props.onTouch);
+  onTouchRef.current = props.onTouch;
   const hostRef = useRef<HTMLDivElement>(null);
   const appRef = useRef<any>(null);
   const viewRef = useRef<import('./skinViewer/skinnedPixi').SkinnedView | null>(null);
@@ -232,7 +237,7 @@ function SkinnedPixiViewer(props: SkinViewerProps) {
       const app = pixi.app;
       appRef.current = app;
 
-      const view = module.mountSkinnedRig(manifest, textures, 1);
+      const view = module.mountSkinnedRig(manifest, textures, 1, (zone) => onTouchRef.current?.(zone));
       viewRef.current = view;
       app.stage.addChild(view.container);
       const initialToggles = Object.fromEntries((manifest.toggles ?? []).map((toggle) =>
@@ -321,6 +326,7 @@ function SkinnedPixiViewer(props: SkinViewerProps) {
             <Text fontSize="sm">{loadState === 'unpacking' ? 'unpacking…' : 'fetching…'}</Text>
           </Center>
         )}
+        {stageOverlay}
       </>}
       panel={<>
         <PlaybackSection playing={playing} onTogglePlay={() => setPlaying((value) => !value)}
@@ -349,6 +355,7 @@ function SkinnedPixiViewer(props: SkinViewerProps) {
         <ControlSection title="Display">
           {(doc?.colliders?.length ?? 0) > 0 && <ToggleRow label="Touch zones" value={zones} onChange={setZones} />}
         </ControlSection>
+        {extraPanel}
         <IncludedSection parts={parts} />
       </>}
     />
@@ -362,7 +369,7 @@ export default function SkinViewer(props: SkinViewerProps) {
   return <PixiSkinViewer {...props} />;
 }
 
-function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, showDam = false, onToggleDam, unavailable, viewerKind, hasRplus, hasBg, hasKr, viewRegion, onToggleRegion }: SkinViewerProps) {
+function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, showDam = false, onToggleDam, unavailable, viewerKind, hasRplus, hasBg, hasKr, viewRegion, onToggleRegion, onTouch, touchZones, extraPanel, stageOverlay }: SkinViewerProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const appRef = useRef<any>(null);
   const rootRef = useRef<any>(null);
@@ -385,6 +392,11 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
   const showBg = toggles['bg'] ?? true;
   const [showZones, setShowZones] = useState(false);
   const zoneOverlayRef = useRef<any>(null);
+  const onTouchRef = useRef(onTouch);
+  onTouchRef.current = onTouch;
+  const touchZonesRef = useRef(touchZones);
+  touchZonesRef.current = touchZones;
+  const touchKey = touchZones?.length ? JSON.stringify(touchZones) : '';
 
   const [playing, setPlaying] = useState(true);
   const [loadState, setLoadState] = useState<'fetching' | 'unpacking' | 'ready' | 'error'>('fetching');
@@ -496,6 +508,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
 
       const ppu = layout.ppu || 100;
       const byId: Record<string, any> = {};
+      const worldMatById: Record<string, any> = {};
       // Unity sorts scene-wide but zIndex sorts per parent, so leaves draw flat.
       const flatMeshes: { mesh: any; wrapper: any; order: number; chain: string[]; sprite: SpriteInfo; pixelScale: number; isBody: boolean }[] = [];
       // The empty face node, to overlay the chosen expression mesh at that spot.
@@ -517,6 +530,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
         // Compose this node's local matrix with the parent's world matrix.
         node.updateLocalTransform();
         const worldMat = parentMat.clone().append(node.localTransform);
+        worldMatById[n.id] = worldMat;
 
         if (n.sprite) {
           const mesh = new PIXI.MeshSimple({
@@ -636,6 +650,54 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
         applyFace(fixedFaceRef.current || null);
       }
 
+      // Collider rects sit in their node's local space; corners go through the node's world matrix into root space.
+      const fixedZones = (touchZonesRef.current ?? []).flatMap((z) => {
+        const mat = worldMatById[z.node];
+        if (!mat) return [];
+        const corners = [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([sx, sy]) => {
+          const p = mat.apply(new PIXI.Point((z.x + sx * z.w / 2) * ppu, -(z.y + sy * z.h / 2) * ppu));
+          return [p.x, p.y];
+        });
+        return [{ key: z.key, corners, area: Math.abs(z.w * z.h) }];
+      });
+      let zoneLayer: any = null;
+      if (fixedZones.length) {
+        zoneLayer = new PIXI.Container();
+        const hit = new PIXI.Graphics();
+        hit.eventMode = 'static';
+        hit.cursor = 'pointer';
+        for (const z of fixedZones) hit.poly(z.corners.flat()).fill({ color: 0xffffff, alpha: 0.0001 });
+        const inside = (x: number, y: number, c: number[][]) => {
+          let odd = false;
+          for (let i = 0, j = c.length - 1; i < c.length; j = i++) {
+            if ((c[i][1] > y) !== (c[j][1] > y) && x < ((c[j][0] - c[i][0]) * (y - c[i][1])) / (c[j][1] - c[i][1]) + c[i][0]) odd = !odd;
+          }
+          return odd;
+        };
+        hit.on('pointertap', (e: any) => {
+          const p = zoneLayer.toLocal(e.global);
+          // Special zones sit inside the body zone, so the smallest hit wins.
+          const best = fixedZones.filter((z) => inside(p.x, p.y, z.corners)).sort((a, b) => a.area - b.area)[0];
+          if (best) onTouchRef.current?.(best.key);
+        });
+        const overlay = new PIXI.Graphics();
+        overlay.visible = false;
+        zoneLayer.addChild(hit, overlay);
+        zoneOverlayRef.current = overlay;
+        app.stage.addChild(zoneLayer);
+      }
+      // The outline keeps a constant on-screen width, so it is redrawn at the current zoom.
+      const syncZones = () => {
+        if (!zoneLayer) return;
+        zoneLayer.scale.copyFrom(root.scale);
+        zoneLayer.position.copyFrom(root.position);
+        const overlay = zoneLayer.children[1];
+        overlay.clear();
+        for (const z of fixedZones) {
+          overlay.poly(z.corners.flat()).stroke({ color: z.key === 'body' ? 0x4488ff : 0xff4444, width: 3 / Math.max(root.scale.x, 1e-4), alpha: 0.8 });
+        }
+      };
+
       const fit = () => {
         const b = root.getLocalBounds();
         if (!b.width || !b.height) return;
@@ -646,22 +708,24 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
           app.screen.width / 2 - (b.x + b.width / 2) * s,
           app.screen.height / 2 - (b.y + b.height / 2) * s,
         );
+        syncZones();
       };
       fit();
       app.renderer.on('resize', fit);
 
-      attachPanZoom(app.canvas as HTMLCanvasElement, root);
+      attachPanZoom(app.canvas as HTMLCanvasElement, root, zoneLayer ? { onTransform: syncZones } : {});
     })().catch((e) => !destroyed && setError(String(e)));
 
     return () => {
       destroyed = true;
+      zoneOverlayRef.current = null;
       nodesByIdRef.current = {};
       flatMeshesRef.current = [];
       texturesRef.current = {};
       appRef.current = null;
       pixi?.dispose();
     };
-  }, [layout, skin, resetKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [layout, skin, resetKey, touchKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Swap textures on existing fixed-skin meshes when variant changes — no rebuild needed.
   useEffect(() => {
@@ -1062,6 +1126,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
             }
           }
           if (!best) return; // outside all zones — no reaction
+          onTouchRef.current?.(best.key);
           reactThen(best.key === 'body' ? 'Tep_1' : 'breast');
         });
         if (zones.length) {
@@ -1317,7 +1382,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
     spinePartNames.includes('breast/Unedited') && skinAvail('breast/Unedited') && { key: 'breast/Unedited', label: 'Unedited' },
     rplusKey && skinAvail(rplusKey) && { key: rplusKey, label: 'R+' },
   ].filter(Boolean) as { key: string; label: string }[] : [];
-  const hasZones = isSpine && (layout?.world?.zones?.length ?? 0) > 0;
+  const hasZones = isSpine ? (layout?.world?.zones?.length ?? 0) > 0 : isFixed && (touchZones?.length ?? 0) > 0;
   const spinePropParts = isSpine
     ? spinePartNames.filter((p) => p !== 'default' && !p.startsWith('breast/') && skinAvail(p))
     : [];
@@ -1357,6 +1422,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
               <Text fontSize="xs" color="gray.400">{unavailable}</Text>
             </Box>
           )}
+          {stageOverlay}
         </>}
         panel={<>
           {isSpine && (
@@ -1406,6 +1472,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
               onReset={() => setHiddenSlots([])}
               onClose={() => setShowLayers(false)} />
           )}
+          {extraPanel}
           <IncludedSection parts={parts} />
         </>}
       />
