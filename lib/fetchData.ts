@@ -2,6 +2,7 @@
 // and rewrite to bundled /public art, empty-array fill, and id-stamping from the key.
 import { createJsonLoader } from '@altterisk/game-hub/data';
 import PUBLIC_IMAGES from './publicImages.json';
+import type { UnitVoice } from '@/interfaces/voice';
 
 // The key layout maps 1:1 to data/<key>, so local mode only swaps the base URL.
 const LOCAL = process.env.NEXT_PUBLIC_DATA_SOURCE === 'local';
@@ -129,10 +130,14 @@ export async function fetchStrings(region: Region) {
   return getWithFallback(region, 'strings.json');
 }
 
-export type StringChunk = 'common' | 'skill' | 'buff' | 'stage' | 'item' | 'shop';
+export type StringChunk = 'common' | 'skill' | 'buff' | 'stage' | 'item' | 'shop' | 'voice';
 
 export async function fetchStringChunk(region: Region, chunk: StringChunk) {
   return getWithFallback(region, `split/strings/strings.${chunk}.json`);
+}
+
+export async function fetchUnitVoice(region: Region, unitId: string): Promise<UnitVoice | null> {
+  return getWithFallback(region, `split/voice/${unitId}.json`);
 }
 
 // Item / unit lookup (id -> {name, icon, grade, kind}) for reward & drop display.

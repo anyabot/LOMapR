@@ -34,11 +34,18 @@ import { useTranslationVersion } from '@/lib/translationVersion';
 import RewardList from '@/components/rewardList';
 import SkillTab from '@/components/enemyTab/skillTab';
 import SkinViewer from '@/components/skinViewer';
+import VoiceTab from '@/components/voiceTab';
 import CopyLink from '@/components/copyLink';
 import StatHeading from '@/components/statHeading';
 import { rankTag, rankColor, roleRankIcon, typeIcon, roleIcon, bodyIcon, equipIcon, factionIcon, factionKey, factionName, unitDisplayName } from '@/lib/rank';
 import { NPCS, NpcEntry } from '@/lib/npcs';
 import { getGame, tokens } from '@altterisk/game-hub';
+import type { UnitVoice } from '@/interfaces/voice';
+import {
+  DUB_OPTIONS, clipId, dubFor, entryDubs, entryForSkin, playClip, setPreferredDub, stopVoice, touchLine,
+  useNowPlaying, usePreferredDub, useUnitVoice, type TouchMemory,
+} from '@/lib/voice';
+import { ControlRow, ControlSection, SegmentedControl, ToggleRow } from '@altterisk/game-hub/viewer';
 
 // HP/ATK/DEF grow linearly from stat[grade].X[0] (lv1) to X[1]; the rest are flat.
 const LV_CAP = 100;
@@ -167,6 +174,7 @@ export default function UnitDetail() {
   const skills = useAppSelector((s) => (id ? selectUnitSkills(s, id) : EMPTY_SKILLS));
   const skillStatus = useAppSelector((s) => (id ? selectUnitSkillStatus(s, id) : 'idle'));
   const region = useAppSelector(selectRegion);
+  const { voice, loaded: voiceLoaded } = useUnitVoice(region, id);
   // The heavy detail half rides in the same bundle as skills.
   const detailLoaded = !!unit?.stat;
   // Keeps the page rendered across a region switch, so the tab index survives.
@@ -266,6 +274,7 @@ export default function UnitDetail() {
           { id: 'promotion', label: 'Promotion', hidden: !full.promotions.length },
           { id: 'limit-break', label: 'Limit Break', hidden: !full.lvLimits.length },
           { id: 'skin', label: 'Skin', hidden: !full.skins?.length },
+          { id: 'voice', label: 'Voice', hidden: voiceLoaded && !voice },
         ];
         const [tab, setTab] = tabParam(nextRouterAdapter(router), tabs);
         return (
@@ -288,8 +297,10 @@ export default function UnitDetail() {
                 <PromotionTab unit={full} />
               ) : tab === 'limit-break' ? (
                 <LimitBreakTab unit={full} />
+              ) : tab === 'voice' ? (
+                voice ? <VoiceTab unit={full} voice={voice} /> : <Center py={10}><Spinner color="accent.400" /></Center>
               ) : (
-                <SkinTab unit={full} />
+                <SkinTab unit={full} voice={voice} />
               )}
             </TabPanel>
           </Box>
@@ -906,7 +917,7 @@ function skinFaceIcon(faceKey: string): string {
 
 
 // ── Skin tab: pick a skin, render it through the shared viewer ──────────────
-function SkinTab({ unit }: { unit: FullUnitData }) {
+function SkinTab({ unit, voice }: { unit: FullUnitData; voice: UnitVoice | null }) {
   useTranslationVersion();
   const region = useAppSelector(selectRegion);
   const skins = unit.skins || [];
@@ -914,6 +925,31 @@ function SkinTab({ unit }: { unit: FullUnitData }) {
   const [showDam, setShowDam] = useState(false);
   useEffect(() => { setShowDam(false); }, [idx]);
   const skin = skins[idx];
+
+  const preferredDub = usePreferredDub();
+  const entry = skin ? entryForSkin(voice, skin.key) : null;
+  const dub = dubFor(entry, preferredDub);
+  const tierCount = entry?.tiers?.length ?? 0;
+  const touchVoiced = !!dub && !!(entry?.tiers?.some((l) => l.length) || entry?.special?.some((l) => l.length));
+  const [voiceOn, setVoiceOn] = useState(true);
+  const [tier, setTier] = useState('1');
+  const memoryRef = useRef<TouchMemory>({ special: 0 });
+  const [subtitle, setSubtitle] = useState<{ id: string; text: string } | null>(null);
+  const nowPlaying = useNowPlaying();
+  useEffect(() => {
+    memoryRef.current = { special: 0 };
+    setSubtitle(null);
+    stopVoice();
+  }, [idx]);
+  useEffect(() => () => stopVoice(), []);
+  const onTouch = (zone: string) => {
+    if (!voiceOn || !entry || !dub) return;
+    const line = touchLine(entry, zone, Number(tier), memoryRef.current);
+    if (!line) return;
+    const text = t(line[0]);
+    setSubtitle({ id: clipId(dub, line[1]), text: text && text !== line[0] ? text.replace(/&n/g, '\n') : '' });
+    void playClip(entry, dub, line[1]);
+  };
 
   if (skins.length === 0) {
     return <Text color="gray.500" fontSize="sm">No skin data for this unit.</Text>;
@@ -1039,6 +1075,33 @@ function SkinTab({ unit }: { unit: FullUnitData }) {
             viewerKind={effectiveViewerKind}
             hasRplus={(skin as any).hasRplus}
             hasBg={(skin as any).bgUse}
+            onTouch={touchVoiced ? onTouch : undefined}
+            touchZones={voice?.zones?.[asset]}
+            stageOverlay={subtitle?.text && nowPlaying === subtitle.id ? (
+              <Box position="absolute" bottom={3} left="50%" transform="translateX(-50%)" w="max-content" maxW="90%"
+                bg="blackAlpha.800" borderRadius="md" px={3} py={2} pointerEvents="none" zIndex={2}>
+                <Text fontSize="sm" whiteSpace="pre-wrap" textAlign="center">{subtitle.text}</Text>
+              </Box>
+            ) : null}
+            extraPanel={touchVoiced ? (
+              <ControlSection title="Voice">
+                <ToggleRow label="On touch" value={voiceOn}
+                  onChange={(on) => { setVoiceOn(on); if (!on) stopVoice(); }} />
+                {entryDubs(entry).length > 1 && (
+                  <ControlRow label="Language">
+                    <SegmentedControl value={dub!} ariaLabel="Voice language"
+                      options={DUB_OPTIONS.filter((o) => entryDubs(entry).includes(o.value))}
+                      onChange={(d) => { stopVoice(); setPreferredDub(d); }} />
+                  </ControlRow>
+                )}
+                {tierCount > 1 && (
+                  <ControlRow label="Affection tier">
+                    <SegmentedControl value={tier} ariaLabel="Affection tier" onChange={setTier}
+                      options={Array.from({ length: tierCount }, (_, i) => ({ value: String(i + 1), label: String(i + 1) }))} />
+                  </ControlRow>
+                )}
+              </ControlSection>
+            ) : null}
           />
         </Box>
       )}
