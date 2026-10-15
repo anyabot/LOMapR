@@ -3,6 +3,7 @@
 import { createJsonLoader } from '@altterisk/game-hub/data';
 import PUBLIC_IMAGES from './publicImages.json';
 import type { UnitVoice } from '@/interfaces/voice';
+import type { CharStoryIndex, StoryIndex, StoryZoneText } from '@/interfaces/story';
 
 // The key layout maps 1:1 to data/<key>, so local mode only swaps the base URL.
 const LOCAL = process.env.NEXT_PUBLIC_DATA_SOURCE === 'local';
@@ -138,6 +139,22 @@ export async function fetchStringChunk(region: Region, chunk: StringChunk) {
 
 export async function fetchUnitVoice(region: Region, unitId: string): Promise<UnitVoice | null> {
   return getWithFallback(region, `split/voice/${unitId}.json`);
+}
+
+export async function fetchStoryIndex(region: Region): Promise<StoryIndex | null> {
+  return getWithFallback(region, 'split/story/index.json');
+}
+
+export async function fetchStoryZone(region: Region, world: string, zone: number): Promise<StoryZoneText | null> {
+  return getWithFallback(region, `split/story/${world}/${zone}.json`);
+}
+
+export async function fetchCharStories(region: Region): Promise<CharStoryIndex | null> {
+  return getWithFallback(region, 'split/story/chars.json');
+}
+
+export async function fetchCharStoryText(region: Region, group: string): Promise<StoryZoneText | null> {
+  return getWithFallback(region, `split/story/char/${group}.json`);
 }
 
 // Item / unit lookup (id -> {name, icon, grade, kind}) for reward & drop display.

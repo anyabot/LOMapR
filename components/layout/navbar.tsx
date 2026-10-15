@@ -23,6 +23,7 @@ function CommonNavbar() {
             <NavLink to="/skins">Skins</NavLink>
             <NavLink to="/equipment">Equipment</NavLink>
             <NavLink to="/world">World</NavLink>
+            <NavLink to="/story">Story</NavLink>
             <NavLink to="/sanctum">Sanctum</NavLink>
             <NavLink to="/enemies">Enemies</NavLink>
             <NavLink to="/iw">Infinite War</NavLink>

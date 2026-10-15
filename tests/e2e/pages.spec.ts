@@ -22,6 +22,7 @@ const CASES: PageCase[] = [
   { path: '/misc',         title: 'Misc Categorization',    heading: 'Misc Categorization' },
   { path: '/sanctum',      title: 'Sanctum of Alteration' },
   { path: '/world',        title: 'World List' },
+  { path: '/story',        title: 'Story',                  heading: 'Story' },
   { path: '/iw',           title: 'Infinite War' },
   // detail pages without params fall back to their list/empty state
   { path: '/units/detail', title: /./,                      text: 'Unit not found.' },
