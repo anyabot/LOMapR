@@ -5,20 +5,23 @@ import type { FullUnitData } from '@/interfaces/unit';
 import type { Dub, UnitVoice, VoiceEntry } from '@/interfaces/voice';
 import { t } from '@/lib/strings';
 import {
-  DUB_OPTIONS, clipId, dubFor, entryDubs, eventLabel, playClip, setPreferredDub, stopVoice,
+  AFFECTION_TIERS, DUB_OPTIONS, clipId, dubFor, entryDubs, eventLabel, playClip, setPreferredDub, stopVoice,
   useEntryClips, useNowPlaying, usePreferredDub,
 } from '@/lib/voice';
 
 type Row = { key: string; tag: string; clip: string; text?: string };
 
-function entryTitle(entry: VoiceEntry, unit: FullUnitData): string {
-  if (entry.marriage) return 'Oath';
-  const names = entry.skins.map((key) => {
+function skinNames(keys: string[], unit: FullUnitData): string {
+  return keys.map((key) => {
     if (key === '') return 'Default';
     const skin = unit.skins?.find((s) => s.key === key);
     return (skin && t(skin.name || skin.packName || skin.itemName)) || key;
-  });
-  return names.join(' · ') || 'Voice';
+  }).join(' · ');
+}
+
+function entryTitle(entry: VoiceEntry, unit: FullUnitData): string {
+  if (entry.marriage) return `Oath${entry.oathFor?.length ? ` — ${skinNames(entry.oathFor, unit)}` : ''}`;
+  return skinNames(entry.skins, unit) || 'Voice';
 }
 
 function entryRows(entry: VoiceEntry): Row[] {
@@ -31,13 +34,14 @@ function entryRows(entry: VoiceEntry): Row[] {
       else touch.set(clip, { text, tiers: [i + 1] });
     }
   });
-  const tierCount = entry.tiers?.filter((l) => l.length).length ?? 0;
+  const band = (tier: number) => AFFECTION_TIERS[tier - 1]?.label ?? String(tier);
   touch.forEach(({ text, tiers }, clip) => {
-    const tag = tierCount > 1 ? `Touch · tier ${tiers.join(', ')}` : 'Touch';
+    const tag = entry.marriage ? 'Touch' : `Touch · affection ${tiers.map(band).join(', ')}`;
     rows.push({ key: `touch/${clip}`, tag, clip, text });
   });
   (entry.special ?? []).forEach((lines, i) => {
-    for (const [text, clip] of lines) rows.push({ key: `special${i}/${clip}`, tag: 'Special touch', clip, text });
+    const tag = entry.marriage ? 'Special touch' : `Special touch · affection ${i === 0 ? '<100' : '100+'}`;
+    for (const [text, clip] of lines) rows.push({ key: `special${i}/${clip}`, tag, clip, text });
   });
   for (const [text, clip] of entry.oath ?? []) rows.push({ key: `oath/${clip}`, tag: 'Oath lobby', clip, text });
   for (const [name, clip] of entry.events) {

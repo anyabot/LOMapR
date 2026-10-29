@@ -306,7 +306,8 @@ function SkinPanel({ skin }: { skin: SkinEntry }) {
   const damAsset = skin.modelDam;
   const asset = showDam && hasDam ? damAsset : baseAsset;
   const isSkinnedBase = skin.viewerKind === 'skinned' && !(showDam && hasDam);
-  const archiveKey = asset;
+  const diverged = showDam && hasDam ? skin.modelDamDiverged : skin.modelDiverged;
+  const archiveKey = diverged ? `${asset}__${region}` : asset;
   const effectiveViewerKind = isSkinnedBase
     ? 'skinned'
     : skin.viewerKind === 'skinned' ? undefined : skin.viewerKind;

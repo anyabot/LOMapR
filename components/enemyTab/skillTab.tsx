@@ -126,6 +126,9 @@ export default function SkillTab({
               <HStack spacing={2}>
                 <Tag size="sm" colorScheme="teal" variant="subtle" borderRadius="full">Range {skill.range}</Tag>
                 <Tag size="sm" colorScheme="blue" variant="subtle" borderRadius="full">AP {skill.AP}</Tag>
+                {skill.cooldown ? (
+                  <Tag size="sm" colorScheme="orange" variant="subtle" borderRadius="full">CD {skill.cooldown}</Tag>
+                ) : null}
               </HStack>
             ) : null}
           </VStack>

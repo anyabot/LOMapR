@@ -1,8 +1,12 @@
-import { Box, Flex, HStack, Image, Text, VStack } from "@chakra-ui/react";
-import React from "react";
+import { Box, Flex, HStack, Image, Text, Tooltip, VStack } from "@chakra-ui/react";
+import React, { useState } from "react";
 import { SkillBuff } from "@/interfaces/skill";
-import { t, tKr, tOrEmpty } from "@/lib/strings";
+import { t, tOrEmpty } from "@/lib/strings";
 import { useTranslationVersion } from "@/lib/translationVersion";
+import NextLink from "next/link";
+import { useAppSelector } from "@/hooks";
+import { selectUnits } from "@/store/unitSlice";
+import { unitDisplayName } from "@/lib/rank";
 import UnitHoverCard from "./unitHoverCard";
 
 // ─── lookup tables (kept local; import from a shared constants file if preferred) ────
@@ -34,12 +38,17 @@ export const TRIGGER_LABELS: Record<number, string> = {
   56: "On kill + counter-kill", 57: "When ally is hit", 58: "When ally hit (physical)",
   59: "When ally hit (fire)", 60: "When ally hit (ice)", 61: "When ally hit (lightning)",
   62: "When ally hit (active skill)", 63: "When ally hits", 64: "When ally uses skill",
+  65: "Own turn start", 66: "Own turn end", 67: "Ally turn start", 68: "Ally turn end",
+  69: "Enemy turn start", 70: "Enemy turn end", 71: "Any turn start", 72: "Any turn end",
+  73: "After chain attack (skill 1)", 74: "After chain attack (skill 2)", 75: "After chain attack",
+  76: "After receiving chain attack (skill 1)", 77: "After receiving chain attack (skill 2)",
+  78: "After receiving chain attack",
 };
 
 const APPLY_COND_LABELS: Record<number, string> = {
   0: "If self has [buff type]", 1: "If self has [buff]", 2: "If self in front row",
   3: "If self in mid row", 4: "If self in back row", 5: "If self HP ≥ {0}%",
-  6: "If self HP ≤ {0}%", 7: "If self HP < {0}%", 8: "If self HP > {0}%",
+  6: "If self HP ≤ {0}%", 7: "If self HP % < attacker's", 8: "If self HP % > attacker's",
   9: "If self has ≥ {0} stacks of [buff]", 10: "If target has [buff type]",
   11: "If target has [buff]", 12: "If target HP ≥ {0}%", 13: "If target HP ≤ {0}%",
   14: "If target is [char]", 15: "If [char] in battle", 16: "If target in front row",
@@ -51,13 +60,13 @@ const APPLY_COND_LABELS: Record<number, string> = {
   25: "If enemies = {0}", 26: "If allies = {0}",
   27: "If total units = {0}", 28: "On round {0} and after",
   29: "On round {0} and before", 30: "If [char] not in battle",
-  31: "If self has ≥ {0} of [buff]", 32: "On round {0}", 33: "If Bio allies = {0}",
+  31: "If self has exactly {0} of [buff]", 32: "On round {0}", 33: "If Bio allies = {0}",
   34: "If AGS allies = {0}", 35: "If Bio enemies = {0}", 36: "If AGS enemies = {0}",
-  37: "If ally has [buff]", 38: "If ≥ {0} allies are [class]",
-  39: "If ≥ {0} allies are [role]", 40: "If self is [class]",
+  37: "If ally has [buff]", 38: "If {0} allies are [class]",
+  39: "If {0} allies are [role]", 40: "If self is [class]",
   41: "On even round", 42: "On odd round", 43: "If target missing any [buff]",
-  44: "If target missing [buff]", 45: "If ≥ {0} enemies are [class]",
-  46: "If ≥ {0} enemies are [role]", 47: "If self ATK > self DEF",
+  44: "If target missing [buff]", 45: "If {0} enemies are [class]",
+  46: "If {0} enemies are [role]", 47: "If self ATK > self DEF",
   48: "If self ATK < self DEF", 49: "If self ATK > target ATK",
   50: "If self ATK < target ATK", 51: "If self DEF > target DEF",
   52: "If self DEF < target DEF", 53: "If self EVD > target EVD",
@@ -67,7 +76,10 @@ const APPLY_COND_LABELS: Record<number, string> = {
   60: "If no ally nearby", 61: "If target has ≥ {0} [buff]",
   62: "If target missing [buff] (joint)", 64: "Random: if target has [buff]",
   65: "If ≥ {0} of [char] in battle", 66: "If enemy has [buff]",
-  67: "If ≥ {0} of ally [buff]", 68: "If ≥ {0} of enemy [buff]",
+  67: "If {0} allies have [buff]", 68: "If {0} enemies have [buff]",
+  69: "On turn {0} and after", 70: "On turn {0} and before", 71: "On turn {0}",
+  72: "On own turn {0} and after", 73: "On own turn {0} and before", 74: "On own turn {0}",
+  75: "On even turn", 76: "On odd turn",
 };
 
 export const BUFF_TYPE_NAMES: Record<number, string> = {
@@ -89,7 +101,7 @@ export const BUFF_TYPE_NAMES: Record<number, string> = {
   58: "DEF Penetration", 59: "Grid Change", 60: "Anti-Light DMG",
   61: "Anti-Heavy DMG", 62: "Anti-Air DMG", 63: "Change Form", 64: "Change Form",
   65: "Phys DoT", 66: "Fire DoT", 67: "Ice DoT", 68: "Lightning DoT",
-  69: "Remove Buff (type)", 70: "Fixed Phys DMG", 71: "Fixed Fire DMG",
+  69: "Remove Effect (type)", 70: "Fixed Phys DMG", 71: "Fixed Fire DMG",
   72: "Fixed Ice DMG", 73: "Fixed Lightning DMG", 74: "Provoked",
   75: "Row Protect", 76: "Target Protect", 77: "Follow-up Attack",
   78: "Rooted", 79: "Silenced", 80: "DMG Amp (by own HP)",
@@ -123,15 +135,62 @@ export const BUFF_TYPE_NAMES: Record<number, string> = {
   146: "Fixed DMG (% target max HP)", 147: "Fixed DMG (% target cur HP)",
   148: "AP Cost Adjust (skill 1)", 149: "AP Cost Adjust (skill 2)",
   150: "Buff Prevention (specific)", 151: "All Effect Prevention (specific)",
+  152: "Chain Attack (skill 1)", 153: "Chain Attack (skill 2)",
+  154: "Cooldown Adjust (skill 1)", 155: "Cooldown Adjust (skill 2)", 156: "Cooldown Adjust (all)",
 };
 
 const NOTE_EXPLANATIONS: Record<string, string> = {
   "Carries over": "Persists indefinitely and is not cleared between waves.",
   Instant: "Applied immediately and does not persist.",
   Renew: "Removes all existing stacks of this effect and replaces them with a new one.",
-  Single: "Only applied if no instance of this effect already exists.",
   Update: "Adds a new stack until the limit is reached; once at the limit, removes the oldest stack and adds a new one.",
 };
+
+const STACK_EXPLANATIONS: Record<string, string> = {
+  "No stack": "Not applied if the target already has this type of effect (from any source).",
+  Stacks: "Adds its value onto the existing effect of this type, up to the max. Only from active skills.",
+  "+duration": "Adds its rounds to the existing effect of this type instead of applying a new one. Only from active skills.",
+};
+
+const TYPE_EXPLANATIONS: Record<number, string> = {
+  69: "Removes every effect of this type, buff or debuff.",
+  126: "Lowers the chance that 'Remove Buff' and 'Remove All Buffs' succeed on this unit; other removal types aren't affected.",
+};
+
+// Hover on desktop, tap on touch; the popup wraps so long text stays on screen.
+function HelpBadge({ label, help, color = "yellow.300" }: { label: string; help?: string; color?: string }) {
+  const [open, setOpen] = useState(false);
+  const badge = (
+    <Box as="span" display="inline-flex" alignItems="center"
+      gap="3px" px="5px" py="1px" borderRadius="3px" bg="gray.700"
+      color={color} fontSize="11px" lineHeight="16px" cursor={help ? "help" : undefined}
+      onClick={help ? () => setOpen((v) => !v) : undefined}
+      onPointerEnter={help ? (e: React.PointerEvent) => { if (e.pointerType === "mouse") setOpen(true); } : undefined}
+      onPointerLeave={help ? (e: React.PointerEvent) => { if (e.pointerType === "mouse") setOpen(false); } : undefined}>
+      {label}
+      {help ? <Box as="span" opacity={0.6} fontSize="10px">?</Box> : null}
+    </Box>
+  );
+  if (!help) return badge;
+  return (
+    <Tooltip label={help} isOpen={open} placement="top" hasArrow maxW="240px"
+      px="8px" py="5px" borderRadius="md" bg="gray.900" color="gray.100"
+      fontSize="11px" lineHeight="1.4" borderWidth="1px" borderColor="whiteAlpha.200">
+      {badge}
+    </Tooltip>
+  );
+}
+
+// The event that spends a COUNT charge or ends a TRIGGER effect, in trigger wording.
+function eraseTriggerLabel(buff: SkillBuff): string {
+  if (buff.eraseTrigger == null) return "";
+  const raw = TRIGGER_LABELS[buff.eraseTrigger];
+  if (!raw) return "";
+  const nameId = buff.eraseTriggerName ?? "";
+  const keyName = (nameId && t(nameId) !== nameId ? buffName(t(nameId)) : "")
+    || (buff.eraseTriggerVal ?? "").replace(/^(Effect|Skill|Char|MOB)_[^_]+_/, "").replace(/_/g, " ");
+  return raw.replace("{0}", buff.eraseTriggerVal ?? "?").replace("{key}", keyName || "?");
+}
 
 const BODY_NAMES:  Record<number, string> = { 0: "Bioroid", 1: "AGS" };
 const CLASS_NAMES: Record<number, string> = { 0: "Light", 1: "Heavy", 2: "Air" };
@@ -149,6 +208,11 @@ function attrStyle(attr: number) {
 }
 
 // Name = everything up to the first colon that is not inside <...>.
+// Fallback name for an effect with no Name string; conditions and headers must agree on it.
+function effectDescName(key: string): string {
+  return buffName(tOrEmpty(`BuffDesc1_${key}`) || tOrEmpty(`BuffDesc2_${key}`) || "");
+}
+
 function buffName(s: string): string {
   let depth = 0;
   for (let i = 0; i < s.length; i++) {
@@ -170,10 +234,10 @@ function resolveCondVal(v: string, nam: string): string {
 }
 
 // filterVals: fallback ordinals for conditions that encode the type in filterClass/Role/Body.
-interface CondData { cond: number; vals: string[]; names: string[]; count: number; filterVals?: number[]; }
+interface CondData { cond: number; vals: string[]; names: string[]; count: number; counts?: number[]; filterVals?: number[]; }
 
-// KR has applyCond entries past the enum max; they all mean "no condition".
-const BETAC_MAX = 68;
+// The build folds the unset sentinel to 63; anything past the v2 list is unknown.
+const BETAC_MAX = 76;
 const normAc = (ac: number) => ac > BETAC_MAX ? 63 : ac;
 
 const primaryCond = (b: SkillBuff): CondData => {
@@ -183,14 +247,16 @@ const primaryCond = (b: SkillBuff): CondData => {
     (ac === 38 || ac === 45) && b.applyCondVals.length === 0 ? (b.filterClass ?? []) :
     (ac === 39 || ac === 46) && b.applyCondVals.length === 0 ? (b.filterRole  ?? []) :
     undefined;
-  return { cond: ac, vals: b.applyCondVals, names: b.applyCondNames, count: b.applyCondCount, filterVals };
+  return { cond: ac, vals: b.applyCondVals, names: b.applyCondNames, count: b.applyCondCount, counts: b.applyCondCounts, filterVals };
 };
 const secondaryCond = (b: SkillBuff): CondData | null =>
   b.applyCond2 != null && normAc(b.applyCond2) !== 63
-    ? { cond: normAc(b.applyCond2), vals: b.applyCondVals2 ?? [], names: b.applyCondNames2 ?? [], count: b.applyCondCount2 ?? 0 }
+    ? { cond: normAc(b.applyCond2), vals: b.applyCondVals2 ?? [], names: b.applyCondNames2 ?? [], count: b.applyCondCount2 ?? 0, counts: b.applyCondCounts2 }
     : null;
 
-function resolveApplyCondParts(c: CondData): { before: string; name: string; after: string } | null {
+interface CondParts { before: string; name: string; after: string; chars?: string[] }
+
+function resolveApplyCondParts(c: CondData): CondParts | null {
   const applyCondRaw = c.cond !== 63 ? APPLY_COND_LABELS[c.cond] : null;
   if (!applyCondRaw) return null;
   const tr = (id: string) => { const r = t(id); return r !== id ? r : ""; };
@@ -228,10 +294,13 @@ function resolveApplyCondParts(c: CondData): { before: string; name: string; aft
     // one condition can list several buffs/chars; dedup by display name
     const names = c.vals.map((val, i) => {
       const nm2 = c.names[i] ?? "";
-      const fromDesc = nameToken === "[buff]"
-        ? buffName(tOrEmpty(`BuffDesc1_${val}`) || tOrEmpty(`BuffDesc2_${val}`) || "")
-        : "";
-      const fromName = tKr(nm2) || tKr(`BuffName_${val}`);
+      const fromDesc = nameToken === "[buff]" ? effectDescName(val) : "";
+      const fromName = nameToken === "[char]"
+        ? tOrEmpty(`PCName_${val}`) || tOrEmpty(nm2)
+        : tOrEmpty(nm2) || tOrEmpty(`BuffName_${val}`);
+      if (nameToken === "[buff]" && !fromName && val.startsWith("Effect_") && c.vals.length <= 3) {
+        return fromDesc ? `${fromDesc} [${val}]` : val;
+      }
       const resolved = fromDesc || fromName
         || val.replace(/^Effect_[^_]+_/, "").replace(/^Char_[^_]+_/, "").replace(/_/g, " ");
       return buffName(resolved);
@@ -272,8 +341,12 @@ function resolveApplyCondParts(c: CondData): { before: string; name: string; aft
 
   let val0 = "";
   if (has0) {
-    if (c.count > 0) {
-      // conds 9/20/23/31 keep their {0} threshold in `count`, not in vals
+    if ((c.counts?.length ?? 0) > 1) {
+      // the client accepts any listed count
+      const lo = Math.min(...c.counts!), hi = Math.max(...c.counts!);
+      val0 = hi - lo + 1 === c.counts!.length ? `${lo}-${hi}` : c.counts!.join("/");
+    } else if (c.count > 0) {
+      // conds 9/20/23/31/38/39/45/46 keep their {0} threshold in `count`, not in vals
       val0 = String(c.count);
     } else if (nameToken && v && !v.match(/^\d/)) {
       // a token condition whose value is a key, with no count → drop the {0}.
@@ -300,7 +373,8 @@ function resolveApplyCondParts(c: CondData): { before: string; name: string; aft
     const idx = template.indexOf(nameToken);
     const before = template.slice(0, idx).replace(/\s{2,}/g, " ").trimStart();
     const after  = template.slice(idx + nameToken.length).replace(/\s{2,}/g, " ").trimEnd();
-    return { before, name: nameVal, after };
+    const chars = nameToken === "[char]" ? c.vals.filter((x, i) => x.startsWith("Char_") && c.vals.indexOf(x) === i) : [];
+    return chars.length ? { before, name: nameVal, after, chars } : { before, name: nameVal, after };
   }
   const label = template.replace(/\s{2,}/g, " ").trim();
   return label ? { before: label, name: "", after: "" } : null;
@@ -394,19 +468,11 @@ export function buffValue(buff: SkillBuff): { str: string; color: string } {
 }
 
 // Display names for remove-type buff targets, deduplicated and "/"-joined.
-const REMOVE_TYPES = new Set([88, 89, 97, 99, 100]);
+// Only type 97 names a specific effect (its value key); 69/88/89 name a type via `val`, 99/100 remove all.
 function resolveRemoveTargets(buff: SkillBuff): string {
-  if (!REMOVE_TYPES.has(buff.type)) return "";
-  const effectVals = buff.applyCondVals.filter((v) => v.startsWith("Effect_"));
-  if (effectVals.length === 0) return "";
-  const names = effectVals.map((v, i) => {
-    const nm = buff.applyCondNames[i] ?? "";
-    const resolved = (nm && t(nm) !== nm ? t(nm) : "") ||
-      v.replace(/^Effect_[^_]+_/, "").replace(/_/g, " ");
-    return buffName(resolved);
-  });
-  const uniq = (xs: string[]) => xs.filter((x, i) => x && xs.indexOf(x) === i);
-  return uniq(names).join(" / ");
+  if (buff.type !== 97 || !buff.removeKey) return "";
+  const nm = buff.removeName ?? "";
+  return buffName((nm && t(nm) !== nm ? t(nm) : "") || buff.removeKey.replace(/^Effect_[^_]+_/, "").replace(/_/g, " "));
 }
 
 // One buff effect line: icon, name, value, description and duration/stack notes.
@@ -424,20 +490,42 @@ export function BuffEffectRow({ buff, topBorder = false, extraCondNode }: { buff
       {buff.rate !== 1 ? <Box px="5px" py="1px" borderRadius="3px" bg="yellow.900" color="yellow.300" fontSize="11px" lineHeight="16px">{Math.round(buff.rate * 100)}%</Box> : null}
       {buff.icon ? <Image src={`/images/effects/BuffIcon_${buff.icon}.png`} boxSize="16px" alt={buff.icon} display="inline-block" /> : null}
       <Text as="span" fontSize="sm" fontWeight="bold" textDecoration="underline" color="gray.200">{BUFF_TYPE_NAMES[buff.type]}</Text>
+      {TYPE_EXPLANATIONS[buff.type] ? <HelpBadge label="?" help={TYPE_EXPLANATIONS[buff.type]} color="gray.300" /> : null}
       {removeTarget ? <Text as="span" fontSize="sm" color="orange.200">{removeTarget}</Text> : null}
       {valStr ? <Text as="span" fontSize="sm" fontWeight="bold" color={valColor}>{valStr}</Text> : null}
     </HStack>
   );
 
+  const eraseOn = eraseTriggerLabel(buff);
   let durStr = "";
+  let durHelp: string | undefined;
   if (buff.eraseType === 3 || buff.eraseType === 4) durStr = "Permanent";
   else if (buff.eraseType === 0 && buff.turns > 0) durStr = `${buff.turns} rounds`;
-  else if (buff.eraseType === 1) durStr = buff.turns > 1 ? `×${buff.turns}` : "×1";
+  else if (buff.eraseType === 5 && buff.turns > 0) {
+    durStr = `${buff.turns} turn${buff.turns === 1 ? "" : "s"}`;
+    durHelp = "Counts down on the holder's own turns.";
+  }
+  else if (buff.eraseType === 6) {
+    durStr = buff.turns > 0 ? `Aura · ${buff.turns} turn${buff.turns === 1 ? "" : "s"}` : "Aura";
+    durHelp = "Aura effect (client erase type AURA); its exact removal rule is not confirmed.";
+  }
+  else if (buff.eraseType === 1) {
+    const charges = Math.max(buff.turns, 1);
+    durStr = eraseOn ? `×${charges} · ${eraseOn}` : `×${charges}`;
+    durHelp = `Has ${charges} charge${charges > 1 ? "s" : ""}; one is used each time the named event happens.`;
+  } else if (buff.eraseType === 2 && eraseOn) {
+    durStr = `Until: ${eraseOn}`;
+    durHelp = "Removed the first time the named event happens.";
+  }
 
+  const instant = (buff.eraseType === 0 || buff.eraseType === 5) && buff.turns === 0;
   const stackStr = buff.eraseType === 2 ? ""
     : buff.overlapType === 4 && buff.overlapMax === 0 ? "Unlimited stacks"
     : buff.overlapType === 4 ? ` Max ${buff.overlapMax} stacks`
-    : buff.overlapType === 2 ? "+duration" : "";
+    : buff.overlapType === 3 ? (buff.overlapMax > 0 ? `Stacks (max ${buff.overlapMax})` : "Stacks")
+    : buff.overlapType === 2 ? "+duration"
+    : buff.overlapType === 0 && !instant ? "No stack" : "";
+  const stackHelp = STACK_EXPLANATIONS[stackStr.replace(/ \(max \d+\)$/, "")];
 
   const rawDesc = t(buff.desc);
   const filledDesc = descFill ? rawDesc.replace("{0}", descFill) : rawDesc;
@@ -445,9 +533,8 @@ export function BuffEffectRow({ buff, topBorder = false, extraCondNode }: { buff
 
   let noteStr = "";
   if (buff.eraseType === 4) noteStr = "Carries over";
-  else if (buff.eraseType === 0 && buff.turns === 0) noteStr = "Instant";
+  else if (instant) noteStr = "Instant";
   else if (buff.overlapType === 1) noteStr = "Renew";
-  else if (buff.overlapType === 3) noteStr = "Single";
   else if (buff.overlapType === 4 && buff.overlapMax !== 0) noteStr = "Update";
 
   return (
@@ -462,24 +549,9 @@ export function BuffEffectRow({ buff, topBorder = false, extraCondNode }: { buff
       </Box>
       <HStack spacing={1} flexShrink={0} mt="2px">
         <Box px="6px" py="1px" borderRadius="3px" bg={as.bg} color={as.fg} fontSize="11px" fontWeight="bold" lineHeight="16px">{as.label}</Box>
-        {durStr   ? <Box px="5px" py="1px" borderRadius="3px" bg="gray.700" color="gray.300" fontSize="11px" lineHeight="16px">{durStr}</Box>   : null}
-        {stackStr ? <Box px="5px" py="1px" borderRadius="3px" bg="gray.700" color="cyan.300"  fontSize="11px" lineHeight="16px">{stackStr}</Box> : null}
-        {noteStr ? (
-          <Box as="span" position="relative" display="inline-flex" alignItems="center"
-            gap="3px" px="5px" py="1px" borderRadius="3px" bg="gray.700"
-            color="yellow.300" fontSize="11px" lineHeight="16px" cursor="help" role="group">
-            {noteStr}
-            <Box as="span" opacity={0.6} fontSize="10px">?</Box>
-            <Box as="span" position="absolute" bottom="calc(100% + 4px)" right="0"
-              px="8px" py="5px" borderRadius="md" bg="gray.900" color="gray.100"
-              fontSize="11px" lineHeight="1.4" whiteSpace="nowrap"
-              pointerEvents="none" boxShadow="md" borderWidth="1px"
-              borderColor="whiteAlpha.200" display="none"
-              _groupHover={{ display: "block" }} zIndex={9999}>
-              {NOTE_EXPLANATIONS[noteStr]}
-            </Box>
-          </Box>
-        ) : null}
+        {durStr   ? <HelpBadge label={durStr} help={durHelp} color="gray.300" /> : null}
+        {stackStr ? <HelpBadge label={stackStr} help={stackHelp} color="cyan.300" /> : null}
+        {noteStr  ? <HelpBadge label={noteStr} help={NOTE_EXPLANATIONS[noteStr]} /> : null}
       </HStack>
       </Flex>
     </Box>
@@ -528,7 +600,7 @@ export function BuffCondTags({ rep, skipCond65 = false }: { rep: SkillBuff; skip
       {p1 ? (
         <Pill bg="teal.900" color="teal.200">
           {p1.before}
-          {p1.name ? <Box as="span" fontWeight="semibold" color="teal.100">{p1.name}</Box> : null}
+          <CondName p={p1} />
           {p1.after}
           {condAttrLabel ? <Box as="span" color="teal.400">{condAttrLabel}</Box> : null}
         </Pill>
@@ -541,7 +613,7 @@ export function BuffCondTags({ rep, skipCond65 = false }: { rep: SkillBuff; skip
       {p2 ? (
         <Pill bg="teal.900" color="teal.200">
           {p2.before}
-          {p2.name ? <Box as="span" fontWeight="semibold" color="teal.100">{p2.name}</Box> : null}
+          <CondName p={p2} />
           {p2.after}
         </Pill>
       ) : null}
@@ -605,8 +677,13 @@ function BuffGroup({ group, groupIdx }: { group: SkillBuff[]; groupIdx: number }
       <Box px={2} pt={1.5} pb={1} bg="blackAlpha.300" borderBottomWidth="1px" borderBottomColor="whiteAlpha.100">
         <Flex align="center" w="100%" mb={1}>
           <Text fontSize="sm" color="gray.100" fontWeight="bold" textDecoration="underline" flexShrink={1} minW={0}>
-            {groupName || "???"}
+            {groupName || (rep.effectKey && effectDescName(rep.effectKey)) || "Unnamed effect"}
           </Text>
+          {!rawName && rep.effectKey ? (
+            <Text as="span" ml={2} fontSize="xs" color="gray.500" fontFamily="mono" noOfLines={1} minW={0}>
+              {rep.effectKey}
+            </Text>
+          ) : null}
         </Flex>
         <Flex gap={1.5} flexWrap="wrap" align="center">
           {triggerLabel ? <Pill bg="purple.900" color="purple.200">{triggerLabel}</Pill> : null}
@@ -614,7 +691,7 @@ function BuffGroup({ group, groupIdx }: { group: SkillBuff[]; groupIdx: number }
           {applyCondParts ? (
             <Pill bg="teal.900" color="teal.200">
               {applyCondParts.before}
-              {applyCondParts.name ? <Box as="span" fontWeight="semibold" color="teal.100">{applyCondParts.name}</Box> : null}
+              <CondName p={applyCondParts} />
               {applyCondParts.after}
               {condAttrLabel ? <Box as="span" color="teal.400">{condAttrLabel}</Box> : null}
             </Pill>
@@ -627,7 +704,7 @@ function BuffGroup({ group, groupIdx }: { group: SkillBuff[]; groupIdx: number }
           {applyCondParts2 ? (
             <Pill bg="teal.900" color="teal.200">
               {applyCondParts2.before}
-              {applyCondParts2.name ? <Box as="span" fontWeight="semibold" color="teal.100">{applyCondParts2.name}</Box> : null}
+              <CondName p={applyCondParts2} />
               {applyCondParts2.after}
             </Pill>
           ) : null}
@@ -662,6 +739,9 @@ interface TieredCtx {
   sharedApplyCond: number | null;
 }
 
+// Trigger/target ordinal with no label: hides a tag that the shared header or a row already shows.
+const NO_LABEL = -1;
+
 function buildTieredCtx(allBuffs: SkillBuff[], skipCond: number): TieredCtx {
   if (allBuffs.length === 0)
     return { rep: null, sharedTrigger: false, sharedTarget: false, sharedApplyCond: null };
@@ -684,8 +764,8 @@ function buildTieredCtx(allBuffs: SkillBuff[], skipCond: number): TieredCtx {
 function tieredExtraCondNode(bf: SkillBuff, ctx: TieredCtx, skipCond: number): React.ReactNode | null {
   const synthetic: SkillBuff = {
     ...bf,
-    trigger:    ctx.sharedTrigger ? 12 : bf.trigger,
-    targetType: ctx.sharedTarget  ? 0  : bf.targetType,
+    trigger:    ctx.sharedTrigger ? NO_LABEL : bf.trigger,
+    targetType: ctx.sharedTarget  ? NO_LABEL : bf.targetType,
   };
   if (ctx.sharedApplyCond !== null) {
     if (synthetic.applyCond !== skipCond && synthetic.applyCond === ctx.sharedApplyCond)
@@ -734,8 +814,8 @@ function TieredBuffGroup({
           <Box mt={1}>
             <BuffCondTags
               rep={{ ...ctx.rep,
-                trigger:    ctx.sharedTrigger ? 12 : ctx.rep.trigger,
-                targetType: ctx.sharedTarget  ? 0  : ctx.rep.targetType,
+                trigger:    ctx.sharedTrigger ? ctx.rep.trigger    : NO_LABEL,
+                targetType: ctx.sharedTarget  ? ctx.rep.targetType : NO_LABEL,
               }}
               skipCond65
             />
@@ -771,22 +851,33 @@ const shortKey = (k: string) =>
 
 // Inline so the reference sits inside the requirement sentence, not on its own line.
 function CharSetName({ vals }: { vals: string[] }) {
+  const units = useAppSelector(selectUnits);
   return (
     <>
       {vals.map((v, i) => {
-        const label = (() => { const r = t(`PCName_${v}`); return r !== `PCName_${v}` ? r : shortKey(v); })();
+        const unit = units[v];
+        const label = unit ? unitDisplayName(unit) : (tOrEmpty(`PCName_${v}`) || shortKey(v));
         return (
           <React.Fragment key={v}>
             {i > 0 && <Box as="span" color="gray.400"> / </Box>}
             <UnitHoverCard unitId={v} inline>
-              <Box as="span" color="accent.100" fontWeight="semibold" cursor="pointer"
-                textDecoration='underline'>{label}</Box>
+              {unit ? (
+                <Box as={NextLink} href={`/units/detail?id=${encodeURIComponent(v)}`}
+                  color="accent.100" fontWeight="semibold" textDecoration="underline">{label}</Box>
+              ) : (
+                <Box as="span" color="accent.100" fontWeight="semibold">{label}</Box>
+              )}
             </UnitHoverCard>
           </React.Fragment>
         );
       })}
     </>
   );
+}
+
+function CondName({ p }: { p: CondParts }) {
+  if (p.chars?.length) return <CharSetName vals={p.chars} />;
+  return p.name ? <Box as="span" fontWeight="semibold" color="teal.100">{p.name}</Box> : null;
 }
 
 // ── cond65: "N of <char set> in battle" ──────────────────────────────────────
@@ -851,7 +942,8 @@ function Cond64Group({
   const allBuffs = slots.flatMap((si) => tiers.get(si)!.flat());
   const ctx = buildTieredCtx(allBuffs, COND64);
 
-  const headerTags = TRIGGER_LABELS[rep.trigger] ? (
+  const dupTrigger = ctx.rep !== null && ctx.sharedTrigger && ctx.rep.trigger === rep.trigger;
+  const headerTags = TRIGGER_LABELS[rep.trigger] && !dupTrigger ? (
     <Flex gap={1.5} flexWrap="wrap">
       <Pill bg="purple.900" color="purple.200">{TRIGGER_LABELS[rep.trigger]}</Pill>
     </Flex>

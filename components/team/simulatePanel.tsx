@@ -18,7 +18,8 @@ import { useTranslationVersion } from '@/lib/translationVersion';
 import { unitDisplayName } from '@/lib/rank';
 import { BUFF_TYPE_NAMES, TRIGGER_LABELS, buffValue } from '@/components/buffList';
 import { buildSimInputs, buildEnemySimInputs, isEnemyWaveCell } from '@/lib/simInputs';
-import { simulateRound1, NoteKind, AppliedBuff, SimUnitResult } from '@/lib/simulate';
+import { simulateRound1, NoteKind, AppliedBuff, SimUnitResult, Side } from '@/lib/simulate';
+import { selectCombatVersion } from '@/store/combatSlice';
 
 // Round-1 simulation output: in-battle stats, applied buffs, action order, and the
 // review list of effects that were not auto-applied.
@@ -32,6 +33,8 @@ const STAT_ROWS: [StatKey, string, string][] = [
 const NOTE_META: Record<NoteKind, { label: string; color: string; blurb: string }> = {
   'enemy-target': { label: 'Enemy-side', color: 'gray',
     blurb: 'Targets a single enemy (victim unknown pre-combat) or an enemy side that is not simulated.' },
+  'ally-target': { label: 'Single ally', color: 'teal',
+    blurb: 'Targets one ally chosen in battle (the trigger or skill target), so it is not applied here.' },
   event: { label: 'Mid-battle', color: 'purple',
     blurb: 'Fires on an in-battle event (attack, hit, kill…), after the round-1 snapshot.' },
   'enemy-cond': { label: 'Enemy condition', color: 'orange',
@@ -96,6 +99,8 @@ function durationLabel(a: AppliedBuff): string {
   const { buff } = a;
   if (buff.eraseType === 3 || buff.eraseType === 4) return 'Permanent';
   if (buff.eraseType === 0) return buff.turns > 0 ? `${buff.turns} round${buff.turns === 1 ? '' : 's'}` : 'Instant';
+  if (buff.eraseType === 5) return buff.turns > 0 ? `${buff.turns} turn${buff.turns === 1 ? '' : 's'}` : 'Instant';
+  if (buff.eraseType === 6) return 'Aura';
   if (buff.eraseType === 1) return `${buff.turns || 1} use${(buff.turns || 1) === 1 ? '' : 's'}`;
   if (buff.eraseType === 2) return 'Until triggered';
   return '—';
@@ -158,6 +163,7 @@ export default function SimulatePanel({ team, enemyWave }: {
   const enemyList = useAppSelector(selectEnemy);
   const imagelink = useAppSelector(selectImage);
   const state = useAppSelector((s: RootState) => s);
+  const combatVersion = useAppSelector(selectCombatVersion);
   const hasWave = !!enemyWave?.some(isEnemyWaveCell);
 
   // enemy names/portraits for the wave cards
@@ -175,10 +181,10 @@ export default function SimulatePanel({ team, enemyWave }: {
 
   const result = useMemo(
     () => (missing.length === 0 && inputs.length > 0 && enemyMissing.length === 0
-      ? simulateRound1(inputs, enemyBuild?.inputs ?? [])
+      ? simulateRound1(inputs, enemyBuild?.inputs ?? [], combatVersion)
       : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [inputs, missing.length, enemyBuild],
+    [inputs, missing.length, enemyBuild, combatVersion],
   );
 
   if (team.every((s) => !s)) {
@@ -214,6 +220,46 @@ export default function SimulatePanel({ team, enemyWave }: {
   const unitOf = (tile: number) => units[team[tile]!.unitId];
   const enemyLvOf = (tile: number) => enemyBuild?.inputs.find((i) => i.tile === tile)?.lv;
   const hasEnemies = result.enemyUnits.length > 0;
+  const v2 = result.version === 2;
+  const apText = (ap: number) => (v2 ? `AP ${ap.toLocaleString()}%` : `AP ${ap}`);
+
+  const actorChip = (side: Side, tile: number, border: string, caption: string, title?: string) => {
+    const r = byKey.get(side * 9 + tile)!;
+    const isEnemy = side === 1;
+    const u = isEnemy ? undefined : unitOf(tile);
+    const rec = isEnemy ? enemyList[r.unitId] : undefined;
+    const img = isEnemy
+      ? (rec ? imagelink[rec.img] : undefined)
+      : (u?.icon ? `/images/icons/${u.icon}.png` : undefined);
+    const name = isEnemy ? (rec ? t(rec.name) : r.unitId) : (u ? unitDisplayName(u) : '');
+    const chip = (
+      <VStack spacing={1} w="68px" flexShrink={0}>
+        {img ? (
+          <Image src={img} alt={name}
+            boxSize="48px" borderRadius="lg" objectFit="cover" borderWidth="2px"
+            borderColor={isEnemy ? 'red.500' : border} />
+        ) : null}
+        <Text fontSize="2xs" fontWeight="600" noOfLines={1} maxW="68px"
+          color={isEnemy ? 'red.200' : undefined}>
+          {name}
+        </Text>
+        <Text fontSize="xs" color={border === 'accent.400' ? 'cyan.300' : 'gray.400'} fontWeight="700" title={title}>
+          {caption}
+        </Text>
+      </VStack>
+    );
+    return isEnemy ? (
+      <Box as="button" type="button"
+        onClick={() => dispatch(setActive([r.unitId, enemyLvOf(tile) ?? 1]))}
+        _hover={{ opacity: 0.8 }}>
+        {chip}
+      </Box>
+    ) : (
+      <Box as={NextLink} href={`/units/detail?id=${encodeURIComponent(r.unitId)}`} _hover={{ opacity: 0.8 }}>
+        {chip}
+      </Box>
+    );
+  };
 
   return (
     <VStack align="stretch" spacing={4}>
@@ -245,7 +291,7 @@ export default function SimulatePanel({ team, enemyWave }: {
                 <Flex align="center" justify="space-between" gap={2} mb={2}>
                   <UnitChip unit={u} />
                   <HStack spacing={1}>
-                    <Badge colorScheme="accent">AP {r.ap}</Badge>
+                    <Badge colorScheme="accent">{apText(r.ap)}</Badge>
                     <Badge colorScheme="teal">tile {r.tile + 1}</Badge>
                   </HStack>
                 </Flex>
@@ -282,7 +328,7 @@ export default function SimulatePanel({ team, enemyWave }: {
                 <Flex align="center" justify="space-between" gap={2} mb={2}>
                   <EnemyChip id={r.unitId} lv={enemyLvOf(r.tile)} />
                   <HStack spacing={1}>
-                    <Badge colorScheme="accent">AP {r.ap}</Badge>
+                    <Badge colorScheme="accent">{apText(r.ap)}</Badge>
                     <Badge colorScheme="red">tile {r.tile + 1}</Badge>
                   </HStack>
                 </Flex>
@@ -308,6 +354,7 @@ export default function SimulatePanel({ team, enemyWave }: {
       ) : null}
 
       {/* AP timeline — like the in-game bar, the rightmost unit acts first. */}
+      {!v2 ? (
       <Box borderWidth="1px" borderColor="surface.border" borderRadius="xl" bg="surface.elevated" p={4}>
         <Heading size="xs" mb={1}>First Action Timeline <Text as="span" fontSize="2xs" color="gray.500" fontWeight="normal">
           first combat round starts at cycle {result.firstCycle}; rightmost acts first
@@ -328,42 +375,11 @@ export default function SimulatePanel({ team, enemyWave }: {
                 <HStack spacing={2} align="end">
                   {[...group.entries].reverse().map((entry) => {
                     const r = byKey.get(entry.side * 9 + entry.tile)!;
-                    const isEnemy = entry.side === 1;
-                    const u = isEnemy ? undefined : unitOf(entry.tile);
-                    const rec = isEnemy ? enemyList[r.unitId] : undefined;
-                    const img = isEnemy
-                      ? (rec ? imagelink[rec.img] : undefined)
-                      : (u?.icon ? `/images/icons/${u.icon}.png` : undefined);
-                    const name = isEnemy ? (rec ? t(rec.name) : r.unitId) : (u ? unitDisplayName(u) : '');
-                    const chip = (
-                      <VStack spacing={1} w="68px" flexShrink={0}>
-                        {img ? (
-                          <Image src={img} alt={name}
-                            boxSize="48px" borderRadius="lg" objectFit="cover" borderWidth="2px"
-                            borderColor={isEnemy ? 'red.500'
-                              : group.round === 1 ? 'accent.400' : 'surface.border'} />
-                        ) : null}
-                        <Text fontSize="2xs" fontWeight="600" noOfLines={1} maxW="68px"
-                          color={isEnemy ? 'red.200' : undefined}>
-                          {name}
-                        </Text>
-                        <Text fontSize="xs" color={group.round === 1 ? 'cyan.300' : 'gray.400'} fontWeight="700"
-                          title={group.round === 1 ? undefined : `Projected ${r.readyAp} AP when ready`}>
-                          {r.ap.toLocaleString()} AP
-                        </Text>
-                      </VStack>
-                    );
-                    return isEnemy ? (
-                      <Box as="button" type="button" key={`${entry.side}-${entry.tile}`}
-                        onClick={() => dispatch(setActive([r.unitId, enemyLvOf(entry.tile) ?? 1]))}
-                        _hover={{ opacity: 0.8 }}>
-                        {chip}
-                      </Box>
-                    ) : (
-                      <Box as={NextLink} key={`${entry.side}-${entry.tile}`}
-                        href={`/units/detail?id=${encodeURIComponent(r.unitId)}`}
-                        _hover={{ opacity: 0.8 }}>
-                        {chip}
+                    return (
+                      <Box key={`${entry.side}-${entry.tile}`}>
+                        {actorChip(entry.side, entry.tile, group.round === 1 ? 'accent.400' : 'surface.border',
+                          `${r.ap.toLocaleString()} AP`,
+                          group.round === 1 ? undefined : `Projected ${r.readyAp} AP when ready`)}
                       </Box>
                     );
                   })}
@@ -373,6 +389,29 @@ export default function SimulatePanel({ team, enemyWave }: {
           </HStack>
         </Box>
       </Box>
+      ) : (
+      <Box borderWidth="1px" borderColor="surface.border" borderRadius="xl" bg="surface.elevated" p={4}>
+        <Heading size="xs" mb={1}>Turn Order <Text as="span" fontSize="2xs" color="gray.500" fontWeight="normal">
+          estimated; leftmost acts first
+        </Text></Heading>
+        <Text fontSize="2xs" color="gray.500" mb={3}>
+          Combat v2 (KR preview), following the developers&apos; battle sandbox: SPD fills a 0–100 action
+          gauge at a constant rate, the unit that reaches 100 acts and drops back to 0, and AP effects
+          add gauge points. Own-turn-start AP is assumed to carry into the next turn (unverified).
+          Cooldowns, chain attacks and speed changes during battle are not simulated.
+        </Text>
+        <Box overflowX="auto">
+          <HStack spacing={2} minW="max-content" py={1} align="end">
+            {result.turns.map((x, i) => (
+              <Box key={i}>
+                {actorChip(x.side, x.tile, x.turn === 1 ? 'accent.400' : 'surface.border',
+                  `#${i + 1} · T${x.turn}`, `Gauge time ${x.time}`)}
+              </Box>
+            ))}
+          </HStack>
+        </Box>
+      </Box>
+      )}
 
       {/* per-unit battle stats + buffs */}
       <Box borderWidth="1px" borderColor="surface.border" borderRadius="xl" bg="surface.elevated" p={4}>
@@ -392,7 +431,7 @@ export default function SimulatePanel({ team, enemyWave }: {
                     <HStack spacing={2} fontSize="2xs" color="gray.400">
                       <Text>ATK {r.battle.ATK.toLocaleString()}{r.delta.ATK ? <Text as="span" color="accent.300"> ({r.delta.ATK > 0 ? '+' : ''}{r.delta.ATK.toLocaleString()})</Text> : null}</Text>
                       <Text>SPD {r.spd}</Text>
-                      <Text>AP {r.ap}</Text>
+                      <Text>{apText(r.ap)}</Text>
                       <Badge colorScheme="teal" fontSize="2xs">
                         {effectGroups.length} effect type{effectGroups.length === 1 ? '' : 's'}
                       </Badge>

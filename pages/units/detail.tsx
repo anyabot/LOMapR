@@ -42,8 +42,8 @@ import { NPCS, NpcEntry } from '@/lib/npcs';
 import { getGame, tokens } from '@altterisk/game-hub';
 import type { UnitVoice } from '@/interfaces/voice';
 import {
-  DUB_OPTIONS, clipId, dubFor, entryDubs, entryForSkin, playClip, setPreferredDub, stopVoice, touchLine,
-  useNowPlaying, usePreferredDub, useUnitVoice, type TouchMemory,
+  AFFECTION_TIERS, DUB_OPTIONS, OATH_TIER, TOUCH_LOCK_MS, clipId, dubFor, entryDubs, entryForSkin, oathEntryForSkin,
+  playClip, setPreferredDub, stopVoice, touchLine, useNowPlaying, usePreferredDub, useUnitVoice,
 } from '@/lib/voice';
 import { ControlRow, ControlSection, SegmentedControl, ToggleRow } from '@altterisk/game-hub/viewer';
 
@@ -140,10 +140,11 @@ function scaleSkill(skill: Skill, skillLv: number, spAdd: number, buffLv: number
   const rate = skill.rate + (skill.rateGain ?? 0) * (lv - 1) + spAdd;
 
   // apply the last levelChange whose level <= lv (AP / AoE shift).
-  let AP = skill.AP, area = skill.area, center = skill.center;
+  let AP = skill.AP, cooldown = skill.cooldown, area = skill.area, center = skill.center;
   for (const c of skill.levelChanges ?? []) {
     if (c.level > lv) break;
     if (c.ap != null) AP = c.ap;
+    if (c.cd != null) cooldown = c.cd;
     if (c.area) { area = c.area; center = c.center ?? center; }
   }
 
@@ -156,7 +157,7 @@ function scaleSkill(skill: Skill, skillLv: number, spAdd: number, buffLv: number
     return { ...b, val, vals: undefined };
   });
 
-  return { ...skill, rate: Math.round(rate * 10000) / 10000, AP, area, center, buffs };
+  return { ...skill, rate: Math.round(rate * 10000) / 10000, AP, cooldown, area, center, buffs };
 }
 
 export default function UnitDetail() {
@@ -927,25 +928,32 @@ function SkinTab({ unit, voice }: { unit: FullUnitData; voice: UnitVoice | null 
   const skin = skins[idx];
 
   const preferredDub = usePreferredDub();
-  const entry = skin ? entryForSkin(voice, skin.key) : null;
-  const dub = dubFor(entry, preferredDub);
-  const tierCount = entry?.tiers?.length ?? 0;
-  const touchVoiced = !!dub && !!(entry?.tiers?.some((l) => l.length) || entry?.special?.some((l) => l.length));
-  const [voiceOn, setVoiceOn] = useState(true);
   const [tier, setTier] = useState('1');
-  const memoryRef = useRef<TouchMemory>({ special: 0 });
+  const normalEntry = skin ? entryForSkin(voice, skin.key) : null;
+  const oathEntry = skin ? oathEntryForSkin(voice, skin.key) : null;
+  const oathMode = tier === OATH_TIER && !!oathEntry;
+  const entry = oathMode ? oathEntry : normalEntry;
+  const dub = dubFor(entry, preferredDub);
+  const voiced = (e: typeof entry) => !!(e?.tiers?.some((l) => l.length) || e?.special?.some((l) => l.length));
+  const touchVoiced = !!dub && voiced(entry);
+  const tierOptions = [...AFFECTION_TIERS, ...(voiced(oathEntry) ? [{ value: OATH_TIER, label: 'Oath' }] : [])];
+  const [voiceOn, setVoiceOn] = useState(true);
+  const [married, setMarried] = useState(false);
+  const lastTouchRef = useRef(0);
   const [subtitle, setSubtitle] = useState<{ id: string; text: string } | null>(null);
   const nowPlaying = useNowPlaying();
   useEffect(() => {
-    memoryRef.current = { special: 0 };
     setSubtitle(null);
     stopVoice();
   }, [idx]);
   useEffect(() => () => stopVoice(), []);
   const onTouch = (zone: string) => {
     if (!voiceOn || !entry || !dub) return;
-    const line = touchLine(entry, zone, Number(tier), memoryRef.current);
+    const now = Date.now();
+    if (now - lastTouchRef.current < TOUCH_LOCK_MS) return;
+    const line = touchLine(entry, zone, oathMode ? 1 : Number(tier), married && !oathMode);
     if (!line) return;
+    lastTouchRef.current = now;
     const text = t(line[0]);
     setSubtitle({ id: clipId(dub, line[1]), text: text && text !== line[0] ? text.replace(/&n/g, '\n') : '' });
     void playClip(entry, dub, line[1]);
@@ -962,7 +970,8 @@ function SkinTab({ unit, voice }: { unit: FullUnitData; voice: UnitVoice | null 
   // Both engines take the bare asset name: skinned variants are handled by Unity,
   // fixed/spine variants are embedded in the single archive.
   const isSkinnedBase = skin.viewerKind === 'skinned' && !(showDam && hasDam);
-  const archiveKey = asset;
+  const diverged = showDam && hasDam ? (skin as any).modelDamDiverged : (skin as any).modelDiverged;
+  const archiveKey = diverged ? `${asset}__${region}` : asset;
   const effectiveViewerKind = isSkinnedBase ? 'skinned' : skin.viewerKind === 'skinned' ? undefined : skin.viewerKind;
 
   return (
@@ -1083,7 +1092,7 @@ function SkinTab({ unit, voice }: { unit: FullUnitData; voice: UnitVoice | null 
                 <Text fontSize="sm" whiteSpace="pre-wrap" textAlign="center">{subtitle.text}</Text>
               </Box>
             ) : null}
-            extraPanel={touchVoiced ? (
+            extraPanel={voiced(normalEntry) || voiced(oathEntry) ? (
               <ControlSection title="Voice">
                 <ToggleRow label="On touch" value={voiceOn}
                   onChange={(on) => { setVoiceOn(on); if (!on) stopVoice(); }} />
@@ -1094,11 +1103,12 @@ function SkinTab({ unit, voice }: { unit: FullUnitData; voice: UnitVoice | null 
                       onChange={(d) => { stopVoice(); setPreferredDub(d); }} />
                   </ControlRow>
                 )}
-                {tierCount > 1 && (
-                  <ControlRow label="Affection tier">
-                    <SegmentedControl value={tier} ariaLabel="Affection tier" onChange={setTier}
-                      options={Array.from({ length: tierCount }, (_, i) => ({ value: String(i + 1), label: String(i + 1) }))} />
-                  </ControlRow>
+                <ControlRow label="Affection">
+                  <SegmentedControl value={tier} ariaLabel="Affection" onChange={(v) => { stopVoice(); setTier(v); }}
+                    options={tierOptions} />
+                </ControlRow>
+                {!oathMode && (normalEntry?.oath?.length ?? 0) > 0 && (
+                  <ToggleRow label="Married" value={married} onChange={setMarried} />
                 )}
               </ControlSection>
             ) : null}

@@ -200,10 +200,11 @@ export function scaleSkillLevel(skill: Skill, skillLv: number, spAdd: number, bu
   const lv = Math.min(Math.max(skillLv, 1), 10);
   const rate = skill.rate + (skill.rateGain ?? 0) * (lv - 1) + spAdd;
 
-  let AP = skill.AP, area = skill.area, center = skill.center;
+  let AP = skill.AP, cooldown = skill.cooldown, area = skill.area, center = skill.center;
   for (const c of skill.levelChanges ?? []) {
     if (c.level > lv) break;
     if (c.ap != null) AP = c.ap;
+    if (c.cd != null) cooldown = c.cd;
     if (c.area) { area = c.area; center = c.center ?? center; }
   }
 
@@ -215,7 +216,7 @@ export function scaleSkillLevel(skill: Skill, skillLv: number, spAdd: number, bu
     return { ...b, val, vals: undefined };
   });
 
-  return { ...skill, rate: Math.round(rate * 10000) / 10000, AP, area, center, buffs };
+  return { ...skill, rate: Math.round(rate * 10000) / 10000, AP, cooldown, area, center, buffs };
 }
 
 // full-link helpers (template-detected, like the unit detail page)

@@ -51,6 +51,7 @@ const ETC_LINKS = [
   ["/gacha", "Gacha Simulator"],
   ["/team", "Team Builder"],
   ["/misc", "Misc Categories"],
+  ["/exchange", "Exchange"],
 ] as const;
 
 export function EtcMenu() {

@@ -24,6 +24,7 @@ const CASES: PageCase[] = [
   { path: '/world',        title: 'World List' },
   { path: '/story',        title: 'Story',                  heading: 'Story' },
   { path: '/iw',           title: 'Infinite War' },
+  { path: '/exchange',     title: 'Exchange',               heading: 'Exchange' },
   // detail pages without params fall back to their list/empty state
   { path: '/units/detail', title: /./,                      text: 'Unit not found.' },
   { path: '/world/detail', title: 'Zone List' },
@@ -86,4 +87,5 @@ test('Etc navigation groups secondary tools', async ({ page }) => {
   await expect(page.getByRole('menuitem', { name: 'Gacha Simulator', exact: true })).toHaveAttribute('href', '/gacha');
   await expect(page.getByRole('menuitem', { name: 'Team Builder', exact: true })).toHaveAttribute('href', '/team');
   await expect(page.getByRole('menuitem', { name: 'Misc Categories', exact: true })).toHaveAttribute('href', '/misc');
+  await expect(page.getByRole('menuitem', { name: 'Exchange', exact: true })).toHaveAttribute('href', '/exchange');
 });

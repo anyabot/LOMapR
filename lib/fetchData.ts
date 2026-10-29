@@ -4,6 +4,7 @@ import { createJsonLoader } from '@altterisk/game-hub/data';
 import PUBLIC_IMAGES from './publicImages.json';
 import type { UnitVoice } from '@/interfaces/voice';
 import type { CharStoryIndex, StoryIndex, StoryZoneText } from '@/interfaces/story';
+import type { EventExchange, GeneralExchange } from '@/interfaces/world';
 
 // The key layout maps 1:1 to data/<key>, so local mode only swaps the base URL.
 const LOCAL = process.env.NEXT_PUBLIC_DATA_SOURCE === 'local';
@@ -141,6 +142,14 @@ export async function fetchUnitVoice(region: Region, unitId: string): Promise<Un
   return getWithFallback(region, `split/voice/${unitId}.json`);
 }
 
+export async function fetchExchange(region: Region, world: string): Promise<EventExchange | null> {
+  return getWithFallback(region, `split/exchange/${world}.json`);
+}
+
+export async function fetchGeneralExchange(region: Region): Promise<GeneralExchange | null> {
+  return getWithFallback(region, 'exchange.json');
+}
+
 export async function fetchStoryIndex(region: Region): Promise<StoryIndex | null> {
   return getWithFallback(region, 'split/story/index.json');
 }
@@ -207,6 +216,10 @@ export async function fetchSplitSkills(ref: string | undefined, region: Region) 
 
 export async function fetchSplitAI(ref: string | undefined, region: Region) {
   return ref ? getWithFallback(region, `split/ai/${ref}.json`) : null;
+}
+
+export async function fetchCombat(region: Region): Promise<{ version: number } | null> {
+  return getWithFallback(region, 'combat.json');
 }
 
 // ── units (playable characters) ───────────────────────────────────────────────

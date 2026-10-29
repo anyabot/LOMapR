@@ -199,27 +199,28 @@ export async function playClip(entry: VoiceEntry, dub: Dub, clip: string): Promi
   }
 }
 
-// ── touch: pick the line a lobby touch would say ─────────────────────────────
-export interface TouchMemory { last?: string; special: number }
+// ── touch: Common.GetLobbyScriptInfo / GetLobbyScriptSpInfo in the client ──
+// Affection < 40, 40–69, 70–99, 100+ pick tiers 1–4; special touch uses set 1 below 100 and set 2 from 100.
+export const AFFECTION_TIERS: { value: string; label: string }[] = [
+  { value: '1', label: '<40' },
+  { value: '2', label: '40–69' },
+  { value: '3', label: '70–99' },
+  { value: '4', label: '100+' },
+];
+export const OATH_TIER = 'oath';
+// The client ignores taps until InvokeVoice clears its talk flag 1 s after a line starts.
+export const TOUCH_LOCK_MS = 1000;
 
-function pick(lines: VoiceLine[], memory: TouchMemory): VoiceLine | null {
-  if (!lines.length) return null;
-  const pool = lines.length > 1 ? lines.filter((l) => l[1] !== memory.last) : lines;
-  const line = pool[Math.floor(Math.random() * pool.length)];
-  memory.last = line[1];
-  return line;
+export function oathEntryForSkin(voice: UnitVoice | null, skinKey: string): VoiceEntry | null {
+  return voice?.entries.find((e) => e.marriage && e.oathFor?.includes(skinKey)) ?? null;
 }
 
-export function touchLine(entry: VoiceEntry, zone: string, tier: number, memory: TouchMemory): VoiceLine | null {
-  if (zone === 'body') {
-    const tiers = entry.tiers ?? [];
-    for (let t = Math.min(tier, tiers.length) - 1; t >= 0; t -= 1) if (tiers[t]?.length) return pick(tiers[t], memory);
-    return pick(tiers.find((t) => t.length) ?? [], memory);
-  }
-  const sets = (entry.special ?? []).filter((s) => s.length);
-  if (!sets.length) return null;
-  if (zone === 'special2' && (entry.special?.[1]?.length ?? 0) > 0) return pick(entry.special![1], memory);
-  const set = sets[memory.special % sets.length];
-  memory.special += 1;
-  return pick(set, memory);
+// `tier` 1–4 for an affection band; a married unit set to its marriage lines passes its oath entry with tier 1.
+// A married unit on an affection band also draws body lines from the row's LobbyScriptMarriage.
+export function touchLine(entry: VoiceEntry, zone: string, tier: number, married = false): VoiceLine | null {
+  const lines = zone === 'body'
+    ? [...(entry.tiers?.[tier - 1] ?? []), ...(married ? entry.oath ?? [] : [])]
+    : entry.special?.[tier >= 4 ? 1 : 0];
+  if (!lines?.length) return null;
+  return lines[Math.floor(Math.random() * lines.length)];
 }
