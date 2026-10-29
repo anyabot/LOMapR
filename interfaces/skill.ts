@@ -15,6 +15,7 @@ export interface SkillBuff {
   applyCondAttrs: number[]; // per-entry attr of the referenced effect (-1=unknown); uses BUFF_ATTR_TYPE
   applyCondCount: number; // BETV_Sub[0]: threshold for count-of-buff conds (e.g. applyCond 20 = have >= N of applyCondVals); 0 if n/a
   applyCondSubs?: number[]; // cond 64 only: per-entry apply chances (parallel to applyCondVals)
+  applyCondCounts?: number[]; // full BETV_Sub when it lists more than one count
   condAttr: number;    // BETBAT: attr type constraint (BUFF_ATTR_TYPE: 0=Buff,1=Debuff,3=Etc,6=Any)
   // optional SECOND apply-condition, AND-combined with the first
   applyCond2?: number;
@@ -22,6 +23,7 @@ export interface SkillBuff {
   applyCondNames2?: string[];
   applyCondAttrs2?: number[];
   applyCondCount2?: number;
+  applyCondCounts2?: number[];
   condAttr2?: number;
   turns: number;   // 0 = instant/no duration
   rate: number;    // application chance multiplier (normally 0..1; can exceed 1)
@@ -32,7 +34,11 @@ export interface SkillBuff {
   desc: string;    // loc ID for per-effect description (resolve with t())
   type: number;    // BUFFEFFECT_TYPE ordinal
   eraseType: number;   // BUFFEFFECT_ERASE_TYPE (0=ROUND,1=COUNT,2=TRIGGER,3=PERMANENT,4=PRESERVE)
-  eraseVal: number;    // erase threshold (e.g. trigger count for COUNT type)
+  eraseTrigger?: number;     // COUNT/TRIGGER: the BUFFEFFECT_TRIGGER_TYPE that spends a charge / ends it
+  eraseTriggerVal?: string;
+  eraseTriggerName?: string; // loc id when eraseTriggerVal is a key
+  removeKey?: string;        // type 97: the effect key it removes
+  removeName?: string;
   overlapType: number; // BUFF_OVERLAP_TYPE (0=NONE,1=RENEW,2=ADDTURN,3=OVERLAP,4=UPDATE)
   overlapMax: number;  // max stacks when overlapType=OVERLAP (0=unlimited)
   filterBody: number[];  // AABT: body types this applies to (0=Bioroid,1=AGS); empty=all
@@ -47,6 +53,8 @@ export interface Skill {
   img: string;
   range: number;
   AP: number;
+  // combat v2 only: own turns before the skill can be used again
+  cooldown?: number;
   // 9-cell damage-rate grid (row-major); 0 = not hit, >0 = that cell's multiplier
   area: number[];
   center: number;
@@ -69,6 +77,7 @@ export interface Skill {
 export interface SkillLevelChange {
   level: number;
   ap?: number;          // new NeedActionPoint at this level
+  cd?: number;          // new cooldown at this level
   area?: number[];      // new 9-cell AoE grid
   center?: number;      // new AoE center cell
   turns?: number[];     // new per-slot buff durations

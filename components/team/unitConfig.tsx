@@ -593,6 +593,7 @@ export default function UnitConfig({ tile, slot, unit, team, enemyWave, onChange
                           {scaled.type}
                         </Badge>
                         {scaled.type === 'active' ? <Badge fontSize="2xs">AP {scaled.AP}</Badge> : null}
+                        {scaled.cooldown ? <Badge colorScheme="orange" fontSize="2xs">CD {scaled.cooldown}</Badge> : null}
                         {locked ? (
                           <Badge colorScheme="orange" fontSize="2xs">Unlocks at {rankTag(requiredRank)}</Badge>
                         ) : null}

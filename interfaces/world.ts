@@ -113,5 +113,32 @@ export interface World {
   img: string;         // square icon key
   banner?: string;     // wide banner key (permanent events only)
   type: string;        // 'story' | 'current' | 'permanent' | 'past' | 'sanctum' | ...
+  desc?: string;       // event tagline (loc id)
+  end?: string;        // current event's end day, "YYYY/MM/DD"
+  exchange?: boolean;  // split/exchange/<id>.json exists
   zones: Zone[];
+}
+
+export interface ExchangeCost {
+  item: string;
+  count: number;
+}
+
+export interface ExchangeProduct {
+  item: string;
+  cost: ExchangeCost[];
+  limit?: number;             // purchases allowed; absent = unlimited
+  reset?: 'day' | 'month';
+  start?: string;
+  end?: string;
+  skin?: { unit: string; icon: string };
+  sell?: string;              // item the skin sells back for
+}
+
+export interface GeneralExchange {
+  tabs: { id: string; items: ExchangeProduct[] }[];
+}
+
+export interface EventExchange {
+  shops: { currency: string; items: ExchangeProduct[] }[];
 }

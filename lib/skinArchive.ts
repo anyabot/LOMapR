@@ -17,7 +17,7 @@ export function loadSkinArchive(skin: string): Promise<ArchiveFiles> {
 
 // Reads spine.json/layout.json to discover filenames, then builds the same Map.
 async function loadLocalSkinDir(skin: string): Promise<ArchiveFiles> {
-  const base = `/skin_test/${skin}`;
+  const base = `/skin_test/${skin.replace(/__(global|kr)$/, '/$1')}`;
   const files: ArchiveFiles = new Map();
   let meta: any = null;
   for (const name of ['spine.json', 'layout.json']) {

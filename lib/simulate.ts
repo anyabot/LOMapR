@@ -52,6 +52,7 @@ export interface AppliedBuff {
 // A buff the engine did not auto-apply, with everything needed to review it.
 export type NoteKind =
   | 'enemy-target'   // single-enemy target, or enemy-side target without a wave
+  | 'ally-target'    // single-ally target: the trigger's or skill's target, unknown pre-combat
   | 'event'          // fires on a mid-battle event, not at battle/round start
   | 'enemy-cond'     // condition reads enemy-side state that is not available
   | 'random'         // cond-64 random-pick group
@@ -91,7 +92,12 @@ export interface SimTimelineGroup {
   entries: SimTimelineEntry[];  // action order inside this round (both sides)
 }
 
+// Combat v2 estimate: one entry per turn, `time` in gauge units (100% gauge / SPD).
+export interface SimTurnEntry { side: Side; tile: number; turn: number; time: number }
+
 export interface SimResult {
+  version: 1 | 2;
+  turns: SimTurnEntry[];        // v2 only; [] for v1
   units: SimUnitResult[];       // player side
   enemyUnits: SimUnitResult[];  // enemy side ([] when no wave is simulated)
   order: number[];      // player tiles actionable in combat round 1, in action order
@@ -195,6 +201,7 @@ interface CondSpec {
   vals: string[];
   names: string[];
   count: number;
+  counts: number[];
   condAttr: number;
 }
 
@@ -214,6 +221,10 @@ function evalCond(
   const enemies = Array.from(sides[(1 - self.side) as Side].values());
   const enemySim = enemies.length > 0;
   const need = (n: number) => (Number.isFinite(n) ? n : NaN);
+  // Client CheckTriggetApplyCondition: unit/round counts match if equal to ANY listed value.
+  const listed = c.vals.map(Number).filter(Number.isFinite);
+  const inVals = (n: number) => listed.includes(n);
+  const inCounts = (n: number) => c.counts.includes(n);
 
   switch (cond) {
     case 63: return true;
@@ -231,10 +242,12 @@ function evalCond(
     case 4:  return depthOf(self) === 0;   // back line
     case 5:  return Number.isFinite(frac) ? self.hpFrac >= frac : true;  // HP ≥ x
     case 6:  return Number.isFinite(frac) ? self.hpFrac <= frac : false; // HP ≤ x
-    case 7:  return Number.isFinite(frac) ? self.hpFrac < frac : false;  // HP < x
-    case 8:  return Number.isFinite(frac) ? self.hpFrac > frac : true;   // HP > x
-    case 9: case 20: case 31:                                    // self has ≥ N of [buff]
+    case 7: case 8:                    // own HP ratio below / above the attacker's
+      return { note: 'event', detail: `cond ${cond}: compares HP with the attacker` };
+    case 9: case 20:                                             // self has ≥ N of [buff]
       return countMatching(self, c.vals, c.names, c.condAttr) >= need(threshold);
+    case 31:                                                     // self has exactly N of [buff]
+      return countMatching(self, c.vals, c.names, c.condAttr) === need(threshold);
     case 10: case 11:                                            // target has [buff type]/[buff]
       return countMatching(tgt, c.vals, c.names, c.condAttr) > 0;
     case 12: return Number.isFinite(frac) ? tgt.hpFrac >= frac : true;  // target HP ≥
@@ -255,48 +268,48 @@ function evalCond(
     }
     case 23: case 61:                                            // target has ≥ N stacks/[buff]
       return countMatching(tgt, c.vals, c.names, c.condAttr) >= need(threshold);
-    case 25:                                                     // enemy count (= N, mirrors 26)
-      return enemySim ? enemies.length === need(threshold)
+    case 25:                                                     // enemy count is one of
+      return enemySim ? inVals(enemies.length)
         : { note: 'enemy-cond', detail: 'cond 25: enemy count (no wave)' };
-    case 26: return allies.length === need(threshold);           // allies = N
-    case 27:                                                     // total unit count
-      return enemySim ? allies.length + enemies.length === need(threshold)
+    case 26: return inVals(allies.length);                       // ally count is one of
+    case 27:                                                     // total unit count is one of
+      return enemySim ? inVals(allies.length + enemies.length)
         : { note: 'enemy-cond', detail: 'cond 27: total unit count needs the enemy side' };
-    case 28: return round >= need(threshold);
-    case 29: return round <= need(threshold);
+    case 28: return listed.some((v) => round >= v);
+    case 29: return listed.some((v) => round <= v);
     case 30: return !c.vals.some((v) => allies.some((u) => u.id === v)); // [char] NOT in battle
-    case 32: return round === need(threshold);
+    case 32: return inVals(round);
     case 33: case 34: {                                          // allies of body = N
       if (allies.some((u) => u.body == null))
         return { note: 'unknown', detail: `cond ${cond}: body data unavailable for this side` };
       const ord = cond === 33 ? 0 : 1;
-      return allies.filter((u) => BODY_ORD[u.body!] === ord).length === need(threshold);
+      return inVals(allies.filter((u) => BODY_ORD[u.body!] === ord).length);
     }
     case 35: case 36:                                            // enemy body count — no body data
       return { note: 'enemy-cond', detail: `cond ${cond}: enemy body count (enemies carry no body type)` };
     case 37: return allies.some((u) => countMatching(u, c.vals, c.names, c.condAttr) > 0); // ally has [buff]
-    case 38: {                                                   // ≥ N allies are [class]
-      const ords = c.vals.length ? c.vals.map(Number) : [];
-      return allies.filter((u) => ords.includes(CLASS_ORD[u.klass])).length >= need(threshold);
+    case 38: {                                                   // count of [class] allies is one of
+      const ord = Number(c.vals[0]);
+      return inCounts(allies.filter((u) => CLASS_ORD[u.klass] === ord).length);
     }
-    case 39: {                                                   // ≥ N allies are [role]
-      const ords = c.vals.length ? c.vals.map(Number) : [];
-      return allies.filter((u) => ords.includes(ROLE_ORD[u.role])).length >= need(threshold);
+    case 39: {                                                   // count of [role] allies is one of
+      const ord = Number(c.vals[0]);
+      return inCounts(allies.filter((u) => ROLE_ORD[u.role] === ord).length);
     }
     case 40: return c.vals.map(Number).includes(CLASS_ORD[self.klass]); // self is [class]
     case 41: return round % 2 === 0;   // even round
     case 42: return round % 2 === 1;   // odd round
     case 43: case 58:                  // target missing any [buff]/[buff type]
       return countMatching(tgt, c.vals, c.names, c.condAttr) === 0;
-    case 45: {                                                   // ≥ N enemies are [class]
+    case 45: {                                                   // count of [class] enemies is one of
       if (!enemySim) return { note: 'enemy-cond', detail: 'cond 45: enemy class count (no wave)' };
-      const ords = c.vals.length ? c.vals.map(Number) : [];
-      return enemies.filter((u) => ords.includes(CLASS_ORD[u.klass])).length >= need(threshold);
+      const ord = Number(c.vals[0]);
+      return inCounts(enemies.filter((u) => CLASS_ORD[u.klass] === ord).length);
     }
-    case 46: {                                                   // ≥ N enemies are [role]
+    case 46: {                                                   // count of [role] enemies is one of
       if (!enemySim) return { note: 'enemy-cond', detail: 'cond 46: enemy role count (no wave)' };
-      const ords = c.vals.length ? c.vals.map(Number) : [];
-      return enemies.filter((u) => ords.includes(ROLE_ORD[u.role])).length >= need(threshold);
+      const ord = Number(c.vals[0]);
+      return inCounts(enemies.filter((u) => ROLE_ORD[u.role] === ord).length);
     }
     case 47: return self.battle.ATK > self.battle.DEF;
     case 48: return self.battle.ATK < self.battle.DEF;
@@ -319,17 +332,11 @@ function evalCond(
       const present = c.vals.filter((v) => allies.some((u) => u.id === v)).length;
       return present >= need(threshold);
     }
-    case 67: {                                                   // ≥ N of ally [buff] (total stacks)
-      let total = 0;
-      for (const u of allies) total += countMatching(u, c.vals, c.names, c.condAttr);
-      return total >= need(threshold);
-    }
-    case 68: {                                                   // ≥ N of enemy [buff] (total stacks)
+    case 67:                                                     // count of allies with [buff] is one of
+      return inCounts(allies.filter((u) => countMatching(u, c.vals, c.names, c.condAttr) > 0).length);
+    case 68:                                                     // count of enemies with [buff] is one of
       if (!enemySim) return { note: 'enemy-cond', detail: 'cond 68: enemy buff count (no wave)' };
-      let total = 0;
-      for (const u of enemies) total += countMatching(u, c.vals, c.names, c.condAttr);
-      return total >= need(threshold);
-    }
+      return inCounts(enemies.filter((u) => countMatching(u, c.vals, c.names, c.condAttr) > 0).length);
     default:
       return cond > 68 ? true    // past-enum ordinals mean "no condition"
         : { note: 'unknown', detail: `cond ${cond}: no evaluator` };
@@ -340,11 +347,13 @@ function evalCond(
 function condSpecs(b: SkillBuff): CondSpec[] {
   const specs: CondSpec[] = [{
     cond: b.applyCond, vals: b.applyCondVals ?? [], names: b.applyCondNames ?? [],
-    count: b.applyCondCount ?? 0, condAttr: b.condAttr ?? 6,
+    count: b.applyCondCount ?? 0, counts: b.applyCondCounts ?? (b.applyCondCount ? [b.applyCondCount] : []),
+    condAttr: b.condAttr ?? 6,
   }];
   if (b.applyCond2 != null) specs.push({
     cond: b.applyCond2, vals: b.applyCondVals2 ?? [], names: b.applyCondNames2 ?? [],
-    count: b.applyCondCount2 ?? 0, condAttr: b.condAttr2 ?? 6,
+    count: b.applyCondCount2 ?? 0, counts: b.applyCondCounts2 ?? (b.applyCondCount2 ? [b.applyCondCount2] : []),
+    condAttr: b.condAttr2 ?? 6,
   });
   return specs;
 }
@@ -356,7 +365,7 @@ const TARGET_CONDS = new Set([10, 11, 12, 13, 14, 16, 17, 18, 23, 43, 44, 49, 50
 
 function evalTrigger(b: SkillBuff, self: UnitState, sides: Sides): CondVerdict {
   switch (b.trigger) {
-    case 12: case 13: case 30: return true;
+    case 12: case 13: case 30: case 65: case 71: return true;
     case 27: return depthOf(self) === 2;   // front line
     case 28: return depthOf(self) === 1;   // mid line
     case 29: return depthOf(self) === 0;   // back line
@@ -395,7 +404,7 @@ function recomputeBattle(u: UnitState): {
     const b = a.buff;
     if (b.type === AP_ADD) {
       apAdd += b.val;
-      if (b.trigger === 30) roundAp += b.val;
+      if (b.trigger === 30 || b.trigger === 65) roundAp += b.val;
       continue;
     }
     if (b.type === AP_SET) { apSet = b.val; continue; }
@@ -420,6 +429,27 @@ function recomputeBattle(u: UnitState): {
   return { battle, apSpd, apAdd, roundAp, apSet };
 }
 
+// ── combat v2 turn projection: SPD fills a 0–100 gauge, the actor resets to 0, AP adds gauge points ──
+
+const V2_GAUGE = 100;
+
+interface GaugeUnit { side: Side; tile: number; spd: number; startAp: number; turnAp: number }
+
+function projectTurns(units: GaugeUnit[], count: number): SimTurnEntry[] {
+  const numpad = [7, 8, 9, 4, 5, 6, 1, 2, 3];
+  const next = units.map((u) => ({ u, turn: 1, time: Math.max(0, V2_GAUGE - u.startAp) / u.spd }));
+  const out: SimTurnEntry[] = [];
+  while (next.length && out.length < count) {
+    next.sort((a, b) => (a.time - b.time) || (b.u.spd - a.u.spd) || (a.u.side - b.u.side)
+      || (numpad[b.u.tile] - numpad[a.u.tile]));
+    const n = next[0];
+    out.push({ side: n.u.side, tile: n.u.tile, turn: n.turn, time: Math.round(n.time * 100) / 100 });
+    n.turn += 1;
+    n.time += Math.max(V2_GAUGE - n.u.turnAp, 1) / n.u.spd;
+  }
+  return out;
+}
+
 // ── the engine ───────────────────────────────────────────────────────────────
 
 interface Candidate {
@@ -438,7 +468,7 @@ interface Candidate {
 const MAX_PASSES = 12;
 
 export function simulateRound1(
-  inputs: SimUnitInput[], enemyInputs: SimEnemyInput[] = [],
+  inputs: SimUnitInput[], enemyInputs: SimEnemyInput[] = [], version: 1 | 2 = 1,
 ): SimResult {
   const round = 1;
   const sides: Sides = [new Map(), new Map()];
@@ -537,6 +567,12 @@ export function simulateRound1(
         cand.dead = true;
         continue;
       }
+      // Client applies OUR(1) only to the trigger target or the skill's targeted allies.
+      if (b.targetType === 1) {
+        noteOnce(cand, 'ally-target', 'target 1: single ally — which ally is decided in battle');
+        cand.dead = true;
+        continue;
+      }
       // enemy-side grid/all targets need a simulated opposing side
       if ((b.targetType === 4 || b.targetType === 9) && !oppActive) {
         noteOnce(cand, 'enemy-target', `target ${b.targetType}: no enemy wave simulated`);
@@ -580,7 +616,7 @@ export function simulateRound1(
             .map((t2) => own.get(t2))
             .filter((u): u is UnitState => !!u);
           break;
-        case 1: case 8: targets = Array.from(own.values()); break;
+        case 8: targets = Array.from(own.values()); break;
         case 5:   // ALL_UNIT: both sides when the enemy wave is simulated
           targets = [...Array.from(own.values()), ...Array.from(opp.values())];
           break;
@@ -660,7 +696,7 @@ export function simulateRound1(
   for (const u of allStates) {
     const { battle, apSpd, apAdd, roundAp, apSet } = recomputeBattle(u);
     const spd = Math.max(apSpd, 0.1);
-    const startAp = Math.min((apSet ?? 0) + apAdd, 20);
+    const startAp = version === 2 ? (apSet ?? 0) + apAdd : Math.min((apSet ?? 0) + apAdd, 20);
     const cycles = Math.max(1, Math.ceil((10 - startAp) / spd));
     apMeta.set(sideTileKey(u.side, u.tile), { battle, startAp, roundAp, spd, cycles });
   }
@@ -683,6 +719,26 @@ export function simulateRound1(
   }
   results.sort((a, b) => (a.side - b.side) || (a.tile - b.tile));
 
+  if (version === 2) {
+    const v2 = results.map((r) => {
+      const m = apMeta.get(sideTileKey(r.side, r.tile))!;
+      return { ...r, cycles: 0, readyRound: 1, ap: m.startAp, readyAp: m.startAp };
+    });
+    const turns = projectTurns(v2.map((r) => {
+      const m = apMeta.get(sideTileKey(r.side, r.tile))!;
+      return { side: r.side, tile: r.tile, spd: m.spd, startAp: m.startAp, turnAp: m.roundAp };
+    }), Math.min(30, v2.length * 3));
+    const firsts = turns.filter((x) => x.turn === 1).map((x) => ({ side: x.side, tile: x.tile }));
+    return {
+      version, turns,
+      units: v2.filter((r) => r.side === 0),
+      enemyUnits: v2.filter((r) => r.side === 1),
+      order: firsts.filter((e) => e.side === 0).map((e) => e.tile),
+      timeline: [{ round: 1, cycle: 0, entries: firsts }],
+      firstCycle: 0, notes, passes: pass,
+    };
+  }
+
   const numpad = [7, 8, 9, 4, 5, 6, 1, 2, 3];
   const actionSort = (a: SimUnitResult, b: SimUnitResult) =>
     (b.readyAp - a.readyAp) || (b.spd - a.spd) ||
@@ -698,6 +754,7 @@ export function simulateRound1(
     .filter((e) => e.side === 0).map((e) => e.tile);
 
   return {
+    version, turns: [],
     units: results.filter((r) => r.side === 0),
     enemyUnits: results.filter((r) => r.side === 1),
     order, timeline, firstCycle, notes, passes: pass,

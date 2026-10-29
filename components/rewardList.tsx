@@ -7,7 +7,8 @@ import { selectItems, ItemInfo } from '@/store/itemSlice';
 import { setActiveEquip } from '@/store/equipSlice';
 import { t } from '@/lib/strings';
 import { useTranslationVersion } from '@/lib/translationVersion';
-import { rankColor } from '@/lib/rank';
+import { rankColor, unitDisplayName } from '@/lib/rank';
+import { selectUnit } from '@/store/unitSlice';
 import UnitHoverCard from './unitHoverCard';
 
 // Display labels for the currency keys on a RewardEntry (`metal` reads as "Gear").
@@ -137,6 +138,16 @@ function IconPlaceholder({ icon }: { icon: string }) {
   );
 }
 
+type Tone = 'gray' | 'yellow' | 'teal';
+
+const amountColorOf = (tone: Tone) => (tone === 'yellow' ? 'yellow.300' : tone === 'teal' ? 'teal.200' : 'gray.300');
+
+export function RewardItem({ entry, tone = 'gray' }: { entry: RewardEntry; tone?: Tone }) {
+  useTranslationVersion();
+  const items = useAppSelector(selectItems);
+  return <RewardChip entry={entry} items={items} tone={tone} amountColor={amountColorOf(tone)} />;
+}
+
 // A row of reward chips with icon + resolved name. `tone` tints the card.
 export default function RewardList({
   rewards,
@@ -153,7 +164,7 @@ export default function RewardList({
 }) {
   useTranslationVersion();
   const items = useAppSelector(selectItems);
-  const amountColor = tone === 'yellow' ? 'yellow.300' : tone === 'teal' ? 'teal.200' : 'gray.300';
+  const amountColor = amountColorOf(tone);
   const ordered = sort ? sortRewards(rewards, items) : rewards;
   const chips = ordered.map((e, i) => (
     <RewardChip key={i} entry={e} items={items} tone={tone} amountColor={amountColor} />
@@ -185,6 +196,8 @@ function RewardChip({
 
   // a unit is either a `char` entry or an `item`/`char` resolving to kind 'unit'
   const unitId = r.kind === 'unit' ? (entry.char || entry.item) : undefined;
+  const unit = useAppSelector((s) => (unitId ? selectUnit(s, unitId) : null));
+  const name = unit ? unitDisplayName(unit) : r.name;
   // drop ids carry a _T<n> rank suffix; the equipment page is keyed by family
   const equipFam = r.kind === 'equip' && entry.item
     ? entry.item.replace(/_T\d+$/, '')
@@ -210,7 +223,7 @@ function RewardChip({
           {tag ? (
             <Box as="span" fontWeight="bold" color={rarity ?? 'gray.300'} mr={1}>{tag}</Box>
           ) : null}
-          {r.name}
+          {name}
         </Text>
         {r.amount ? (
           <Text fontSize="sm" fontWeight="bold" color={amountColor}>{r.amount}</Text>

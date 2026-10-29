@@ -22,6 +22,7 @@ import { fetchImageAsync } from '@/store/imageSlice'
 import { fetchItemsAsync } from '@/store/itemSlice'
 import { fetchUnitsAsync } from '@/store/unitSlice'
 import { fetchEquipAsync } from '@/store/equipSlice'
+import { fetchCombatAsync } from '@/store/combatSlice'
 // fetchEnemyAIAsync is dispatched lazily in skillTabList when an enemy is selected
 import Layout from '@/components/layout'
 import ChangelogNotice from '@/components/changelogNotice'
@@ -77,6 +78,7 @@ function RegionSync() {
     dispatch(fetchUnitsAsync());
     dispatch(fetchEquipAsync());
   }, [region, dispatch]);
+  useEffect(() => { dispatch(fetchCombatAsync()); }, [region, dispatch]);
   return null;
 }
 

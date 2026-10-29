@@ -8,6 +8,8 @@ export interface VoiceEntry {
   // '' is the unit's base look; empty with `marriage` set is the oath set.
   skins: string[];
   marriage?: boolean;
+  // Skin keys whose MarriageKey resolves to this oath set.
+  oathFor?: string[];
   events: [string, string][];
   joinText?: string;
   tiers?: VoiceLine[][];

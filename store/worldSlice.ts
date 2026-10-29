@@ -90,7 +90,7 @@ export const worldSlice = createSlice({
       })
       .addCase(fetchWorldStageAsync.fulfilled, (state, action) => {
         const b = state.byRegion[action.payload.region];
-        b.value[action.payload.id] = action.payload.world;
+        b.value[action.payload.id] = { ...b.value[action.payload.id], ...action.payload.world };
         b.stage[action.payload.id] = 'idle';
       })
       .addCase(fetchWorldStageAsync.rejected, (state, action) => {

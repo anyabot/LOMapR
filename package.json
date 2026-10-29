@@ -10,7 +10,7 @@
     "sync:local-data": "node scripts/sync-local-data.js",
     "dev:local": "npm run sync:local-data && cross-env NEXT_PUBLIC_DATA_SOURCE=local NEXT_PUBLIC_SKIN_ARCHIVE_BASE=/api/local-skin NEXT_PUBLIC_VOICE_BASE=/api/local-voice next dev",
     "dev:bucket": "cross-env NEXT_PUBLIC_DATA_SOURCE=bucket next dev",
-    "lint": "next lint",
+    "lint": "eslint . --ext .ts,.tsx",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "gen:images": "node scripts/gen-public-images.js",
@@ -37,7 +37,7 @@
     "eslint": "8.57.0",
     "eslint-config-next": "15.5.2",
     "framer-motion": "^10.11.2",
-    "next": "^15.5.18",
+    "next": "^16.4.3",
     "pixi.js": "~8.4.0",
     "react": "18.3.1",
     "react-dom": "18.3.1",
@@ -47,7 +47,7 @@
     "typescript": "5.0.3"
   },
   "devDependencies": {
-    "@opennextjs/cloudflare": "^1.6.0",
+    "@opennextjs/cloudflare": "^1.20.14",
     "@playwright/test": "^1.61.1",
     "cross-env": "^10.1.0",
     "patch-package": "^8.0.1",
