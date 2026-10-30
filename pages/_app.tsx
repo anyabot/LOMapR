@@ -1,6 +1,5 @@
 import '@/styles/globals.css'
 import type { AppProps } from 'next/app'
-import Head from 'next/head'
 import { Provider, useSelector, useDispatch } from 'react-redux'
 import { ChakraProvider, type ColorModeProviderProps } from '@chakra-ui/react'
 import { useEffect, useRef, useState } from 'react'
@@ -26,6 +25,7 @@ import { fetchCombatAsync } from '@/store/combatSlice'
 // fetchEnemyAIAsync is dispatched lazily in skillTabList when an enemy is selected
 import Layout from '@/components/layout'
 import ChangelogNotice from '@/components/changelogNotice'
+import { Seo } from '@/components/seo'
 
 import { extendTheme } from '@chakra-ui/react'
 import { hubChakraTheme } from '@altterisk/game-hub/chakra'
@@ -187,11 +187,7 @@ function AppBody({ Component, pageProps }: Pick<AppProps, 'Component' | 'pagePro
   const transitioning  = useSelector(selectTransitioning);
   return (
     <TranslationVersionContext.Provider value={translationVer}>
-      {/* default title/description; pages with their own <title> override it */}
-      <Head>
-        <title>LOMapR</title>
-        <meta name="description" content="LOMapR — Last Origin Information & Resources" />
-      </Head>
+      <Seo />
       <Layout>
         {transitioning && (
           <div style={{

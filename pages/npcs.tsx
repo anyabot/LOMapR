@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import Head from 'next/head';
+import { Seo } from '@/components/seo';
 import { useRouter } from 'next/router';
 import {
   Badge, Box, Button, ButtonGroup, Center, Heading, HStack, Image, Input,
@@ -9,6 +9,8 @@ import SkinViewer from '@/components/skinViewer';
 import { NPCS, NPCS_BY_ID, NpcCategory, NpcEntry } from '@/lib/npcs';
 import { t } from '@/lib/strings';
 import { useTranslationVersion } from '@/lib/translationVersion';
+
+const DESCRIPTION = "Last Origin non-playable character and enemy illustrations from the game's 2D model assets.";
 
 const CATEGORY_LABELS: Record<NpcCategory, string> = {
   character: 'Characters',
@@ -57,7 +59,7 @@ export default function NpcsPage() {
 
   return (
     <>
-      <Head><title>NPC Viewer - LOMapR</title></Head>
+      <Seo title="NPC Viewer" description={DESCRIPTION} />
       <VStack align="stretch" spacing={5}>
         <Box>
           <Heading size="lg">NPC Viewer</Heading>

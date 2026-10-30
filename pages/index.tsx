@@ -12,7 +12,7 @@ import EventImage from '@/components/eventImage';
 import { t } from '@/lib/strings';
 import { useTranslationVersion } from '@/lib/translationVersion';
 import Link from 'next/link';
-import Head from 'next/head';
+import { Seo, SITE_URL, HOME_TITLE, HOME_DESCRIPTION } from '@/components/seo';
 
 const SECTIONS: [string, string, string][] = [
   ['/units', 'Units', 'Playable units with stats, skills and skins'],
@@ -33,6 +33,16 @@ const LINKS: [string, string][] = [
   ['Community Discord (Alt)', 'https://discord.gg/jPHsNx8'],
 ];
 
+const WEBSITE_LD = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: 'LOMapR',
+  alternateName: HOME_TITLE,
+  url: `${SITE_URL}/`,
+  description: HOME_DESCRIPTION,
+  inLanguage: 'en',
+};
+
 export default function Home() {
   useTranslationVersion();
   const world = useAppSelector(selectWorld);
@@ -48,9 +58,7 @@ export default function Home() {
 
   return (
     <>
-      <Head>
-        <title>LOMapR — Last Origin Information &amp; Resources</title>
-      </Head>
+      <Seo jsonLd={WEBSITE_LD} />
 
       <VStack spacing={8} align="stretch" py={4}>
         {/* Hero */}

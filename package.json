@@ -15,7 +15,7 @@
     "test:e2e:ui": "playwright test --ui",
     "gen:images": "node scripts/gen-public-images.js",
     "hub:update": "npm install --no-save github:Altterisk/game-hub",
-    "cf:build": "npm run hub:update && node scripts/sync-local-data.js --clean && opennextjs-cloudflare build && node scripts/copy-prerendered-assets.js",
+    "cf:build": "npm run hub:update && node scripts/sync-local-data.js --clean && opennextjs-cloudflare build && node scripts/copy-prerendered-assets.js && node scripts/seo-files.js",
     "cf:preview": "npm run cf:build && opennextjs-cloudflare preview",
     "cf:deploy": "npm run cf:build && opennextjs-cloudflare deploy",
     "postinstall": "patch-package"

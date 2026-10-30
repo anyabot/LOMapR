@@ -10,10 +10,12 @@ import {
 import { CloseIcon, SearchIcon } from '@chakra-ui/icons';
 import { tAny } from '@/lib/strings';
 import { useTranslationVersion } from '@/lib/translationVersion';
-import Head from 'next/head';
+import { Seo } from '@/components/seo';
 import { fetchSkinList, SkinEntry } from '@/lib/fetchData';
 import SkinViewer from '@/components/skinViewer';
 import UnitHoverCard from '@/components/unitHoverCard';
+
+const DESCRIPTION = 'Every Last Origin skin with an in-browser skin viewer.';
 
 // ── parts icon metadata (mirrors skinViewer.tsx PARTS_META) ──────────────────
 const PARTS_META: Record<string, { icon: string; label: string }> = {
@@ -142,7 +144,7 @@ export default function Skins() {
 
   return (
     <>
-      <Head><title>Skins</title></Head>
+      <Seo title="Skins" description={DESCRIPTION} />
       <VStack align="stretch" spacing={4} py={4}>
         <HStack>
           <Heading size="xl">Skins</Heading>

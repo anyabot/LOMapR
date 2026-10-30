@@ -9,7 +9,9 @@ import {
 } from '@chakra-ui/react';
 import { BannerCard } from '@altterisk/game-hub';
 import { nextLink } from '@/lib/hubLink';
-import Head from 'next/head';
+import { Seo } from '@/components/seo';
+
+const DESCRIPTION = 'Last Origin Infinite War boss seasons and phases.';
 
 // "2025/12/04 02:00:00" -> "Dec 4, 2025"
 const fmtDate = (s: string) => {
@@ -40,7 +42,7 @@ export default function Home() {
 
   const Frame = ({ children }: { children: React.ReactNode }) => (
     <>
-      <Head><title>Infinite War</title></Head>
+      <Seo title="Infinite War" description={DESCRIPTION} />
       {children}
     </>
   );

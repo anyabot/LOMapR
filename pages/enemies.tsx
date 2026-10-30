@@ -12,7 +12,9 @@ import { useTranslationVersion } from '@/lib/translationVersion';
 import { typeIcon, roleIcon, nextFilterMode, FilterMode } from '@/lib/rank';
 import { chipColor, countActive, fillModes, useListUrl, useUrlText } from '@/lib/listUrl';
 import { Image } from '@chakra-ui/react';
-import Head from 'next/head';
+import { Seo } from '@/components/seo';
+
+const DESCRIPTION = 'Every Last Origin enemy with stats and skills.';
 
 const ROLES = ['Attacker', 'Defender', 'Supporter'] as const;
 const TYPES = ['Light', 'Air', 'Heavy'] as const;
@@ -91,18 +93,18 @@ export default function Home() {
   }
 
   if (enemyStatus == 'failed') {
-    return (<><Head><title>Enemy List</title></Head><Center py={20}><Text color="red.300">Failed to load enemies.</Text></Center></>);
+    return (<><Seo title="Enemy List" description={DESCRIPTION} /><Center py={20}><Text color="red.300">Failed to load enemies.</Text></Center></>);
   }
   if (Object.keys(enemy).length === 0) {
     // empty -> render nothing here; the layout's GlobalLoader shows the spinner
-    return (<><Head><title>Enemy List</title></Head></>);
+    return (<><Seo title="Enemy List" description={DESCRIPTION} /></>);
   }
 
   const list = enemies(enemy);
 
   return (
     <>
-      <Head><title>Enemy List</title></Head>
+      <Seo title="Enemy List" description={DESCRIPTION} />
       <VStack align="stretch" spacing={4} py={4}>
         <Heading size="xl">Enemies</Heading>
 

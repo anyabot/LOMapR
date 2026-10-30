@@ -19,11 +19,11 @@ import {
   InputRightAddon,
   Flex,
   Center,
-  HStack, Input, Button, VStack, Heading, Spinner,
+  Input, Button, VStack, Heading, Spinner,
 } from "@chakra-ui/react";
 import { ArrowBackIcon } from "@chakra-ui/icons";
 import Link from "next/link";
-import Head from "next/head";
+import { Seo } from "@/components/seo";
 import { useRouter } from "next/router";
 import SkillTabList from "@/components/enemyTab/skillTabList";
 import { selectEnemy, selectEnemyFull, fetchEnemyAsync, fetchEnemyFullAsync } from "@/store/enemySlice";
@@ -115,23 +115,21 @@ export default function Home() {
   if (iwStatus == "failed") {
     return (
       <>
-        <Head>
-          <title>Infinite War List</title>
-        </Head>
+        <Seo title="Infinite War List" />
         <h1>Fetch Failed</h1>
       </>
     );
   } else if (iw.seasons.length === 0 || !id) {
     return (
       <>
-        <Head><title>Infinite War</title></Head>
+        <Seo title="Infinite War" />
       </>
     );
   } else if (!(id in iw.bosses)) {
     // e.g. a region switch to one without this boss: offer a way back, don't 404
     return (
       <>
-        <Head><title>Infinite War</title></Head>
+        <Seo title="Infinite War" />
         <Center py={20}>
           <VStack spacing={4}>
             <Text color="gray.400">This raid boss isn&apos;t available in the selected region.</Text>
@@ -152,9 +150,7 @@ export default function Home() {
 
     return (
       <>
-        <Head>
-          <title>Raid Boss {realEnemy ? ` - ${t(realEnemy.name)}` : ""}</title>
-        </Head>
+        <Seo title={realEnemy ? `${t(realEnemy.name)} - Raid Boss` : "Raid Boss"} description={realEnemy ? `${t(realEnemy.name)} Infinite War raid boss in Last Origin: phases, stats and skills.` : undefined} />
         {realEnemy ? (
           <VStack align="stretch" spacing={4} py={4}>
             <Button as={Link} href="/iw" leftIcon={<ArrowBackIcon />} colorScheme="gray" variant="outline" size="sm" alignSelf="start">
@@ -162,17 +158,17 @@ export default function Home() {
             </Button>
             <Heading size="xl" textAlign="center">{t(realEnemy.name)}</Heading>
             <Center>
-              <HStack maxW="520px" margin="auto">
+              <Flex maxW="520px" margin="auto" wrap={{ base: "wrap", md: "nowrap" }} justify="center" align="center" gap={2}>
                 <Button size="sm" variant="outline" colorScheme="gray" onClick={() => setStage(0)} isDisabled={stage === 0}>« Min</Button>
                 <Button {...dec}>-</Button>
-                <InputGroup as={Center} display="flex">
+                <InputGroup as={Center} display="flex" order={{ base: -1, md: 0 }} w={{ base: "100%", md: "auto" }}>
                   <InputLeftAddon bg="surface.border" color="white" borderColor="surface.border">Stage</InputLeftAddon>
                   <Input {...input} textAlign="center" borderColor="surface.border" min={1} max={boss.length}/>
                   <InputRightAddon bg="surface.border" color="white" borderColor="surface.border">{`/ ${boss.length}`}</InputRightAddon>
                 </InputGroup>
                 <Button {...inc}>+</Button>
                 <Button size="sm" variant="outline" colorScheme="gray" onClick={() => setStage(boss.length - 1)} isDisabled={stage === boss.length - 1}>Max »</Button>
-              </HStack>
+              </Flex>
             </Center>
             <Center>
               <Button as={Link} size="xs" variant="outline" colorScheme="teal"

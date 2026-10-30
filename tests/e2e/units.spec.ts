@@ -63,7 +63,7 @@ test.describe('/units/detail', () => {
   test('shows stats, skills and a back link for a valid unit', async ({ page }) => {
     await page.goto(`/units/detail?id=${encodeURIComponent(SAMPLE.unit.id)}`);
     await expect(page.getByRole('heading', { name: SAMPLE.unit.name, exact: true })).toBeVisible({ timeout: 15_000 });
-    await expect(page).toHaveTitle(`${SAMPLE.unit.name} — Unit`);
+    await expect(page).toHaveTitle(`${SAMPLE.unit.name} — Last Origin | LOMapR`);
     await expect(page.getByRole('heading', { name: 'Stats', exact: true })).toBeVisible();
     // back button (a link-styled button) returns to the unit grid
     await page.getByRole('link', { name: 'Units', exact: true }).first().click();

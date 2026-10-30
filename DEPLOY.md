@@ -64,6 +64,7 @@ npm run cf:build     # hub:update (game-hub from GitHub main, lock untouched)
                      # → sync-local-data --clean → next build (prebuild regenerates
                      # lib/publicImages.json) → OpenNext transform → .open-next/
                      # → scripts/copy-prerendered-assets.js
+                     # → scripts/seo-files.js (sitemap.xml + robots.txt)
 npm run cf:preview   # cf:build + run the real Worker locally (workerd)
 npm run cf:deploy    # cf:build + wrangler deploy
 ```
@@ -74,6 +75,11 @@ function (every page view would invoke the Worker), so the script copies each
 prerendered page into `.open-next/assets/<route>/index.html` and prunes
 local-only dirs (`local-data*`, `skin_test`) from the deploy. Future SSR/API
 routes must be added to `assets.run_worker_first` in `wrangler.jsonc`.
+
+`scripts/seo-files.js` writes `sitemap.xml` and `robots.txt` into
+`.open-next/assets`. The sitemap lists every prerendered route plus one URL per
+unit, world and Infinite War boss, read from the live data bucket at build time
+(both regions), so it only names entities that are actually published.
 
 `NEXT_PUBLIC_*` values are baked in at build time from `.env.local`
 (gitignored; see `.env.example`):

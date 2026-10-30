@@ -24,7 +24,7 @@ import {
 } from '@chakra-ui/react';
 import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon } from '@chakra-ui/icons';
 import { Breadcrumbs, PageHeader, Panel } from '@altterisk/game-hub';
-import Head from 'next/head';
+import { Seo } from '@/components/seo';
 
 const BANNER_RATIO = 320 / 156;
 
@@ -100,7 +100,7 @@ export default function Home() {
   if (Object.keys(world).length === 0 || !id) {
     return (
       <>
-        <Head><title>Zone List</title></Head>
+        <Seo title="Zone List" />
       </>
     );
   }
@@ -133,7 +133,7 @@ export default function Home() {
 
   return (
     <>
-      <Head><title>{t(w.title)}</title></Head>
+      <Seo title={t(w.title)} description={`${t(w.title)} in Last Origin: stages, story and rewards.`} />
       <VStack align="stretch" spacing={6} py={4}>
         <Breadcrumbs renderLink={nextLink} items={[{ label: 'World', href: '/world' }, { label: t(w.title) }]} />
 

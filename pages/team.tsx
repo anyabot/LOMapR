@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import Head from 'next/head';
+import { Seo } from '@/components/seo';
 import { useRouter } from 'next/router';
 import { useStore } from 'react-redux';
 import { createPersisted } from '@altterisk/game-hub/persist';
@@ -33,6 +33,8 @@ import UnitPicker from '@/components/team/unitPicker';
 import UnitConfig from '@/components/team/unitConfig';
 import SimulatePanel from '@/components/team/simulatePanel';
 import WavePicker from '@/components/team/wavePicker';
+
+const DESCRIPTION = 'Last Origin team builder with share codes, image export and a round-one battle simulator.';
 
 // /team - team builder on the 3x3 formation map plus round-1 battle simulation.
 
@@ -378,7 +380,7 @@ export default function TeamBuilder() {
 
   return (
     <>
-      <Head><title>Team Builder — LOMapR</title></Head>
+      <Seo title="Team Builder" description={DESCRIPTION} />
       <VStack align="stretch" spacing={4} py={4}>
         <Flex align="center" gap={3} wrap="wrap">
           <Heading size="lg">Team Builder</Heading>

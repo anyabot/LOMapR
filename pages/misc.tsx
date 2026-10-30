@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import Head from 'next/head';
+import { Seo } from '@/components/seo';
 import {
   Badge, Box, Center, Flex, HStack, Heading, IconButton, Image,
   Input, InputGroup, InputRightElement, Select, Spinner, Text, VStack, Wrap, WrapItem,
@@ -24,6 +24,8 @@ import { useTranslationVersion } from '@/lib/translationVersion';
 import { MiscAoeEntry, MiscBuffEntry, MiscBuffTypeMeta, MiscSkillMeta } from '@/interfaces/misc';
 import { SkillBuff } from '@/interfaces/skill';
 import { UnitData } from '@/interfaces/unit';
+
+const DESCRIPTION = 'Last Origin units grouped by skill effect: buffs, debuffs and their targets.';
 
 // ── shared bits ───────────────────────────────────────────────────────────────
 
@@ -521,7 +523,7 @@ export default function Misc() {
 
   return (
     <>
-      <Head><title>Misc Categorization</title></Head>
+      <Seo title="Misc Categorization" description={DESCRIPTION} />
       <VStack align="stretch" spacing={4} py={4}>
         <HStack>
           <Heading size="xl">Misc Categorization</Heading>

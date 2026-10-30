@@ -14,7 +14,7 @@ import Error from 'next/error';
 import { Box, Image, VStack, Center, Badge, Heading, Divider, Button, ButtonGroup, Spinner } from '@chakra-ui/react';
 import { Breadcrumbs, PageHeader } from '@altterisk/game-hub';
 import { nextLink } from '@/lib/hubLink';
-import Head from 'next/head';
+import { Seo } from '@/components/seo';
 
 export default function Home() {
   useTranslationVersion();
@@ -71,9 +71,7 @@ export default function Home() {
   if (Object.keys(world).length === 0 || !id || !zone || (id in world && !stagesLoaded && stageStatus !== 'failed')) {
     // container not loaded yet, or this world's per-world stage split is still loading.
     return (<>
-      <Head>
-        <title>Stage List</title>
-      </Head>
+      <Seo title="Stage List" />
       {id in world && !stagesLoaded ? (
         <Center py={20}><Spinner size="xl" color="accent.400" thickness="3px" /></Center>
       ) : null}
@@ -92,9 +90,7 @@ export default function Home() {
 
     return (
       <>
-      <Head>
-        <title>{t(z.title)}</title>
-      </Head>
+      <Seo title={t(z.title)} description={`${t(z.title)} stages in Last Origin: enemy waves, rewards and missions.`} />
       <VStack align="stretch" spacing={4} py={4}>
         <Breadcrumbs renderLink={nextLink} items={[
           { label: 'World', href: '/world' },

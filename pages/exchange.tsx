@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import Head from 'next/head';
+import { Seo } from '@/components/seo';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { Box, Button, Center, Flex, HStack, Spinner, Text, VStack } from '@chakra-ui/react';
@@ -16,6 +16,8 @@ import { t } from '@/lib/strings';
 import { useTranslationVersion } from '@/lib/translationVersion';
 import { ShopGrid } from '@/components/eventExchange';
 import type { ExchangeProduct, GeneralExchange } from '@/interfaces/world';
+
+const DESCRIPTION = 'Last Origin standing exchange shop items currently on sale, with costs and limits.';
 
 const TAB_LABEL: Record<string, string> = {
   enchant: 'Enhancement',
@@ -83,7 +85,7 @@ export default function ExchangePage() {
 
   return (
     <>
-      <Head><title>Exchange</title></Head>
+      <Seo title="Exchange" description={DESCRIPTION} />
       <VStack align="stretch" spacing={4} py={4}>
         <PageHeader title="Exchange"
           subtitle="Standing exchange shop items currently on sale. Event exchanges are on each event's page." />
