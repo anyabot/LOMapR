@@ -7,7 +7,7 @@ import {
   Spinner, Center, Divider, Stat, StatLabel, StatNumber,
   Tooltip,
   Tabs, TabList, TabPanels, Tab, TabPanel,
-} from '@chakra-ui/react';
+} from '@altterisk/game-hub/ui';
 import { Seo } from '@/components/seo';
 import NextLink from 'next/link';
 import { fetchGachaPools, GachaEntry, GachaPools } from '@/lib/fetchData';

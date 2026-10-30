@@ -1,30 +1,33 @@
-// components/layout.js
-
-import { ReactNode } from 'react'
-import { Container, Flex } from '@chakra-ui/react'
+import { ReactNode, useState } from 'react'
+import NextLink from 'next/link'
+import { useRouter } from 'next/router'
+import { SiteShell, homeLink } from '@altterisk/game-hub'
 import EnemyModal from './enemyTab/enemyModal';
 import EquipModal from './equipModal';
-import Navbar from './layout/navbar'
-import Footer from './layout/footer';
-import ScrollTop from './layout/scrollTop';
+import { MobileSettings, NavActions, NavItems } from './layout/navbar'
+import { FOOTER } from './layout/footer';
 import GlobalLoader from './globalLoader';
-interface Props {
-  children: ReactNode
-}
 
-export default function Layout({children}: Props) {
+const nextHome = homeLink(NextLink);
+
+export default function Layout({ children }: { children: ReactNode }) {
+  const { pathname } = useRouter();
+  const [menuOpen, setMenuOpen] = useState(false);
   return (
-    <>
-      {/* min-h column so the footer sits at the viewport bottom on short pages */}
-      <Flex direction="column" minH="100vh">
-        <Navbar />
-        <GlobalLoader />
-        <EnemyModal/>
-        <EquipModal/>
-        <Container maxWidth={["container.sm", "container.sm", "container.md", "container.lg", "container.xl"]} mt={6} mb={8} flex="1">{children}</Container>
-        <Footer />
-      </Flex>
-      <ScrollTop />
-    </>
+    <SiteShell
+      game="lo"
+      renderHomeLink={nextHome}
+      nav={<NavItems />}
+      actions={<NavActions open={menuOpen} onToggle={() => setMenuOpen((v) => !v)} />}
+      belowBar={<>{menuOpen && <MobileSettings />}<GlobalLoader /></>}
+      footer={FOOTER}
+      resetKey={pathname}
+      contentWidth="80rem"
+      scrollTop
+    >
+      <EnemyModal />
+      <EquipModal />
+      {children}
+    </SiteShell>
   )
 }

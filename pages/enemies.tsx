@@ -3,7 +3,7 @@ import { selectEnemy, selectEnemyStatus, fetchEnemyAsync, setActive } from '@/st
 import { selectImage, fetchImageAsync } from '@/store/imageSlice';
 import { useEffect, useState } from 'react';
 import { EnemyData } from '@/interfaces/enemy';
-import { Box, SimpleGrid, VStack, Center, Text, Heading } from '@chakra-ui/react';
+import { Box, SimpleGrid, VStack, Center, Text, Heading } from '@altterisk/game-hub/ui';
 import { useRouter } from 'next/router';
 import { ListToolbar, SearchBox, FilterPanel, FilterRow, FilterChip, EmptyState } from '@altterisk/game-hub';
 import SimpleCard from '@/components/simpleCard';
@@ -11,7 +11,7 @@ import { t } from '@/lib/strings';
 import { useTranslationVersion } from '@/lib/translationVersion';
 import { typeIcon, roleIcon, nextFilterMode, FilterMode } from '@/lib/rank';
 import { chipColor, countActive, fillModes, useListUrl, useUrlText } from '@/lib/listUrl';
-import { Image } from '@chakra-ui/react';
+import { Image } from '@altterisk/game-hub/ui';
 import { Seo } from '@/components/seo';
 
 const DESCRIPTION = 'Every Last Origin enemy with stats and skills.';

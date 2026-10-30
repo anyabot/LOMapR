@@ -1,10 +1,7 @@
 import {
   HStack, Select, Checkbox, Text, VStack,
-  Menu, MenuButton, MenuList, MenuItem, Button, Spinner, Portal,
-} from "@chakra-ui/react";
-import { ChevronDownIcon } from "@chakra-ui/icons";
-import NextLink from "next/link";
-import { useRouter } from "next/router";
+  Menu, MenuButton, MenuList, MenuItem, Button, Spinner,
+} from '@altterisk/game-hub/ui';
 import { useAppSelector, useAppDispatch } from "@/hooks";
 import { selectRegion, setRegion, Region } from "@/store/regionSlice";
 import {
@@ -45,46 +42,6 @@ const LAYERS: LayerDef[] = [
     warning: "May be outdated — not kept in sync with game updates.",
   },
 ];
-
-const ETC_LINKS = [
-  ["/npcs", "NPC Viewer"],
-  ["/gacha", "Gacha Simulator"],
-  ["/team", "Team Builder"],
-  ["/misc", "Misc Categories"],
-  ["/exchange", "Exchange"],
-] as const;
-
-export function EtcMenu() {
-  const { pathname } = useRouter();
-  const active = ETC_LINKS.some(([href]) => pathname.startsWith(href));
-
-  return (
-    <Menu>
-      <MenuButton className="hub-navlink" aria-current={active ? "page" : undefined} flexShrink={0}>
-        Etc <ChevronDownIcon />
-      </MenuButton>
-      {/* the bar's nav row scrolls horizontally, which would clip an inline list */}
-      <Portal>
-        <MenuList zIndex="dropdown" minW="190px" py={1}>
-          {ETC_LINKS.map(([href, label]) => {
-            const itemActive = pathname.startsWith(href);
-            return (
-              <MenuItem
-                as={NextLink}
-                key={href}
-                href={href}
-                color={itemActive ? "accent.300" : undefined}
-                fontWeight={itemActive ? "bold" : "normal"}
-              >
-                {label}
-              </MenuItem>
-            );
-          })}
-        </MenuList>
-      </Portal>
-    </Menu>
-  );
-}
 
 export function TranslationMenu() {
   const mtl       = useAppSelector(selectMtl);

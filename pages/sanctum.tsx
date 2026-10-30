@@ -27,12 +27,12 @@ import {
   Image,
   Divider,
   Box,
-} from "@chakra-ui/react";
-import { ArrowLeftIcon, ArrowRightIcon } from "@chakra-ui/icons";
+} from '@altterisk/game-hub/ui';
+import { ArrowLeftIcon, ArrowRightIcon } from '@altterisk/game-hub/ui';
 import {
   Table, Thead, Tbody, Tr, Th, Td, TableContainer, Wrap, WrapItem,
   Popover, PopoverTrigger, PopoverContent, PopoverBody,
-} from "@chakra-ui/react";
+} from '@altterisk/game-hub/ui';
 import { Floor, Wave, Prohibition, Suitability, SquadGroup } from "@/interfaces/sanctum";
 import EnemyGrid from "@/components/enemyGrid";
 import { WaveNav } from "@altterisk/game-hub";

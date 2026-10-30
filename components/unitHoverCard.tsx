@@ -3,7 +3,7 @@ import NextLink from 'next/link';
 import {
   Popover, PopoverTrigger, PopoverContent, PopoverBody, Portal,
   Box, HStack, VStack, Image, Text, Tag, Wrap, WrapItem,
-} from '@chakra-ui/react';
+} from '@altterisk/game-hub/ui';
 import { useAppSelector, useAppDispatch } from '@/hooks';
 import { selectUnit, fetchUnitsAsync } from '@/store/unitSlice';
 import { t } from '@/lib/strings';
@@ -16,7 +16,7 @@ export default function UnitHoverCard({
 }: {
   unitId: string | undefined;
   children: React.ReactNode;
-  // inside a Chakra Modal, skip the body Portal: a body-portaled popover renders
+  // inside a Modal, skip the body Portal: a body-portaled popover renders
   // BEHIND the modal overlay and is invisible
   inModal?: boolean;
   // inline trigger, so the card can wrap a word mid-sentence without a line break

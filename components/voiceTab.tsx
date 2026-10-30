@@ -1,5 +1,5 @@
-import { Badge, Box, Flex, IconButton, SimpleGrid, Spinner, Text, VStack } from '@chakra-ui/react';
-import { Panel } from '@altterisk/game-hub';
+import { Flex, Spinner, Text, VStack } from '@altterisk/game-hub/ui';
+import { Panel, VoiceLineList } from '@altterisk/game-hub';
 import { SegmentedControl } from '@altterisk/game-hub/viewer';
 import type { FullUnitData } from '@/interfaces/unit';
 import type { Dub, UnitVoice, VoiceEntry } from '@/interfaces/voice';
@@ -61,26 +61,25 @@ function EntryPanel({ entry, unit, dub }: { entry: VoiceEntry; unit: FullUnitDat
   return (
     <Panel title={entryTitle(entry, unit)} note={dub ? dub.toUpperCase() : undefined}>
       {!clips && dub && <Flex justify="center" py={4}><Spinner size="sm" /></Flex>}
-      <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={2}>
-        {rows.map((row) => {
+      <VoiceLineList
+        items={rows.map((row) => {
           const available = !!dub && !!clips?.has(row.clip);
-          const active = !!dub && nowPlaying === clipId(dub, row.clip);
           const text = row.text ? t(row.text) : '';
-          return (
-            <Flex key={row.key} gap={2} align="start" p={2} borderRadius="md"
-              bg={active ? 'whiteAlpha.200' : 'whiteAlpha.50'}>
-              <IconButton aria-label={active ? 'Stop' : `Play ${row.tag}`} size="xs" variant="outline"
-                icon={<Box as="span" aria-hidden>{active ? '■' : '▶'}</Box>} isDisabled={!available}
-                onClick={() => { if (active) stopVoice(); else if (dub) void playClip(entry, dub, row.clip); }} />
-              <Box minW={0} flex="1">
-                <Badge fontSize="0.6rem" textTransform="none" mb={0.5}>{row.tag}</Badge>
-                {text && text !== row.text && <Text fontSize="sm" whiteSpace="pre-wrap">{text.replace(/&n/g, '\n')}</Text>}
-                {clips && !available && <Text fontSize="xs" color="gray.500">Not voiced in this dub</Text>}
-              </Box>
-            </Flex>
-          );
+          return {
+            id: row.key,
+            tag: row.tag,
+            text: text && text !== row.text ? text.replace(/&n/g, '\n') : undefined,
+            available,
+            note: clips && !available ? 'Not voiced in this dub' : undefined,
+          };
         })}
-      </SimpleGrid>
+        playing={dub ? rows.find((row) => nowPlaying === clipId(dub, row.clip))?.key ?? null : null}
+        onPlay={(key) => {
+          const row = rows.find((r) => r.key === key);
+          if (row && dub) void playClip(entry, dub, row.clip);
+        }}
+        onStop={stopVoice}
+      />
     </Panel>
   );
 }

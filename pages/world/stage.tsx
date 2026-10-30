@@ -11,7 +11,7 @@ import CopyLink from '@/components/copyLink'
 import StageTabs from '@/components/stageTabs'
 import { ClearExp } from '@/components/rewardList'
 import Error from 'next/error';
-import { Box, Image, VStack, Center, Badge, Heading, Divider, Button, ButtonGroup, Spinner } from '@chakra-ui/react';
+import { Box, Image, VStack, Center, Badge, Heading, Divider, Button, ButtonGroup, Spinner } from '@altterisk/game-hub/ui';
 import { Breadcrumbs, PageHeader } from '@altterisk/game-hub';
 import { nextLink } from '@/lib/hubLink';
 import { Seo } from '@/components/seo';

@@ -9,7 +9,7 @@ import {
   Text,
   Flex,
   Box,
-} from '@chakra-ui/react'
+} from '@altterisk/game-hub/ui'
 import SkillTab from './skillTab';
 import AIGraphView from './aiGraph';
 

@@ -1,6 +1,7 @@
 {
   "name": "lomapr",
   "version": "0.1.0",
+  "license": "AGPL-3.0-or-later",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -22,11 +23,7 @@
   },
   "dependencies": {
     "@altterisk/game-hub": "github:Altterisk/game-hub",
-    "@chakra-ui/icons": "^2.0.18",
-    "@chakra-ui/react": "^2.5.5",
     "@dagrejs/dagre": "^3.0.0",
-    "@emotion/react": "^11.10.6",
-    "@emotion/styled": "^11.10.6",
     "@esotericsoftware/spine-pixi-v8": "4.2.72",
     "@reduxjs/toolkit": "^1.9.3",
     "@types/node": "18.15.11",
@@ -36,7 +33,6 @@
     "brotli-dec-wasm": "^2.3.2",
     "eslint": "8.57.0",
     "eslint-config-next": "15.5.2",
-    "framer-motion": "^10.11.2",
     "next": "^16.4.3",
     "pixi.js": "~8.4.0",
     "react": "18.3.1",

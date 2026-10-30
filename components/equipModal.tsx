@@ -4,7 +4,7 @@ import {
   Box, HStack, VStack, Image, Text, Tag, Button, ButtonGroup, Center, Spinner,
   Wrap, WrapItem, Slider, SliderTrack, SliderFilledTrack, SliderThumb,
   Tabs, TabList, TabPanels, Tab, TabPanel,
-} from '@chakra-ui/react';
+} from '@altterisk/game-hub/ui';
 import Link from 'next/link';
 import { useAppSelector, useAppDispatch } from '@/hooks';
 import {

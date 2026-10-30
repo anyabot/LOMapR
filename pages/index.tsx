@@ -6,8 +6,8 @@ import {
   Heading, Text, Divider, Center, VStack, HStack, Box,
   SimpleGrid, Wrap, WrapItem, Tag, TagLabel, Badge,
   AspectRatio,
-} from '@chakra-ui/react';
-import { ArrowForwardIcon, ExternalLinkIcon } from '@chakra-ui/icons';
+} from '@altterisk/game-hub/ui';
+import { ArrowForwardIcon, ExternalLinkIcon } from '@altterisk/game-hub/ui';
 import EventImage from '@/components/eventImage';
 import { t } from '@/lib/strings';
 import { useTranslationVersion } from '@/lib/translationVersion';
@@ -153,17 +153,6 @@ export default function Home() {
             ))}
           </Wrap>
         </VStack>
-
-        <Divider />
-
-        {/* Attribution */}
-        <Center>
-          <Text textAlign="center" fontSize="xs" color="gray.500" maxW="3xl">
-            All resources such as equipment and unit icons, and data values used in
-            Valofe&apos;s Last Origin are the property of Valofe. All rights of the
-            resources belong to Valofe.
-          </Text>
-        </Center>
       </VStack>
     </>
   );

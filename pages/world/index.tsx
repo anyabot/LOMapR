@@ -11,7 +11,7 @@ import { World } from '@/interfaces/world';
 import {
   SimpleGrid, Heading, Divider, HStack, Badge, Center, VStack, Text,
   Box, AspectRatio, Image,
-} from '@chakra-ui/react';
+} from '@altterisk/game-hub/ui';
 import { BannerCard, CardGrid, EmptyState, EntityTile, SearchBox } from '@altterisk/game-hub';
 import { textMatch } from '@altterisk/game-hub/filters';
 import { Seo } from '@/components/seo';

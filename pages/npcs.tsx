@@ -4,7 +4,7 @@ import { useRouter } from 'next/router';
 import {
   Badge, Box, Button, ButtonGroup, Center, Heading, HStack, Image, Input,
   SimpleGrid, Text, VStack,
-} from '@chakra-ui/react';
+} from '@altterisk/game-hub/ui';
 import SkinViewer from '@/components/skinViewer';
 import { NPCS, NPCS_BY_ID, NpcCategory, NpcEntry } from '@/lib/npcs';
 import { t } from '@/lib/strings';

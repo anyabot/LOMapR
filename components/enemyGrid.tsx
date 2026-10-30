@@ -4,7 +4,7 @@ import { EnemyIndex } from '@/interfaces/world';
 import { useAppSelector, useAppDispatch } from '@/hooks';
 import { setActive, fetchEnemyAsync, selectEnemy } from '@/store/enemySlice';
 import { selectImage, fetchImageAsync } from '@/store/imageSlice';
-import { Image, Text, Tag, Grid, GridItem } from '@chakra-ui/react';
+import { Image, Text, Tag, Grid, GridItem } from '@altterisk/game-hub/ui';
 import { t } from '@/lib/strings';
 import { useTranslationVersion } from '@/lib/translationVersion';
 

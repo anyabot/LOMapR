@@ -1,5 +1,5 @@
 import { useRouter } from 'next/router';
-import { Center, Spinner } from '@chakra-ui/react';
+import { Center, Spinner } from '@altterisk/game-hub/ui';
 import { useAppSelector } from '@/hooks';
 import { selectEnemyStatus } from '@/store/enemySlice';
 import { selectWorldStatus } from '@/store/worldSlice';

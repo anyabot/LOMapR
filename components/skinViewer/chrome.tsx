@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { HStack, Image, Tooltip, Wrap, WrapItem } from '@chakra-ui/react';
+import { HStack, Image, Tooltip, Wrap, WrapItem } from '@altterisk/game-hub/ui';
 import {
   ActionButton, ControlRow, ControlSection, OverlaySelect, SegmentedControl, ToggleRow,
 } from '@altterisk/game-hub/viewer';

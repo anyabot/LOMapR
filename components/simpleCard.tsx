@@ -1,4 +1,4 @@
-import { Image, Box, Heading, AspectRatio, Center } from '@chakra-ui/react';
+import { Image, Box, Heading, AspectRatio, Center } from '@altterisk/game-hub/ui';
 import { ReactNode } from 'react';
 
 type HeadingSize =

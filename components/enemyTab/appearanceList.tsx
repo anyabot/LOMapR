@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
-import { Card, CardHeader, CardBody, Text, Divider, Box, Tag, TagLabel, Heading } from '@chakra-ui/react'
-import { LinkIcon } from '@chakra-ui/icons'
+import { Card, CardHeader, CardBody, Text, Divider, Box, Tag, TagLabel, Heading } from '@altterisk/game-hub/ui'
+import { LinkIcon } from '@altterisk/game-hub/ui'
 import Link from 'next/link';
 
 import { useAppSelector, useAppDispatch } from '@/hooks';

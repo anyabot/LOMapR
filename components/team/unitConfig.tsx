@@ -6,8 +6,8 @@ import {
   NumberIncrementStepper, NumberDecrementStepper, Slider, SliderTrack,
   SliderFilledTrack, SliderThumb, Accordion, AccordionItem, AccordionButton,
   AccordionPanel, AccordionIcon,
-} from '@chakra-ui/react';
-import { CloseIcon, SmallCloseIcon } from '@chakra-ui/icons';
+} from '@altterisk/game-hub/ui';
+import { CloseIcon, SmallCloseIcon } from '@altterisk/game-hub/ui';
 import Link from 'next/link';
 import { useAppSelector, useAppDispatch } from '@/hooks';
 import { selectUnitSkills, selectUnitSkillStatus } from '@/store/unitSlice';
@@ -582,7 +582,7 @@ export default function UnitConfig({ tile, slot, unit, team, enemyWave, onChange
                     <Image src={`/images/SkillIcon/${scaled.img}_${scaled.type}.png`} alt={scaled.title}
                       boxSize="34px" cursor={locked ? 'not-allowed' : 'pointer'}
                       filter={locked ? 'grayscale(1)' : undefined}
-                      outline={isAoe ? '2px solid var(--chakra-colors-accent-400)' : undefined}
+                      outline={isAoe ? '2px solid var(--ui-c-accent-400)' : undefined}
                       borderRadius="md"
                       onClick={() => { if (!locked) onSkillClick(key, scaled); }} />
                     <Box minW={0} flex="1" cursor={locked ? 'default' : 'pointer'}

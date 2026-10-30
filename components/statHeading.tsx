@@ -1,4 +1,4 @@
-import { Text } from '@chakra-ui/react';
+import { Text } from '@altterisk/game-hub/ui';
 
 export default function StatHeading({ children }: { children: React.ReactNode }) {
   return (

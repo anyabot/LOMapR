@@ -1,4 +1,4 @@
-import { TabPanel, Text, Image, Box, Flex, VStack, HStack, Tag, Wrap, WrapItem } from "@chakra-ui/react";
+import { TabPanel, Text, Image, Box, Flex, VStack, HStack, Tag, Wrap, WrapItem } from '@altterisk/game-hub/ui';
 import { Skill } from "@/interfaces/skill";
 import { t } from "@/lib/strings";
 import { useTranslationVersion } from "@/lib/translationVersion";

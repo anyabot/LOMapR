@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Box, Center, Spinner, Text } from '@chakra-ui/react';
+import { Box, Center, Spinner, Text } from '@altterisk/game-hub/ui';
 import { readText, revokeArchiveUrls } from '@altterisk/game-hub/archive';
 import {
   attachPanZoom, createPixiApp, loadSpineAtlas, loadTexture, readSkeletonJson, saveStagePng,
@@ -113,7 +113,7 @@ function UnityViewer({ skin, height, parts, hasRplus, hasKr, hasBg, hasDam, show
           position="absolute" inset={0} w="100%" h="100%"
           border="none"
           allow="autoplay"
-          sx={{ colorScheme: 'none' }}
+          style={{ colorScheme: 'none' }}
         />
       }
       panel={<>

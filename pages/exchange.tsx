@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Seo } from '@/components/seo';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { Box, Button, Center, Flex, HStack, Spinner, Text, VStack } from '@chakra-ui/react';
+import { Box, Button, Center, Flex, HStack, Spinner, Text, VStack } from '@altterisk/game-hub/ui';
 import {
   EmptyState, PageHeader, SearchBox, SegmentedButtons, TabPanel, UrlTabs, tabParam, type TabItem,
 } from '@altterisk/game-hub';

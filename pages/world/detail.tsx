@@ -21,8 +21,8 @@ import { EventExchange, World } from '@/interfaces/world';
 import type { StoryIndex, SubStoryGroup } from '@/interfaces/story';
 import {
   AspectRatio, Badge, Box, Button, Collapse, Flex, HStack, Image, SimpleGrid, Text, VStack,
-} from '@chakra-ui/react';
-import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon } from '@chakra-ui/icons';
+} from '@altterisk/game-hub/ui';
+import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon } from '@altterisk/game-hub/ui';
 import { Breadcrumbs, PageHeader, Panel } from '@altterisk/game-hub';
 import { Seo } from '@/components/seo';
 

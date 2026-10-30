@@ -4,7 +4,7 @@ import {
   Box, Center, Flex, Heading, HStack, VStack, Text, Tag, Badge, Image, Spinner,
   Accordion, AccordionItem, AccordionButton, AccordionPanel, AccordionIcon,
   Table, Thead, Tbody, Tr, Th, Td, TableContainer, SimpleGrid,
-} from '@chakra-ui/react';
+} from '@altterisk/game-hub/ui';
 import { useAppSelector, useAppDispatch } from '@/hooks';
 import { RootState } from '@/store';
 import { selectUnits } from '@/store/unitSlice';
