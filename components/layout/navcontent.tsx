@@ -121,7 +121,7 @@ export function TranslationMenu() {
       >
         {label} ▾
       </MenuButton>
-      <MenuList minW="240px" py={1}>
+      <MenuList minW="240px" maxW="calc(100vw - 16px)" py={1}>
         {LAYERS.map(({ key, label, desc, warning }) => (
           <MenuItem
             key={key}

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
-import Head from 'next/head';
+import { Seo } from '@/components/seo';
 import Link from 'next/link';
 import {
   Box, Button, ButtonGroup, Center, Flex, Heading, HStack, VStack, Text, Tag, Wrap, WrapItem,
@@ -223,7 +223,8 @@ export default function UnitDetail() {
 
   return (
     <>
-      <Head><title>{name} — Unit</title></Head>
+      <Seo title={name} description={`${name}: Last Origin unit stats, skills and skins.`}
+        image={unit.icon ? `/images/icons/${unit.icon}.png` : null} />
       <VStack align="stretch" spacing={4} py={4}>
         <Breadcrumbs renderLink={nextLink} items={[{ label: 'Units', href: '/units' }, { label: name }]} />
 

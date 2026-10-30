@@ -10,8 +10,10 @@ import { t } from '@/lib/strings';
 import { useTranslationVersion } from '@/lib/translationVersion';
 import { rankTag, rankColor, equipIcon, EXCHANGE_META, filterValueAllowed } from '@/lib/rank';
 import { chipColor, countActive, fillModes, useListUrl, useUrlText } from '@/lib/listUrl';
-import Head from 'next/head';
+import { Seo } from '@/components/seo';
 import { useRouter } from 'next/router';
+
+const DESCRIPTION = 'All Last Origin equipment with stats and set effects.';
 
 // The three equip slots, from the data's `slot` (the key prefix is unreliable).
 const SLOTS: { label: 'Chip' | 'OS' | 'Item'; icon: string }[] = [
@@ -67,17 +69,17 @@ export default function Equipment() {
   }
 
   if (status === 'failed') {
-    return (<><Head><title>Equipment</title></Head><Center py={20}><Text color="red.300">Failed to load equipment.</Text></Center></>);
+    return (<><Seo title="Equipment" description={DESCRIPTION} /><Center py={20}><Text color="red.300">Failed to load equipment.</Text></Center></>);
   }
   if (Object.keys(equip).length === 0) {
-    return (<><Head><title>Equipment</title></Head></>);
+    return (<><Seo title="Equipment" description={DESCRIPTION} /></>);
   }
 
   const shown = Object.values(equip).filter(matches);
 
   return (
     <>
-      <Head><title>Equipment</title></Head>
+      <Seo title="Equipment" description={DESCRIPTION} />
       <VStack align="stretch" spacing={4} py={4}>
         <Heading size="xl">Equipment</Heading>
 

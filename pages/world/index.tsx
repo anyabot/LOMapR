@@ -14,7 +14,9 @@ import {
 } from '@chakra-ui/react';
 import { BannerCard, CardGrid, EmptyState, EntityTile, SearchBox } from '@altterisk/game-hub';
 import { textMatch } from '@altterisk/game-hub/filters';
-import Head from 'next/head';
+import { Seo } from '@/components/seo';
+
+const DESCRIPTION = 'Last Origin main story and event worlds: stages, waves and enemies.';
 
 // permanent-event banners are 320x156
 const BANNER_RATIO = 320 / 156;
@@ -52,7 +54,7 @@ export default function Home() {
 
   const Frame = ({ children }: { children: React.ReactNode }) => (
     <>
-      <Head><title>World List</title></Head>
+      <Seo title="World List" description={DESCRIPTION} />
       {children}
     </>
   );

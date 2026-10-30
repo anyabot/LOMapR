@@ -10,26 +10,28 @@ type PageCase = {
   text?: string;            // fallback: any stable visible text
 };
 
+const full = (title: string) => `${title} — Last Origin | LOMapR`;
+
 const CASES: PageCase[] = [
   { path: '/',             title: /LOMapR/,                 heading: 'LOMapR' },
-  { path: '/units',        title: 'Units',                  heading: 'Units' },
-  { path: '/npcs',         title: 'NPC Viewer - LOMapR',    heading: 'NPC Viewer' },
-  { path: '/equipment',    title: 'Equipment',              heading: 'Equipment' },
-  { path: '/enemies',      title: 'Enemy List',             heading: 'Enemies' },
-  { path: '/skins',        title: 'Skins',                  heading: 'Skins' },
+  { path: '/units',        title: full('Units'),                  heading: 'Units' },
+  { path: '/npcs',         title: full('NPC Viewer'),             heading: 'NPC Viewer' },
+  { path: '/equipment',    title: full('Equipment'),              heading: 'Equipment' },
+  { path: '/enemies',      title: full('Enemy List'),             heading: 'Enemies' },
+  { path: '/skins',        title: full('Skins'),                  heading: 'Skins' },
   { path: '/gacha',        title: /Gacha Simulator/,        heading: 'Gacha Simulator' },
   { path: '/team',         title: /Team Builder/,           heading: 'Team Builder' },
-  { path: '/misc',         title: 'Misc Categorization',    heading: 'Misc Categorization' },
-  { path: '/sanctum',      title: 'Sanctum of Alteration' },
-  { path: '/world',        title: 'World List' },
-  { path: '/story',        title: 'Story',                  heading: 'Story' },
-  { path: '/iw',           title: 'Infinite War' },
-  { path: '/exchange',     title: 'Exchange',               heading: 'Exchange' },
+  { path: '/misc',         title: full('Misc Categorization'),    heading: 'Misc Categorization' },
+  { path: '/sanctum',      title: full('Sanctum of Alteration') },
+  { path: '/world',        title: full('World List') },
+  { path: '/story',        title: full('Story'),                  heading: 'Story' },
+  { path: '/iw',           title: full('Infinite War') },
+  { path: '/exchange',     title: full('Exchange'),               heading: 'Exchange' },
   // detail pages without params fall back to their list/empty state
   { path: '/units/detail', title: /./,                      text: 'Unit not found.' },
-  { path: '/world/detail', title: 'Zone List' },
-  { path: '/world/stage',  title: 'Stage List' },
-  { path: '/iw/detail',    title: 'Infinite War' },
+  { path: '/world/detail', title: full('Zone List') },
+  { path: '/world/stage',  title: full('Stage List') },
+  { path: '/iw/detail',    title: full('Infinite War') },
 ];
 
 // Fail the test on an uncaught page error (React render crash, etc.).
@@ -66,9 +68,10 @@ for (const c of CASES) {
     }
 
     // mobile-first rule: wide content belongs in its own overflowX="auto" wrapper
+    // html/body clip overflow-x, so only body.scrollWidth reveals content cut off at the edge.
     const overflow = await page.evaluate(() => {
       const el = document.documentElement;
-      return el.scrollWidth - el.clientWidth;
+      return Math.max(el.scrollWidth, document.body.scrollWidth) - el.clientWidth;
     });
     expect(overflow, 'page body scrolls horizontally').toBeLessThanOrEqual(1);
 

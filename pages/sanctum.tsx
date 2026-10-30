@@ -13,7 +13,7 @@ import {
 } from "@/store/sanctumSlice";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import Head from "next/head";
+import { Seo } from "@/components/seo";
 import { useRouter } from "next/router";
 import {
   Flex,
@@ -35,6 +35,7 @@ import {
 } from "@chakra-ui/react";
 import { Floor, Wave, Prohibition, Suitability, SquadGroup } from "@/interfaces/sanctum";
 import EnemyGrid from "@/components/enemyGrid";
+import { WaveNav } from "@altterisk/game-hub";
 import GameText from "@/components/gameText";
 import CopyLink from "@/components/copyLink";
 import BuffList from "@/components/buffList";
@@ -45,6 +46,8 @@ import { t } from "@/lib/strings";
 import { useTranslationVersion } from "@/lib/translationVersion";
 import { encodeWaveRef } from "@/lib/waveRef";
 import styles from "@/styles/custom.module.css";
+
+const DESCRIPTION = 'Last Origin Sanctum of Alteration floors, restrictions and resource gain.';
 
 export default function Home() {
   useTranslationVersion();
@@ -218,9 +221,7 @@ export default function Home() {
   if (sanctumStatus == "failed") {
     return (
       <>
-        <Head>
-          <title>Sanctum of Alteration</title>
-        </Head>
+        <Seo title="Sanctum of Alteration" description={DESCRIPTION} />
         <Center py={20}><Text color="red.300">Failed to load Sanctum.</Text></Center>
       </>
     );
@@ -228,17 +229,13 @@ export default function Home() {
   if (Object.keys(sanctum).length === 0) {
     return (
       <>
-        <Head>
-          <title>Sanctum of Alteration</title>
-        </Head>
+        <Seo title="Sanctum of Alteration" description={DESCRIPTION} />
       </>
     );
   } else {
     return (
       <>
-        <Head>
-          <title>Sanctum of Alteration</title>
-        </Head>
+        <Seo title="Sanctum of Alteration" description={DESCRIPTION} />
 
         <VStack as={Center}>
           <Text as="b" fontSize="6xl" textAlign="center">
@@ -345,13 +342,16 @@ export default function Home() {
           >
           {waveData ? (
             <VStack spacing={2}>
+              <Box display={{ base: "block", sm: "none" }}>
+                <WaveNav count={floorData!.waves.length} index={wave} onChange={setWave} />
+              </Box>
               <HStack as={Center} gap={[2, 4]}>
                 <IconButton aria-label="Previous wave" icon={<ArrowLeftIcon />}
-                  isRound size="md" variant="outline" colorScheme="gray"
+                  isRound size="md" variant="outline" colorScheme="gray" display={{ base: "none", sm: "inline-flex" }}
                   isDisabled={wave == 0} onClick={decreaseWave} />
                 <EnemyGrid wave={waveData.e} />
                 <IconButton aria-label="Next wave" icon={<ArrowRightIcon />}
-                  isRound size="md" variant="outline" colorScheme="gray"
+                  isRound size="md" variant="outline" colorScheme="gray" display={{ base: "none", sm: "inline-flex" }}
                   isDisabled={wave == floorData!.waves.length - 1} onClick={increaseWave} />
               </HStack>
               <Button as={Link} size="xs" variant="outline" colorScheme="teal"
@@ -363,7 +363,7 @@ export default function Home() {
             </VStack>
           ) : null}
 
-          <VStack align="stretch" flex={1} minW={{ base: "100%", lg: "320px" }} maxW="640px">
+          <VStack align="stretch" flex={1} minW={{ base: "100%", lg: "320px" }} maxW="min(100%, 640px)">
           {/* Ban / Suitable groups for the active floor (group member lists TBD) */}
           {floorData ? (
             <Box w="100%">

@@ -11,7 +11,9 @@ import { ListToolbar, SearchBox, FilterPanel, FilterRow, FilterChip, EmptyState 
 import { rankTag, rankColor, roleRankIcon, typeIcon, roleIcon, bodyIcon, factionIcon, factionKey,
   factionName, filterValueAllowed, unitDisplayName } from '@/lib/rank';
 import { chipColor, countActive, fillModes, useListUrl, useUrlText } from '@/lib/listUrl';
-import Head from 'next/head';
+import { Seo } from '@/components/seo';
+
+const DESCRIPTION = 'Playable Last Origin units with stats, skills and skins.';
 
 // One table per class type (rows of the page); columns = role; rows = grade.
 const TYPES = ['Light', 'Air', 'Heavy'] as const;
@@ -78,10 +80,10 @@ export default function Units() {
   }
 
   if (status === 'failed') {
-    return (<><Head><title>Units</title></Head><Center py={20}><Text color="red.300">Failed to load units.</Text></Center></>);
+    return (<><Seo title="Units" description={DESCRIPTION} /><Center py={20}><Text color="red.300">Failed to load units.</Text></Center></>);
   }
   if (Object.keys(units).length === 0) {
-    return (<><Head><title>Units</title></Head></>);
+    return (<><Seo title="Units" description={DESCRIPTION} /></>);
   }
 
   const shown = Object.values(units).filter(matches);
@@ -98,7 +100,7 @@ export default function Units() {
 
   return (
     <>
-      <Head><title>Units</title></Head>
+      <Seo title="Units" description={DESCRIPTION} />
       <VStack align="stretch" spacing={4} py={4}>
         <Heading size="xl">Units</Heading>
 

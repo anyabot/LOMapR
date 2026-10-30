@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
-import Head from 'next/head';
+import { Seo } from '@/components/seo';
 import NextLink from 'next/link';
 import { useRouter } from 'next/router';
 import {
@@ -27,6 +27,8 @@ import { STAGE_ICON_SRC, type World } from '@/interfaces/world';
 import type {
   CharStoryGroup, CharStoryIndex, CharStorySquad, StoryIndex, StoryScene, StoryZone, StoryZoneText,
 } from '@/interfaces/story';
+
+const DESCRIPTION = 'Last Origin story reader: main story, character stories and event stories.';
 
 const BANNER_RATIO = 320 / 156;
 
@@ -107,18 +109,18 @@ export default function StoryPage() {
   const storyKey = typeof router.query.story === 'string' ? router.query.story : null;
 
   if (failed) {
-    return <><Head><title>Story</title></Head><EmptyState title="Story data failed to load." /></>;
+    return <><Seo title="Story" description={DESCRIPTION} /><EmptyState title="Story data failed to load." /></>;
   }
   if (!index || !router.isReady) {
     return (
       <>
-        <Head><title>Story</title></Head>
+        <Seo title="Story" description={DESCRIPTION} />
         <Center py={20}><Spinner /></Center>
       </>
     );
   }
   const squad = squadKey ? chars?.squads.find((q) => q.key === squadKey) : undefined;
-  if (squadKey && !chars) return <><Head><title>Story</title></Head><Center py={20}><Spinner /></Center></>;
+  if (squadKey && !chars) return <><Seo title="Story" description={DESCRIPTION} /><Center py={20}><Spinner /></Center></>;
   if (squad && chars) return <SquadView squad={squad} groups={chars.groups} story={storyKey} />;
   if (worldId && index[worldId]) {
     const zones = storyZones(index, worldId);
@@ -168,7 +170,7 @@ function StoryList({ index, chars, world, images }: {
 
   return (
     <>
-      <Head><title>Story</title></Head>
+      <Seo title="Story" description={DESCRIPTION} />
       <VStack align="stretch" spacing={8} py={4}>
         <Flex align="center" gap={3} wrap="wrap">
           <Heading size="xl">Story</Heading>
@@ -242,7 +244,7 @@ function ZoneList({ worldId, world, index, images }: {
   const title = world ? t(world.title) : worldId;
   return (
     <>
-      <Head><title>{`${title} - Story`}</title></Head>
+      <Seo title={`${title} - Story`} description={DESCRIPTION} />
       <VStack align="stretch" spacing={4} py={4}>
         <Breadcrumbs renderLink={nextLink} items={[{ label: 'Story', href: '/story' }, { label: title }]} />
         <PageHeader title={title} actions={<LangToggle />} />
@@ -307,7 +309,7 @@ function Reader({ worldId, world, zoneNum, zone, zones, scene }: {
 
   return (
     <>
-      <Head><title>{`${zoneTitle} - Story`}</title></Head>
+      <Seo title={`${zoneTitle} - Story`} description={DESCRIPTION} />
       <VStack align="stretch" spacing={4} py={4}>
         <Breadcrumbs renderLink={nextLink} items={[
           { label: 'Story', href: '/story' },
@@ -439,7 +441,7 @@ function SquadView({ squad, groups, story }: {
   const title = pickText(squad.name, lang);
   return (
     <>
-      <Head><title>{`${title} - Story`}</title></Head>
+      <Seo title={`${title} - Story`} description={DESCRIPTION} />
       <VStack align="stretch" spacing={4} py={4}>
         <Breadcrumbs renderLink={nextLink} items={[{ label: 'Story', href: '/story' }, { label: title }]} />
         <PageHeader title={title} subtitle={squad.desc ? pickText(squad.desc, lang) : undefined}

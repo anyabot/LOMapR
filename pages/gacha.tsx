@@ -8,11 +8,13 @@ import {
   Tooltip,
   Tabs, TabList, TabPanels, Tab, TabPanel,
 } from '@chakra-ui/react';
-import Head from 'next/head';
+import { Seo } from '@/components/seo';
 import NextLink from 'next/link';
 import { fetchGachaPools, GachaEntry, GachaPools } from '@/lib/fetchData';
 import { tAny } from '@/lib/strings';
 import { useTranslationVersion } from '@/lib/translationVersion';
+
+const DESCRIPTION = 'Last Origin gacha simulator using live Global and KR rates.';
 
 // "FormationIcon_BR_Gnome_N" + "Skin_BR_Gnome_1" -> "FormationIcon_BR_Gnome_NS1".
 function skinFormationIcon(entry: GachaEntry & { kind: 'skin' }): string {
@@ -472,7 +474,7 @@ export default function GachaPage() {
 
   return (
     <>
-      <Head><title>Gacha Simulator | LOMapR</title></Head>
+      <Seo title="Gacha Simulator" description={DESCRIPTION} />
       <Box maxW="1100px" mx="auto" px={4} py={6}>
         <Heading size="lg" mb={1}>Gacha Simulator</Heading>
         <Text fontSize="sm" color="whiteAlpha.600" mb={5}>
