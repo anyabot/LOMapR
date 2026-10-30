@@ -1,7 +1,6 @@
 import '@/styles/globals.css'
 import type { AppProps } from 'next/app'
 import { Provider, useSelector, useDispatch } from 'react-redux'
-import { ChakraProvider, type ColorModeProviderProps } from '@chakra-ui/react'
 import { useEffect, useRef, useState } from 'react'
 import { store, RootState } from '@/store'
 import { setStringsRegion, setStringsLayers, setChunkData, setCommunityData, setMtlData, setKrMtlData } from '@/lib/strings'
@@ -27,21 +26,12 @@ import Layout from '@/components/layout'
 import ChangelogNotice from '@/components/changelogNotice'
 import { Seo } from '@/components/seo'
 
-import { extendTheme } from '@chakra-ui/react'
-import { hubChakraTheme } from '@altterisk/game-hub/chakra'
+import { Toaster } from '@altterisk/game-hub/ui'
+import '@altterisk/game-hub/ui-reset.css'
+import '@altterisk/game-hub/ui.css'
 import '@altterisk/game-hub/hub.css'
 import '@altterisk/game-hub/components.css'
-
-const theme = extendTheme(hubChakraTheme('lo'), {
-  styles: {
-    global: {
-      'h1, h2': { fontWeight: 700 },
-    },
-  },
-  components: {
-    Divider: { baseStyle: { borderColor: 'hub.border', opacity: 1 } },
-  },
-})
+import '@/styles/site.css'
 
 // Maps a ?server= value to a region; null when absent or unrecognized.
 function forcedRegionFromUrl(): Region | null {
@@ -162,22 +152,12 @@ function useStringsAndTranslation(): number {
   return ver;
 }
 
-// The app is dark-only: get() always returns 'dark' and set() never persists, so a
-// stale `chakra-ui-color-mode: light` value can never flip it.
-const darkOnlyManager: ColorModeProviderProps['colorModeManager'] = {
-  type: 'localStorage',
-  ssr: true,
-  get: () => 'dark',
-  set: () => {},
-};
-
 export default function App({ Component, pageProps }: AppProps) {
   return (
     <Provider store={store}>
-      <ChakraProvider theme={theme} colorModeManager={darkOnlyManager}>
-        <RegionSync />
-        <AppBody Component={Component} pageProps={pageProps} />
-      </ChakraProvider>
+      <RegionSync />
+      <AppBody Component={Component} pageProps={pageProps} />
+      <Toaster />
     </Provider>
   );
 }

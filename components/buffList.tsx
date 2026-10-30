@@ -1,4 +1,4 @@
-import { Box, Flex, HStack, Image, Text, Tooltip, VStack } from "@chakra-ui/react";
+import { Box, Flex, HStack, Image, Text, Tooltip, VStack } from '@altterisk/game-hub/ui';
 import React, { useState } from "react";
 import { SkillBuff } from "@/interfaces/skill";
 import { t, tOrEmpty } from "@/lib/strings";

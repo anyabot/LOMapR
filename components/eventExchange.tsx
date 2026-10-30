@@ -1,6 +1,6 @@
 import {
   Badge, Box, HStack, Image, SimpleGrid, Tab, TabList, TabPanel, TabPanels, Tabs, Text,
-} from '@chakra-ui/react';
+} from '@altterisk/game-hub/ui';
 import { useEffect } from 'react';
 import Link from 'next/link';
 import { useAppDispatch, useAppSelector } from '@/hooks';

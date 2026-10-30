@@ -20,15 +20,15 @@ import {
   Flex,
   Center,
   Input, Button, VStack, Heading, Spinner,
-} from "@chakra-ui/react";
-import { ArrowBackIcon } from "@chakra-ui/icons";
+} from '@altterisk/game-hub/ui';
+import { ArrowBackIcon } from '@altterisk/game-hub/ui';
 import Link from "next/link";
 import { Seo } from "@/components/seo";
 import { useRouter } from "next/router";
 import SkillTabList from "@/components/enemyTab/skillTabList";
 import { selectEnemy, selectEnemyFull, fetchEnemyAsync, fetchEnemyFullAsync } from "@/store/enemySlice";
 import { EnemyFull } from "@/interfaces/enemy";
-import { useNumberInput } from "@chakra-ui/react";
+import { useNumberInput } from '@altterisk/game-hub/ui';
 import { t } from "@/lib/strings";
 import { encodeWaveRef } from "@/lib/waveRef";
 import styles from "@/styles/custom.module.css";

@@ -44,10 +44,10 @@ a {
   text-decoration: none;
 }
 
-/* Link hover styling is handled per-component (Chakra _hover), not globally —
+/* Link hover styling is handled per-component (_hover style props), not globally —
    a blanket a:hover color leaks into card/banner link wrappers. */
 
-/* Native <select> option lists are browser-rendered and ignore Chakra props. */
+/* Native <select> option lists are browser-rendered and ignore style props. */
 select,
 select option,
 select optgroup {
@@ -69,6 +69,6 @@ select optgroup {
   border-color: #319795;
 }
 
-.hub-banner-card__art .chakra-aspect-ratio img {
+.hub-banner-card__art .ui-aspect img {
   height: 100%;
 }

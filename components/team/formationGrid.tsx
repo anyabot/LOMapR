@@ -1,5 +1,5 @@
-import { Box, Grid, HStack, IconButton, Image, Text, VStack } from '@chakra-ui/react';
-import { RepeatIcon, SmallCloseIcon } from '@chakra-ui/icons';
+import { Box, Grid, HStack, IconButton, Image, Text, VStack } from '@altterisk/game-hub/ui';
+import { RepeatIcon, SmallCloseIcon } from '@altterisk/game-hub/ui';
 import { Team } from '@/interfaces/team';
 import { UnitData } from '@/interfaces/unit';
 import { unitDisplayName } from '@/lib/rank';

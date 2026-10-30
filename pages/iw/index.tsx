@@ -6,7 +6,7 @@ import { Season } from '@/interfaces/iw';
 import {
   SimpleGrid, Heading, Divider, HStack, Badge, Center, VStack, Text,
   AspectRatio, Image,
-} from '@chakra-ui/react';
+} from '@altterisk/game-hub/ui';
 import { BannerCard } from '@altterisk/game-hub';
 import { nextLink } from '@/lib/hubLink';
 import { Seo } from '@/components/seo';

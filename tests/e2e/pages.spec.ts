@@ -86,9 +86,9 @@ test('Etc navigation groups secondary tools', async ({ page }) => {
   if (await mobileToggle.isVisible()) await mobileToggle.click();
 
   await page.getByRole('button', { name: 'Etc' }).click();
-  await expect(page.getByRole('menuitem', { name: 'NPC Viewer', exact: true })).toHaveAttribute('href', '/npcs');
-  await expect(page.getByRole('menuitem', { name: 'Gacha Simulator', exact: true })).toHaveAttribute('href', '/gacha');
-  await expect(page.getByRole('menuitem', { name: 'Team Builder', exact: true })).toHaveAttribute('href', '/team');
-  await expect(page.getByRole('menuitem', { name: 'Misc Categories', exact: true })).toHaveAttribute('href', '/misc');
-  await expect(page.getByRole('menuitem', { name: 'Exchange', exact: true })).toHaveAttribute('href', '/exchange');
+  await expect(page.getByRole('link', { name: 'NPC Viewer', exact: true })).toHaveAttribute('href', '/npcs');
+  await expect(page.getByRole('link', { name: 'Gacha Simulator', exact: true })).toHaveAttribute('href', '/gacha');
+  await expect(page.getByRole('link', { name: 'Team Builder', exact: true })).toHaveAttribute('href', '/team');
+  await expect(page.getByRole('link', { name: 'Misc Categories', exact: true })).toHaveAttribute('href', '/misc');
+  await expect(page.getByRole('link', { name: 'Exchange', exact: true })).toHaveAttribute('href', '/exchange');
 });

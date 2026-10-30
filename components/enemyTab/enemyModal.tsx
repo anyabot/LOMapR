@@ -25,7 +25,7 @@ import {
   NumberDecrementStepper,
   InputGroup,
   InputLeftAddon,
-} from '@chakra-ui/react'
+} from '@altterisk/game-hub/ui'
 import SkillTabList from './skillTabList';
 import ApperanceList from './appearanceList';
 import CopyLink from '@/components/copyLink';

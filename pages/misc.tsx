@@ -3,8 +3,8 @@ import { Seo } from '@/components/seo';
 import {
   Badge, Box, Center, Flex, HStack, Heading, IconButton, Image,
   Input, InputGroup, InputRightElement, Select, Spinner, Text, VStack, Wrap, WrapItem,
-} from '@chakra-ui/react';
-import { CloseIcon, SearchIcon } from '@chakra-ui/icons';
+} from '@altterisk/game-hub/ui';
+import { CloseIcon, SearchIcon } from '@altterisk/game-hub/ui';
 import { useRouter } from 'next/router';
 import { FilterChip, GroupCard, SegmentedButtons, TabPanel, UrlTabs, tabParam } from '@altterisk/game-hub';
 import { nextRouterAdapter } from '@altterisk/game-hub/filters';
@@ -309,8 +309,7 @@ function BuffLookup({ unitById }: { unitById: Record<string, UnitData> }) {
       ) : (
         <div className="hub-group-grid hub-group-grid--wide">
           <GroupCard title={activeGroup.name} count={rows.length}>
-            <Box as="table" className="hub-table--stack" w="100%"
-              sx={{ borderCollapse: 'collapse', tableLayout: 'fixed', '@media (min-width: 600px)': { minW: '980px' } }}>
+            <Box as="table" className="hub-table--stack misc-table misc-table--buffs" w="100%">
               <Box as="thead">
                 <Box as="tr">
                   <Box {...thProps} w="170px">Unit</Box>
@@ -331,7 +330,7 @@ function BuffLookup({ unitById }: { unitById: Record<string, UnitData> }) {
                         : <Text fontSize="xs" color="gray.600">—</Text>}
                     </Box>
                     {/* condition pills are nowrap in the skill-detail buff list; let them wrap here */}
-                    <Box {...tdProps} data-label="Conditions" sx={{ '& span': { whiteSpace: 'normal' } }}>
+                    <Box {...tdProps} data-label="Conditions" className="misc-wrap-spans">
                       <BuffCondTags rep={e.buff} />
                     </Box>
                   </Box>
@@ -473,8 +472,7 @@ function DamageList({ unitById }: { unitById: Record<string, UnitData> }) {
 
       <div className="hub-group-grid hub-group-grid--wide">
         <GroupCard title={DMG_META[dmg].label} count={rows.length}>
-          <Box as="table" className="hub-table--stack" w="100%"
-            sx={{ borderCollapse: 'collapse', '@media (min-width: 600px)': { minW: '560px' } }}>
+          <Box as="table" className="hub-table--stack misc-table misc-table--dmg" w="100%">
             <Box as="thead">
               <Box as="tr">
                 <Box {...thProps} w="240px">Unit</Box>

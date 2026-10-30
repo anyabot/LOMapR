@@ -4,8 +4,8 @@ import {
   ModalCloseButton, Button, ButtonGroup, Select, HStack, Text, Center, Spinner,
   Box, IconButton, NumberInput, NumberInputField, NumberInputStepper,
   NumberIncrementStepper, NumberDecrementStepper,
-} from '@chakra-ui/react';
-import { ArrowLeftIcon, ArrowRightIcon } from '@chakra-ui/icons';
+} from '@altterisk/game-hub/ui';
+import { ArrowLeftIcon, ArrowRightIcon } from '@altterisk/game-hub/ui';
 import { useAppSelector, useAppDispatch } from '@/hooks';
 import {
   selectWorld, selectWorldStatus, selectWorldStageStatus,

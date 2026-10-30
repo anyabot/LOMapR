@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import {
   Modal, ModalOverlay, ModalContent, ModalHeader, ModalCloseButton, ModalBody,
   Box, HStack, Image, Input, Text, VStack, Tag, Wrap, WrapItem, Button, ButtonGroup,
-} from '@chakra-ui/react';
+} from '@altterisk/game-hub/ui';
 import { UnitData } from '@/interfaces/unit';
 import { EquipData } from '@/interfaces/equip';
 import { t } from '@/lib/strings';

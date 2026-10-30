@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   VStack, HStack, Center, Text, Heading, Badge, Box, Image, SimpleGrid,
-} from '@chakra-ui/react';
+} from '@altterisk/game-hub/ui';
 import { ListToolbar, SearchBox, FilterPanel, FilterRow, FilterChip, EmptyState } from '@altterisk/game-hub';
 import { useAppSelector, useAppDispatch } from '@/hooks';
 import { selectEquip, selectEquipStatus, fetchEquipAsync, setActiveEquip } from '@/store/equipSlice';

@@ -14,6 +14,6 @@ export function countActive(...groups: Record<string | number, FilterMode>[]): n
   return groups.reduce((n, g) => n + Object.values(g).filter((m) => m !== 0).length, 0);
 }
 
-export const chipColor = (scheme: string) => `var(--chakra-colors-${scheme}-400)`;
+export const chipColor = (scheme: string) => `var(--ui-c-${scheme}-400)`;
 
 export { useUrlText } from '@altterisk/game-hub/filters';

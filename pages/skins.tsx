@@ -6,8 +6,8 @@ import {
   Button, InputGroup, Input, InputRightElement, IconButton,
   Tooltip, Center, Spinner,
   Table, Tbody, Tr, Td,
-} from '@chakra-ui/react';
-import { CloseIcon, SearchIcon } from '@chakra-ui/icons';
+} from '@altterisk/game-hub/ui';
+import { CloseIcon, SearchIcon } from '@altterisk/game-hub/ui';
 import { tAny } from '@/lib/strings';
 import { useTranslationVersion } from '@/lib/translationVersion';
 import { Seo } from '@/components/seo';

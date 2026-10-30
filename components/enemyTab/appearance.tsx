@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Tag, TagLabel, Text } from '@chakra-ui/react'
-import { LinkIcon } from '@chakra-ui/icons'
+import { Box, Tag, TagLabel, Text } from '@altterisk/game-hub/ui'
+import { LinkIcon } from '@altterisk/game-hub/ui'
 import Link from 'next/link';
 
 import { useAppSelector, useAppDispatch } from '@/hooks';

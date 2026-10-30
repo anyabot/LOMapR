@@ -1,7 +1,7 @@
 # LOMapR — Last Origin Information & Resources
 
 A community database / reference site for the game, built with
-[Next.js](https://nextjs.org/) (pages router) + [Chakra UI](https://chakra-ui.com/)
+[Next.js](https://nextjs.org/) (pages router) + the `@altterisk/game-hub` UI kit
 + Redux Toolkit, deployed to Cloudflare Workers via
 [OpenNext](https://opennext.js.org/cloudflare). All pages are prerendered and
 served as static assets; game data (units, enemies, skills, equipment,
@@ -71,3 +71,12 @@ pipeline walkthrough lives in [`tools/README.md`](tools/README.md) (also untrack
 
 Icons are the exception: sprite PNGs are sliced once and committed under
 `public/images/` (tracked).
+
+## License
+
+The code is licensed under the [GNU Affero General Public License v3.0](LICENSE) (AGPL-3.0-or-later):
+copy, change and reuse it, as long as anything built from it, including a site that only runs
+a modified copy, is released as open source under the same license.
+
+The license covers the code only. Last Origin images, data and other game assets shown on the
+site are the property of Valofe; all rights belong to Valofe. This is an unofficial fan site.

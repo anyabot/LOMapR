@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from 'react';
-import { Box, Heading, SimpleGrid, Text, VStack } from '@chakra-ui/react';
+import { Box, Heading, SimpleGrid, Text, VStack } from '@altterisk/game-hub/ui';
 import { useAppDispatch, useAppSelector } from '@/hooks';
 import { selectItems, ItemMap } from '@/store/itemSlice';
 import { selectUnits, fetchUnitsAsync } from '@/store/unitSlice';

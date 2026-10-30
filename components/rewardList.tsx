@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Box, HStack, Text, Wrap, WrapItem, Tooltip, SimpleGrid } from '@chakra-ui/react';
+import { Box, HStack, Text, Wrap, WrapItem, Tooltip, SimpleGrid } from '@altterisk/game-hub/ui';
 import { Panel } from '@altterisk/game-hub';
 import { RewardEntry } from '@/interfaces/world';
 import { useAppSelector, useAppDispatch } from '@/hooks';

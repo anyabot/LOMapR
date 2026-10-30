@@ -20,7 +20,7 @@ test.describe('modal initial focus', () => {
         const el = document.activeElement;
         return {
           tag: el?.tagName ?? '',
-          inDialog: !!el?.closest('.chakra-modal__content-container, .chakra-modal__content'),
+          inDialog: !!el?.closest('.ui-modal__dialogContainer, .ui-modal__dialog'),
         };
       });
       expect(focused.tag).not.toBe('BUTTON');

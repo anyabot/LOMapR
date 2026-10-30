@@ -1,15 +1,15 @@
-import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Seo } from '@/components/seo';
 import NextLink from 'next/link';
 import { useRouter } from 'next/router';
 import {
   Accordion, AccordionButton, AccordionIcon, AccordionItem, AccordionPanel, AspectRatio, Badge, Box,
   Button, Center, Divider, Flex, Heading, HStack, Image, SimpleGrid, Spinner, Text, VStack,
-} from '@chakra-ui/react';
+} from '@altterisk/game-hub/ui';
 import {
   BannerCard, Breadcrumbs, CardGrid, EmptyState, EntityTile, PageHeader, SegmentedButtons,
 } from '@altterisk/game-hub';
-import { createPersisted } from '@altterisk/game-hub/persist';
+import { createSetting } from '@altterisk/game-hub/persist';
 import { useAppDispatch, useAppSelector } from '@/hooks';
 import { selectRegion } from '@/store/regionSlice';
 import { fetchWorldAsync, selectWorld } from '@/store/worldSlice';
@@ -32,30 +32,13 @@ const DESCRIPTION = 'Last Origin story reader: main story, character stories and
 
 const BANNER_RATIO = 320 / 156;
 
-const langStore = createPersisted<StoryLang>({
+const langSetting = createSetting<StoryLang>({
   key: 'lomapr.storyLang',
-  version: 1,
-  empty: () => 'en',
+  initial: 'en',
   sanitize: (raw) => (raw === 'ko' ? 'ko' : 'en'),
 });
-let currentLang: StoryLang | null = null;
-const langListeners = new Set<() => void>();
-function readLang(): StoryLang {
-  if (currentLang === null) currentLang = langStore.load();
-  return currentLang;
-}
-function setLang(lang: StoryLang) {
-  currentLang = lang;
-  langStore.save(lang);
-  langListeners.forEach((fn) => fn());
-}
-function useStoryLang(): StoryLang {
-  return useSyncExternalStore(
-    (fn) => { langListeners.add(fn); return () => { langListeners.delete(fn); }; },
-    readLang,
-    () => 'en',
-  );
-}
+const setLang = langSetting.set;
+const useStoryLang = (): StoryLang => langSetting.use()[0];
 
 const LANG_OPTIONS = [{ value: 'en', label: 'EN' }, { value: 'ko', label: 'KO' }] as const;
 

@@ -7,7 +7,7 @@ import {
   Box, Button, ButtonGroup, Center, Flex, Heading, HStack, VStack, Text, Badge,
   Input, InputGroup, InputRightElement, SimpleGrid, useToast,
   Tabs, Tab, TabList, TabPanels, TabPanel,
-} from '@chakra-ui/react';
+} from '@altterisk/game-hub/ui';
 import { useAppSelector, useAppDispatch } from '@/hooks';
 import { selectUnits, selectUnitFull, selectUnitStatus, fetchUnitsAsync, fetchUnitBundleAsync } from '@/store/unitSlice';
 import { fetchEquipAsync, fetchEquipFullAsync, selectEquip } from '@/store/equipSlice';

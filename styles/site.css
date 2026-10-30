@@ -1,0 +1,6 @@
+h1, h2 { font-weight: 700; }
+.ui-divider.ui-divider { border-color: var(--hub-border); opacity: 1; }
+.misc-table { border-collapse: collapse; }
+.misc-table--buffs { table-layout: fixed; }
+@media (min-width: 600px) { .misc-table--buffs { min-width: 980px; } .misc-table--dmg { min-width: 560px; } }
+.misc-wrap-spans span { white-space: normal; }

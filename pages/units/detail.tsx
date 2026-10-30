@@ -8,14 +8,14 @@ import {
   Table, Thead, Tbody, Tfoot, Tr, Th, Td, TableContainer,
   Accordion, AccordionItem, AccordionButton, AccordionPanel, AccordionIcon,
   Tabs, Tab, TabList, TabPanels,
-} from '@chakra-ui/react';
+} from '@altterisk/game-hub/ui';
 import {
   Breadcrumbs, PageHeader, MetaChips, MetaChip, Panel, StatRows, UrlTabs, TabPanel, tabParam, LevelControl,
   type StatItem, type TabItem,
 } from '@altterisk/game-hub';
 import { nextRouterAdapter } from '@altterisk/game-hub/filters';
 import { nextLink } from '@/lib/hubLink';
-import { ArrowBackIcon } from '@chakra-ui/icons';
+import { ArrowBackIcon } from '@altterisk/game-hub/ui';
 import { useAppSelector, useAppDispatch } from '@/hooks';
 import {
   selectUnitFull, selectUnits, selectUnitStatus, fetchUnitsAsync,

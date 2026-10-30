@@ -5,7 +5,7 @@ import { useTranslationVersion } from '@/lib/translationVersion';
 import { UnitData } from '@/interfaces/unit';
 import {
   VStack, HStack, Center, Text, Heading, Badge, Box, Image, Wrap, WrapItem,
-} from '@chakra-ui/react';
+} from '@altterisk/game-hub/ui';
 import { useRouter } from 'next/router';
 import { ListToolbar, SearchBox, FilterPanel, FilterRow, FilterChip, EmptyState } from '@altterisk/game-hub';
 import { rankTag, rankColor, roleRankIcon, typeIcon, roleIcon, bodyIcon, factionIcon, factionKey,

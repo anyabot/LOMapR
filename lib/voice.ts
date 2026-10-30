@@ -1,6 +1,7 @@
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useEffect, useState } from 'react';
 import { loadArchive, type ArchiveFiles } from '@altterisk/game-hub/archive';
-import { createPersisted } from '@altterisk/game-hub/persist';
+import { createSetting } from '@altterisk/game-hub/persist';
+import { createPlayer } from '@altterisk/game-hub/audio';
 import type { Dub, UnitVoice, VoiceEntry, VoiceLine } from '@/interfaces/voice';
 import { fetchStringChunk, fetchUnitVoice, type Region } from './fetchData';
 import { isChunkLoaded, setChunkData } from './strings';
@@ -24,32 +25,18 @@ export function eventLabel(name: string): string {
 }
 
 // ── preferred dub, shared by every voice surface ─────────────────────────────
-const dubStore = createPersisted<Dub | null>({
+const dubSetting = createSetting<Dub>({
   key: 'lomapr.voiceDub',
-  version: 1,
-  empty: () => null,
-  sanitize: (raw) => (raw === 'jp' || raw === 'kr' ? raw : null),
+  initial: 'jp',
+  sanitize: (raw) => (raw === 'jp' || raw === 'kr' ? raw : 'jp'),
 });
-let preferred: Dub | null = null;
-const dubListeners = new Set<() => void>();
-
-function readDub(): Dub {
-  if (preferred === null) preferred = dubStore.load() ?? 'jp';
-  return preferred;
-}
 
 export function setPreferredDub(dub: Dub) {
-  preferred = dub;
-  dubStore.save(dub);
-  dubListeners.forEach((fn) => fn());
+  dubSetting.set(dub);
 }
 
 export function usePreferredDub(): Dub {
-  return useSyncExternalStore(
-    (fn) => { dubListeners.add(fn); return () => { dubListeners.delete(fn); }; },
-    readDub,
-    () => 'jp',
-  );
+  return dubSetting.use()[0];
 }
 
 export function entryDubs(entry: VoiceEntry | null | undefined): Dub[] {
@@ -132,71 +119,23 @@ export function useEntryClips(entry: VoiceEntry | null, dub: Dub | null): Set<st
 }
 
 // ── playback: one line at a time, a new line replaces the current one ───────
-let audio: HTMLAudioElement | null = null;
-let token = 0;
-let playing: string | null = null;
-const playListeners = new Set<() => void>();
-const objectUrls = new Map<string, string>();
-const MAX_URLS = 200;
+const player = createPlayer({ cacheSize: 200 });
 
-function setPlaying(id: string | null) {
-  playing = id;
-  playListeners.forEach((fn) => fn());
-}
-
-export function useNowPlaying(): string | null {
-  return useSyncExternalStore(
-    (fn) => { playListeners.add(fn); return () => { playListeners.delete(fn); }; },
-    () => playing,
-    () => null,
-  );
-}
+export const useNowPlaying = player.useNowPlaying;
 
 export function clipId(dub: Dub, clip: string): string {
   return `${dub}/${clip}`;
 }
 
 export function stopVoice() {
-  token += 1;
-  if (audio) {
-    audio.pause();
-    audio.removeAttribute('src');
-    audio.load();
-  }
-  setPlaying(null);
+  player.stop();
 }
 
-export async function playClip(entry: VoiceEntry, dub: Dub, clip: string): Promise<boolean> {
-  const mine = ++token;
-  const id = clipId(dub, clip);
-  let url = objectUrls.get(id);
-  if (!url) {
-    const blob = await clipBlob(entry, dub, clip).catch(() => null);
-    if (mine !== token) return false;
-    if (!blob) return false;
-    url = URL.createObjectURL(new Blob([blob], { type: 'audio/ogg' }));
-    objectUrls.set(id, url);
-    if (objectUrls.size > MAX_URLS) {
-      const [oldId, oldUrl] = objectUrls.entries().next().value as [string, string];
-      URL.revokeObjectURL(oldUrl);
-      objectUrls.delete(oldId);
-    }
-  }
-  if (!audio) {
-    audio = new Audio();
-    audio.addEventListener('ended', () => setPlaying(null));
-    audio.addEventListener('error', () => setPlaying(null));
-  }
-  audio.src = url;
-  audio.currentTime = 0;
-  setPlaying(id);
-  try {
-    await audio.play();
-    return true;
-  } catch {
-    if (mine === token) setPlaying(null);
-    return false;
-  }
+export function playClip(entry: VoiceEntry, dub: Dub, clip: string): Promise<boolean> {
+  return player.play(clipId(dub, clip), async () => {
+    const blob = await clipBlob(entry, dub, clip);
+    return blob ? new Blob([blob], { type: 'audio/ogg' }) : null;
+  });
 }
 
 // ── touch: Common.GetLobbyScriptInfo / GetLobbyScriptSpInfo in the client ──

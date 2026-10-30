@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import {
   Modal, ModalOverlay, ModalContent, ModalHeader, ModalCloseButton, ModalBody,
   Box, Image, Input, SimpleGrid, Text, Wrap, WrapItem, Button, ButtonGroup,
-} from '@chakra-ui/react';
+} from '@altterisk/game-hub/ui';
 import { UnitData } from '@/interfaces/unit';
 import { unitDisplayName, rankColor, filterActiveProps } from '@/lib/rank';
 import { useTranslationVersion } from '@/lib/translationVersion';
