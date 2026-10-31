@@ -52,6 +52,8 @@ const worldHref = (id: string) => `/story?world=${encodeURIComponent(id)}`;
 const zoneHref = (id: string, zone: number) => `${worldHref(id)}&zone=${zone}`;
 const squadHref = (key: string) => `/story?squad=${encodeURIComponent(key)}`;
 
+const STORY_WORLDS = ['StoryNew', 'Story'];
+
 function storyZones(index: StoryIndex, id: string): number[] {
   return (index[id] ?? []).flatMap((z, i) => (z ? [i + 1] : []));
 }
@@ -124,7 +126,7 @@ function StoryList({ index, chars, world, images }: {
   const lang = useStoryLang();
   const worlds = Object.keys(index).map((id) => world[id]).filter((w): w is World => !!w);
   const byId = (a: World, b: World) => a.id.localeCompare(b.id, undefined, { numeric: true });
-  const main = world.Story && index.Story ? world.Story : null;
+  const mains = STORY_WORLDS.filter((id) => world[id] && index[id]).map((id) => world[id]);
   const current = worlds.find((w) => w.type === 'current');
   const permanent = worlds.filter((w) => w.type === 'permanent').sort(byId);
   const past = worlds.filter((w) => w.type !== 'story' && w.type !== 'current' && w.type !== 'permanent').sort(byId);
@@ -161,17 +163,17 @@ function StoryList({ index, chars, world, images }: {
           <LangToggle />
         </Flex>
 
-        {main && (
-          <Section title="Main Story" n={storyZones(index, 'Story').length}>
+        {mains.map((m) => (
+          <Section key={m.id} title={m.title} n={storyZones(index, m.id).length}>
             <CardGrid min={220}>
-              {main.zones.map((z, i) => index.Story[i] ? (
-                <EntityTile key={i} href={zoneHref('Story', i + 1)} renderLink={nextLink} title={t(z.title)}
-                  subtitle={`${index.Story[i]!.stages.length} stages`}
+              {m.zones.map((z, i) => index[m.id][i] ? (
+                <EntityTile key={i} href={zoneHref(m.id, i + 1)} renderLink={nextLink} title={t(z.title)}
+                  subtitle={`${index[m.id][i]!.stages.length} stages`}
                   icon={img(z.img) ? <Image src={img(z.img)} alt="" /> : undefined} />
               ) : null)}
             </CardGrid>
           </Section>
-        )}
+        ))}
 
         {chars && chars.squads.length > 0 && (
           <Section title="Character Stories" n={chars.squads.length}>
