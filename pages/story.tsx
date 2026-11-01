@@ -158,7 +158,7 @@ function StoryList({ index, chars, world, images }: {
       <Seo title="Story" description={DESCRIPTION} />
       <VStack align="stretch" spacing={8} py={4}>
         <Flex align="center" gap={3} wrap="wrap">
-          <Heading size="xl">Story</Heading>
+          <Heading as="h1" size="xl">Story</Heading>
           <Box flex="1" />
           <LangToggle />
         </Flex>

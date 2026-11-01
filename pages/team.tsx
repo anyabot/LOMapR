@@ -383,7 +383,7 @@ export default function TeamBuilder() {
       <Seo title="Team Builder" description={DESCRIPTION} />
       <VStack align="stretch" spacing={4} py={4}>
         <Flex align="center" gap={3} wrap="wrap">
-          <Heading size="lg">Team Builder</Heading>
+          <Heading as="h1" size="lg">Team Builder</Heading>
           <Badge colorScheme="accent" fontSize="2xs">round-1 simulator included</Badge>
         </Flex>
 

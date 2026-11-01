@@ -223,7 +223,7 @@ export default function UnitDetail() {
 
   return (
     <>
-      <Seo title={name} description={`${name}: Last Origin unit stats, skills and skins.`}
+      <Seo title={name} description={`${name} is a${/^[AS]/.test(rankTag(unit.rarity)) ? 'n' : ''} ${rankTag(unit.rarity)}-rank ${unit.type} ${unit.role}${unit.body ? ` ${unit.body}` : ''}${unit.faction ? ` of ${factionName(unit.faction.name)}` : ''} in Last Origin: stats, skills and skins.`}
         image={unit.icon ? `/images/icons/${unit.icon}.png` : null} />
       <VStack align="stretch" spacing={4} py={4}>
         <Breadcrumbs renderLink={nextLink} items={[{ label: 'Units', href: '/units' }, { label: name }]} />
@@ -232,7 +232,7 @@ export default function UnitDetail() {
           art={
             <Box boxSize="96px" borderRadius="lg" overflow="hidden" bg="blackAlpha.500">
               {unit.icon ? (
-                <Image src={`/images/icons/${unit.icon}.png`} alt={unit.icon} objectFit="cover" w="100%" h="100%" />
+                <Image src={`/images/icons/${unit.icon}.png`} alt={name} objectFit="cover" w="100%" h="100%" />
               ) : null}
             </Box>
           }
@@ -289,11 +289,7 @@ export default function UnitDetail() {
                   <InfoTab unit={full} gradeIdx={gradeIdx} setGradeIdx={setGradeIdx}
                     level={level} setLevel={setLevel} />
                 </VStack>
-              ) : tab === 'skills' ? (
-                <SkillsTab unit={full} skills={detailLoaded ? skills : lastSkillsRef.current} headerAtk={headerAtk} skillStatus={skillStatus} />
-              ) : tab === 'profile' ? (
-                <ProfileTab unit={full} />
-              ) : tab === 'drops' ? (
+              ) : tab === 'skills' || tab === 'profile' ? null : tab === 'drops' ? (
                 <DropTab unit={full} world={world} />
               ) : tab === 'promotion' ? (
                 <PromotionTab unit={full} />
@@ -304,6 +300,13 @@ export default function UnitDetail() {
               ) : (
                 <SkinTab unit={full} voice={voice} />
               )}
+              {/* Kept mounted so the canonical URL's DOM carries the skill and profile text. */}
+              {full.skills?.length ? (
+                <div hidden={tab !== 'skills'}>
+                  <SkillsTab unit={full} skills={detailLoaded ? skills : lastSkillsRef.current} headerAtk={headerAtk} skillStatus={skillStatus} />
+                </div>
+              ) : null}
+              {full.profile ? <div hidden={tab !== 'profile'}><ProfileTab unit={full} /></div> : null}
             </TabPanel>
           </Box>
         );

@@ -10,7 +10,7 @@ import { nextLink } from '@/lib/hubLink';
 import { World } from '@/interfaces/world';
 import {
   SimpleGrid, Heading, Divider, HStack, Badge, Center, VStack, Text,
-  Box, AspectRatio, Image,
+  Box, AspectRatio, Image, VisuallyHidden,
 } from '@altterisk/game-hub/ui';
 import { BannerCard, CardGrid, EmptyState, EntityTile, SearchBox } from '@altterisk/game-hub';
 import { textMatch } from '@altterisk/game-hub/filters';
@@ -98,6 +98,7 @@ export default function Home() {
   return (
     <Frame>
       <VStack align="stretch" spacing={8} py={4}>
+        <VisuallyHidden as="h1">World List</VisuallyHidden>
         <Box maxW="360px">
           <SearchBox value={query} onChange={setQuery} placeholder="Search worlds" />
         </Box>

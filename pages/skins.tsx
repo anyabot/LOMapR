@@ -147,7 +147,7 @@ export default function Skins() {
       <Seo title="Skins" description={DESCRIPTION} />
       <VStack align="stretch" spacing={4} py={4}>
         <HStack>
-          <Heading size="xl">Skins</Heading>
+          <Heading as="h1" size="xl">Skins</Heading>
           {!loading && (
             <Badge colorScheme="accent" borderRadius="full" px={2}>{shown.length}</Badge>
           )}

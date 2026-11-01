@@ -476,7 +476,7 @@ export default function GachaPage() {
     <>
       <Seo title="Gacha Simulator" description={DESCRIPTION} />
       <Box maxW="1100px" mx="auto" px={4} py={6}>
-        <Heading size="lg" mb={1}>Gacha Simulator</Heading>
+        <Heading as="h1" size="lg" mb={1}>Gacha Simulator</Heading>
         <Text fontSize="sm" color="whiteAlpha.600" mb={5}>
           Rates reflect the live {region === 'kr' ? 'KR' : 'Global'} data. Results are for entertainment only.
         </Text>

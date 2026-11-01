@@ -6,7 +6,7 @@ import { UnitData } from '@/interfaces/unit';
 import {
   VStack, HStack, Center, Text, Heading, Badge, Box, Image, Wrap, WrapItem,
 } from '@altterisk/game-hub/ui';
-import { useRouter } from 'next/router';
+import NextLink from 'next/link';
 import { ListToolbar, SearchBox, FilterPanel, FilterRow, FilterChip, EmptyState } from '@altterisk/game-hub';
 import { rankTag, rankColor, roleRankIcon, typeIcon, roleIcon, bodyIcon, factionIcon, factionKey,
   factionName, filterValueAllowed, unitDisplayName } from '@/lib/rank';
@@ -34,7 +34,6 @@ export default function Units() {
   const units = useAppSelector(selectUnits);
   const status = useAppSelector(selectUnitStatus);
   const dispatch = useAppDispatch();
-  const router = useRouter();
 
   useEffect(() => {
     dispatch(fetchUnitsAsync());
@@ -102,7 +101,7 @@ export default function Units() {
     <>
       <Seo title="Units" description={DESCRIPTION} />
       <VStack align="stretch" spacing={4} py={4}>
-        <Heading size="xl">Units</Heading>
+        <Heading as="h1" size="xl">Units</Heading>
 
         <Box>
           <ListToolbar
@@ -194,7 +193,7 @@ export default function Units() {
                             <Wrap spacing={2} justify="center">
                               {cell(type, role, grade).map((u) => (
                                 <WrapItem key={u.id}>
-                                  <UnitTile unit={u} onClick={() => router.push(`/units/detail?id=${encodeURIComponent(u.id)}`)} />
+                                  <UnitTile unit={u} />
                                 </WrapItem>
                               ))}
                             </Wrap>
@@ -214,15 +213,15 @@ export default function Units() {
 }
 
 // Compact unit cell: formation portrait + name, links to the detail page.
-function UnitTile({ unit, onClick }: { unit: UnitData; onClick: () => void }) {
+function UnitTile({ unit }: { unit: UnitData }) {
   return (
-    <Box onClick={onClick} cursor="pointer" w="88px" role="group" textAlign="center">
+    <Box as={NextLink} href={`/units/detail?id=${encodeURIComponent(unit.id)}`} display="block" w="88px" role="group" textAlign="center">
       <Box position="relative" boxSize="88px" borderRadius="lg" overflow="hidden" bg="blackAlpha.500"
         borderWidth="1px" borderColor="surface.border"
         transition="border-color .12s ease, transform .12s ease"
         _groupHover={{ borderColor: 'accent.400', transform: 'translateY(-2px)' }}>
         {unit.icon ? (
-          <Image src={`/images/icons/${unit.icon}.png`} alt={unit.icon} objectFit="cover" w="100%" h="100%"
+          <Image src={`/images/icons/${unit.icon}.png`} alt={unitName(unit)} objectFit="cover" w="100%" h="100%"
             _groupHover={{ transform: 'scale(1.05)' }} transition="transform .2s ease" />
         ) : null}
         {/* official role+rank badge, bottom-left corner */}

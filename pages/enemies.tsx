@@ -106,7 +106,7 @@ export default function Home() {
     <>
       <Seo title="Enemy List" description={DESCRIPTION} />
       <VStack align="stretch" spacing={4} py={4}>
-        <Heading size="xl">Enemies</Heading>
+        <Heading as="h1" size="xl">Enemies</Heading>
 
         <Box>
           <ListToolbar

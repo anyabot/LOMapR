@@ -63,7 +63,7 @@ export default function Home() {
       <VStack spacing={8} align="stretch" py={4}>
         {/* Hero */}
         <VStack spacing={3} textAlign="center">
-          <Heading size="2xl" lineHeight={1.3}>
+          <Heading as="h1" size="2xl" lineHeight={1.3}>
             LOMapR
           </Heading>
           <Text fontSize={['md', 'lg']} color="gray.400" maxW="2xl">
