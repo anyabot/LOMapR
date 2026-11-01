@@ -524,7 +524,7 @@ export default function Misc() {
       <Seo title="Misc Categorization" description={DESCRIPTION} />
       <VStack align="stretch" spacing={4} py={4}>
         <HStack>
-          <Heading size="xl">Misc Categorization</Heading>
+          <Heading as="h1" size="xl">Misc Categorization</Heading>
         </HStack>
         {status === 'failed' ? (
           <Center py={20}><Text color="red.300">Failed to load categorization data.</Text></Center>

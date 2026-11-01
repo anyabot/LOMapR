@@ -79,7 +79,9 @@ routes must be added to `assets.run_worker_first` in `wrangler.jsonc`.
 `scripts/seo-files.js` writes `sitemap.xml` and `robots.txt` into
 `.open-next/assets`. The sitemap lists every prerendered route plus one URL per
 unit, world and Infinite War boss, read from the live data bucket at build time
-(both regions), so it only names entities that are actually published.
+(both regions), so it only names entities that are actually published. KR-only
+entities are listed with `&server=kr`, and Infinite War seasons that rerun a boss
+with identical data are listed once (the earliest season, `lib/iwCanonical.mjs`).
 
 `NEXT_PUBLIC_*` values are baked in at build time from `.env.local`
 (gitignored; see `.env.example`):

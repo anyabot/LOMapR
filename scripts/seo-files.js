@@ -11,14 +11,29 @@ const R2 = (process.env.NEXT_PUBLIC_R2_PUBLIC_URL ?? '').replace(/\/$/, '');
 const REGIONS = ['global', 'kr'];
 const SKIP = new Set(['/404/', '/500/', '/units/detail/', '/world/detail/', '/world/stage/', '/iw/detail/']);
 
-async function liveKeys(file, pick) {
-  const keys = new Set();
+async function liveData(file) {
+  const out = {};
   for (const region of REGIONS) {
     const res = await fetch(`${R2}/${region}/${file}`);
     if (!res.ok) throw new Error(`${region}/${file}: HTTP ${res.status}`);
-    for (const k of Object.keys(pick(await res.json()) ?? {})) keys.add(k);
+    out[region] = await res.json();
   }
-  return [...keys];
+  return out;
+}
+
+// Global ids, then KR-only ids with ?server=kr, the same form the page's canonical takes.
+function entityUrls(site, route, byRegion, keep = () => true) {
+  const urls = [];
+  const seen = new Set(Object.keys(byRegion.global ?? {}));
+  for (const region of REGIONS) {
+    const data = byRegion[region] ?? {};
+    for (const id of Object.keys(data)) {
+      if (region !== 'global' && seen.has(id)) continue;
+      if (!keep(data, id)) continue;
+      urls.push(`${site}${route}?id=${encodeURIComponent(id)}${region === 'global' ? '' : `&server=${region}`}`);
+    }
+  }
+  return urls;
 }
 
 (async () => {
@@ -29,10 +44,13 @@ async function liveKeys(file, pick) {
   const urls = new Set(htmlRoutes(pagesDir, { exclude: (r) => SKIP.has(r) }).map((r) => `${site}${r}`));
 
   if (R2) {
-    const entity = (route, id) => `${site}${route}?id=${encodeURIComponent(id)}`;
-    for (const id of await liveKeys('split/units/unit_list.json', (d) => d)) urls.add(entity('/units/detail/', id));
-    for (const id of await liveKeys('world.json', (d) => d)) urls.add(entity('/world/detail/', id));
-    for (const id of await liveKeys('iw.json', (d) => d.bosses)) urls.add(entity('/iw/detail/', id));
+    const { iwCanonicalId } = await import('../lib/iwCanonical.mjs');
+    const iw = await liveData('iw.json');
+    const bosses = Object.fromEntries(Object.entries(iw).map(([r, d]) => [r, d.bosses]));
+    const add = (list) => list.forEach((u) => urls.add(u));
+    add(entityUrls(site, '/units/detail/', await liveData('split/units/unit_list.json')));
+    add(entityUrls(site, '/world/detail/', await liveData('world.json')));
+    add(entityUrls(site, '/iw/detail/', bosses, (data, id) => iwCanonicalId(data, id) === id));
   } else {
     console.warn('NEXT_PUBLIC_R2_PUBLIC_URL unset: sitemap lists static routes only');
   }

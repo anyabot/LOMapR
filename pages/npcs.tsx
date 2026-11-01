@@ -62,7 +62,7 @@ export default function NpcsPage() {
       <Seo title="NPC Viewer" description={DESCRIPTION} />
       <VStack align="stretch" spacing={5}>
         <Box>
-          <Heading size="lg">NPC Viewer</Heading>
+          <Heading as="h1" size="lg">NPC Viewer</Heading>
           <Text color="gray.400" mt={1}>
             Non-playable character and enemy illustrations found in the game&apos;s 2D model assets.
           </Text>

@@ -238,7 +238,7 @@ export default function Home() {
         <Seo title="Sanctum of Alteration" description={DESCRIPTION} />
 
         <VStack as={Center}>
-          <Text as="b" fontSize="6xl" textAlign="center">
+          <Text as="h1" fontSize="6xl" fontWeight="bold" textAlign="center">
             Sanctum of Alteration
           </Text>
           <Flex

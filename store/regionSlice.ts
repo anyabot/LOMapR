@@ -15,6 +15,14 @@ const regionStore = createPersisted<Region | null>({
   sanitize: (raw) => (raw === 'kr' || raw === 'global' ? raw : null),
 });
 
+// Maps a ?server= value to a region; null when absent or unrecognized.
+export function parseRegion(value: unknown): Region | null {
+  const v = (typeof value === 'string' ? value : '').toLowerCase();
+  if (v === 'global' || v === 'gl' || v === 'en') return 'global';
+  if (v === 'kr' || v === 'korea' || v === 'korean') return 'kr';
+  return null;
+}
+
 // NOT used for initialState: the store must start identical on server and client, so
 // the persisted value is applied after mount (see RegionSync in _app).
 export function loadRegion(): Region | null {

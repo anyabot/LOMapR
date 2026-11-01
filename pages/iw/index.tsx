@@ -5,7 +5,7 @@ import { useEffect } from 'react';
 import { Season } from '@/interfaces/iw';
 import {
   SimpleGrid, Heading, Divider, HStack, Badge, Center, VStack, Text,
-  AspectRatio, Image,
+  AspectRatio, Image, VisuallyHidden,
 } from '@altterisk/game-hub/ui';
 import { BannerCard } from '@altterisk/game-hub';
 import { nextLink } from '@/lib/hubLink';
@@ -90,6 +90,7 @@ export default function Home() {
   return (
     <Frame>
       <VStack align="stretch" spacing={8} py={4}>
+        <VisuallyHidden as="h1">Infinite War</VisuallyHidden>
         {Section('Current Raid Boss', current, true)}
         {Section('Past Raid Bosses', old, false)}
       </VStack>

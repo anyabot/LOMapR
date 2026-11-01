@@ -1,7 +1,7 @@
 import { useAppSelector, useAppDispatch } from "@/hooks";
 import { selectIW, selectIWStatus, fetchIWAsync } from "@/store/IWSlice";
 import { selectImage, fetchImageAsync } from "@/store/imageSlice";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   SimpleGrid,
   Divider,
@@ -31,6 +31,7 @@ import { EnemyFull } from "@/interfaces/enemy";
 import { useNumberInput } from '@altterisk/game-hub/ui';
 import { t } from "@/lib/strings";
 import { encodeWaveRef } from "@/lib/waveRef";
+import { iwCanonicalId } from "@/lib/iwCanonical.mjs";
 import styles from "@/styles/custom.module.css";
 
 export default function Home() {
@@ -51,6 +52,8 @@ export default function Home() {
     if (!router.isReady) return;
     setId(router.query.id as string);
   }, [router.isReady, router.query.id]);
+
+  const canonicalId = useMemo(() => (id in iw.bosses ? iwCanonicalId(iw.bosses, id) : undefined), [iw.bosses, id]);
 
   const realEnemy = useAppSelector(state => selectEnemyFull(state, activeEnemy));
   const dispatch = useAppDispatch();
@@ -142,6 +145,7 @@ export default function Home() {
     );
   } else {
     const boss = iw.bosses[id];
+    const title = realEnemy ? `${t(realEnemy.name)} ${id.split("_").pop()}` : id.replace(/_/g, " ");
 
 
     const inc = getIncrementButtonProps()
@@ -150,13 +154,14 @@ export default function Home() {
 
     return (
       <>
-        <Seo title={realEnemy ? `${t(realEnemy.name)} - Raid Boss` : "Raid Boss"} description={realEnemy ? `${t(realEnemy.name)} Infinite War raid boss in Last Origin: phases, stats and skills.` : undefined} />
+        <Seo title={`${title} - Raid Boss`} canonicalId={canonicalId}
+          description={`${title}, a Last Origin Infinite War raid boss: phases, stats and skills across all ${boss.length} stages.`} />
         {realEnemy ? (
           <VStack align="stretch" spacing={4} py={4}>
             <Button as={Link} href="/iw" leftIcon={<ArrowBackIcon />} colorScheme="gray" variant="outline" size="sm" alignSelf="start">
               Back
             </Button>
-            <Heading size="xl" textAlign="center">{t(realEnemy.name)}</Heading>
+            <Heading as="h1" size="xl" textAlign="center">{title}</Heading>
             <Center>
               <Flex maxW="520px" margin="auto" wrap={{ base: "wrap", md: "nowrap" }} justify="center" align="center" gap={2}>
                 <Button size="sm" variant="outline" colorScheme="gray" onClick={() => setStage(0)} isDisabled={stage === 0}>« Min</Button>

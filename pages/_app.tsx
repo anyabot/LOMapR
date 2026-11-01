@@ -6,7 +6,7 @@ import { store, RootState } from '@/store'
 import { setStringsRegion, setStringsLayers, setChunkData, setCommunityData, setMtlData, setKrMtlData } from '@/lib/strings'
 import { fetchStringChunk, fetchCommunity, fetchMtl, fetchKrMtl } from '@/lib/fetchData'
 import { markChunkLoaded, setTransitioning, selectTransitioning } from '@/store/stringsSlice'
-import { loadRegion, setRegion, Region } from '@/store/regionSlice'
+import { loadRegion, parseRegion, setRegion, Region } from '@/store/regionSlice'
 import { loadTranslationLayers, setMtl, setKrMtl, setCommunity,
          setMtlLoaded, setKrMtlLoaded, setCommunityLoaded,
          selectMtl, selectKrMtl, selectCommunity } from '@/store/translationSlice'
@@ -33,13 +33,9 @@ import '@altterisk/game-hub/hub.css'
 import '@altterisk/game-hub/components.css'
 import '@/styles/site.css'
 
-// Maps a ?server= value to a region; null when absent or unrecognized.
 function forcedRegionFromUrl(): Region | null {
   if (typeof window === 'undefined') return null;
-  const v = (new URLSearchParams(window.location.search).get('server') || '').toLowerCase();
-  if (v === 'global' || v === 'gl' || v === 'en') return 'global';
-  if (v === 'kr' || v === 'korea' || v === 'korean') return 'kr';
-  return null;
+  return parseRegion(new URLSearchParams(window.location.search).get('server'));
 }
 
 function RegionSync() {
