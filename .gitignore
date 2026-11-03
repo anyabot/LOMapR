@@ -45,6 +45,8 @@ yarn-error.log*
 # dev-only copy of data/ served statically by `npm run dev:local`
 /public/local-data/
 /public/local-data-rates/
+# tile-sized WebP copies written by scripts/gen-image-variants.js
+/public/images/_w/
 # dev-only skinned-skin exports for the PixiJS test page
 
 # vercel

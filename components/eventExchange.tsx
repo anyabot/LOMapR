@@ -11,6 +11,7 @@ import { unitDisplayName } from '@/lib/rank';
 import { EventExchange, ExchangeProduct, RewardEntry } from '@/interfaces/world';
 import { t } from '@/lib/strings';
 import { useTranslationVersion } from '@/lib/translationVersion';
+import { iconSrc } from '@/lib/imageSrc';
 
 // Unit tickets resolve to the unit itself so the chip gets the unit hover card.
 function entryOf(item: string, items: ItemMap): RewardEntry {
@@ -21,7 +22,7 @@ function entryOf(item: string, items: ItemMap): RewardEntry {
 function CurrencyIcon({ item, items, size }: { item: string; items: ItemMap; size: number }) {
   const info = items[item];
   return (
-    <Image src={`/images/icons/${info?.icon || item}.png`} alt={info ? t(info.name) : item}
+    <Image src={iconSrc(info?.icon || item)} alt={info ? t(info.name) : item}
       title={info ? t(info.name) : item} boxSize={`${size}px`} objectFit="contain" flexShrink={0}
       fallbackStrategy="onError" fallback={<Box boxSize={`${size}px`} borderRadius="full" bg="whiteAlpha.300" />} />
   );
@@ -42,7 +43,7 @@ function SkinChip({ p, items }: { p: ExchangeProduct; items: ItemMap }) {
     <HStack as={Link} href={`/units/detail?id=${encodeURIComponent(skin.unit)}&tab=skin`} spacing={2} pr={2.5}
       py={1} pl={1} borderWidth="1px" borderColor="surface.border" borderRadius="lg" bg="blackAlpha.300"
       _hover={{ borderColor: 'accent.400', bg: 'whiteAlpha.100' }}>
-      <Image src={`/images/icons/${skin.icon}.png`} alt="" boxSize="48px" objectFit="contain" borderRadius="md"
+      <Image src={iconSrc(skin.icon)} alt="" boxSize="48px" objectFit="contain" borderRadius="md"
         bg="blackAlpha.500" flexShrink={0} fallbackStrategy="onError"
         fallback={<Box boxSize="48px" borderRadius="md" bg="blackAlpha.500" flexShrink={0} />} />
       <Box minW={0}>

@@ -3,6 +3,7 @@ import { RepeatIcon, SmallCloseIcon } from '@altterisk/game-hub/ui';
 import { Team } from '@/interfaces/team';
 import { UnitData } from '@/interfaces/unit';
 import { unitDisplayName } from '@/lib/rank';
+import { iconSrc } from '@/lib/imageSrc';
 
 // The 3x3 map in the in-game ten-key layout (789/456/123), front = right column.
 
@@ -85,7 +86,7 @@ export default function FormationGrid({
               {unit ? (
                 <>
                   {unit.icon ? (
-                    <Image src={`/images/icons/${unit.icon}.png`} alt={unitDisplayName(unit)}
+                    <Image src={iconSrc(unit.icon)} alt={unitDisplayName(unit)}
                       objectFit="cover" w="100%" h="100%" />
                   ) : (
                     <Text fontSize="2xs" px={1}>{unitDisplayName(unit)}</Text>

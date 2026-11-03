@@ -23,6 +23,7 @@ import BuffList from '@/components/buffList';
 import UnitHoverCard from '@/components/unitHoverCard';
 import CopyLink from '@/components/copyLink';
 import { dropQueryParams } from '@/lib/href';
+import { iconSrc } from '@/lib/imageSrc';
 
 function statText(value: number, pct: boolean): string {
   // sign goes BEFORE the magnitude so negatives read "-27" / "-5%", not "+-27".
@@ -120,7 +121,7 @@ export default function EquipModal() {
                   borderWidth="1px" borderColor={rankColor(rank.grade)} flexShrink={0}
                 >
                   {rank.icon
-                    ? <Image src={`/images/icons/${rank.icon}.png`} alt={t(rank.name)} objectFit="contain" w="100%" h="100%" />
+                    ? <Image src={iconSrc(rank.icon)} alt={t(rank.name)} objectFit="contain" w="100%" h="100%" />
                     : null}
                 </Box>
                 <Box minW={0}>

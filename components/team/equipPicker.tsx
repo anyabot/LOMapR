@@ -9,6 +9,7 @@ import { t } from '@/lib/strings';
 import { useTranslationVersion } from '@/lib/translationVersion';
 import { rankColor, rankTag, equipIcon, filterActiveProps } from '@/lib/rank';
 import { canEquip } from '@/lib/team';
+import { iconSrc } from '@/lib/imageSrc';
 
 // Equip picker for one unit slot; lists only items the unit can wear.
 
@@ -72,7 +73,7 @@ export default function EquipPicker({ isOpen, onClose, equip, unit, slotType, on
                 bg="blackAlpha.300" p={2} _hover={{ bg: 'whiteAlpha.100' }} textAlign="left">
                 <Box boxSize="40px" borderRadius="md" overflow="hidden" bg="blackAlpha.500"
                   borderWidth="2px" borderColor={rankColor(e.grade)} flexShrink={0} p="2px">
-                  {e.icon ? <Image src={`/images/icons/${e.icon}.png`} alt="" objectFit="contain" w="100%" h="100%" loading="lazy" /> : null}
+                  {e.icon ? <Image src={iconSrc(e.icon)} alt="" objectFit="contain" w="100%" h="100%" loading="lazy" /> : null}
                 </Box>
                 <Box minW={0} flex="1">
                   <Text fontSize="sm" noOfLines={1}>{t(e.name)}</Text>

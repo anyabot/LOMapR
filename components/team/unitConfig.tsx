@@ -34,6 +34,7 @@ import {
 import { buildSimInputs, buildEnemySimInputs, isEnemyWaveCell } from '@/lib/simInputs';
 import { solveAutoPoints } from '@/lib/autoStats';
 import EquipPicker from './equipPicker';
+import { iconSrc } from '@/lib/imageSrc';
 
 // Per-tile config: level/grade, links, stat points, equipment, skill levels.
 
@@ -213,7 +214,7 @@ export default function UnitConfig({ tile, slot, unit, team, enemyWave, onChange
       <Flex gap={3} align="center"
         bg="surface.elevated" borderWidth="1px" borderColor="surface.border" borderRadius="xl" p={3}>
         <Box boxSize="56px" borderRadius="lg" overflow="hidden" bg="blackAlpha.500" flexShrink={0}>
-          {unit.icon ? <Image src={`/images/icons/${unit.icon}.png`} alt="" objectFit="cover" w="100%" h="100%" /> : null}
+          {unit.icon ? <Image src={iconSrc(unit.icon)} alt="" objectFit="cover" w="100%" h="100%" /> : null}
         </Box>
         <Box minW={0} flex="1">
           <Heading size="sm" noOfLines={1}>
@@ -479,7 +480,7 @@ export default function UnitConfig({ tile, slot, unit, team, enemyWave, onChange
                     else setOpenEqSlot(isOpen ? null : i);
                   }}>
                   {sel && icon ? (
-                    <Image src={`/images/icons/${icon}.png`} alt={meta.type} maxW="100%" maxH="100%" objectFit="contain" />
+                    <Image src={iconSrc(icon)} alt={meta.type} maxW="100%" maxH="100%" objectFit="contain" />
                   ) : equipIcon(meta.type) ? (
                     <Image src={equipIcon(meta.type)!} alt={meta.type} maxW="100%" maxH="100%" objectFit="contain" />
                   ) : <Text fontSize="2xs">{meta.type}</Text>}

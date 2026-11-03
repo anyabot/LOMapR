@@ -13,6 +13,7 @@ import { rankTag, rankColor, roleRankIcon, typeIcon, roleIcon, bodyIcon, faction
 import { chipColor, countActive, fillModes, useListUrl, useUrlText } from '@/lib/listUrl';
 import { Seo } from '@/components/seo';
 import { useStableList } from '@/lib/useStableList';
+import { iconSrc } from '@/lib/imageSrc';
 
 const DESCRIPTION = 'Playable Last Origin units with stats, skills and skins.';
 
@@ -29,6 +30,7 @@ type BodyKey = (typeof BODIES)[number];
 const FILTER_KEYS = ['type', 'role', 'body', 'grade', 'faction'];
 
 const unitName = unitDisplayName;
+const EAGER_PER_COLUMN = 4;
 
 export default function Units() {
   useTranslationVersion();
@@ -169,12 +171,12 @@ const UnitTables = memo(function UnitTables({ shown, types, roles, grades }: {
   }
   return (
     <>
-    {types.map((type) => (
+    {types.map((type, ti) => (
       <Box key={type} borderWidth="1px" borderColor="surface.border" borderRadius="xl"
         overflow="hidden" bg="surface.elevated">
         <Box px={4} py={2} bg="blackAlpha.300" borderBottomWidth="1px" borderBottomColor="surface.border">
           <HStack spacing={2}>
-            {typeIcon(type) ? <Image src={typeIcon(type)!} alt={type} boxSize="20px" /> : null}
+            {typeIcon(type) ? <Image src={typeIcon(type)!} alt="" boxSize="20px" objectFit="contain" /> : null}
             <Heading size="sm" color="green.200">{type}</Heading>
           </HStack>
         </Box>
@@ -188,7 +190,7 @@ const UnitTables = memo(function UnitTables({ shown, types, roles, grades }: {
                     borderBottomWidth="1px" borderColor="surface.border"
                     fontSize="xs" color="red.200" textTransform="uppercase" letterSpacing="wide">
                     <HStack spacing={1.5} justify="center">
-                      {roleIcon(role) ? <Image src={roleIcon(role)!} alt={role} boxSize="16px" /> : null}
+                      {roleIcon(role) ? <Image src={roleIcon(role)!} alt="" boxSize="16px" objectFit="contain" /> : null}
                       <span>{role}</span>
                     </HStack>
                   </Box>
@@ -196,7 +198,7 @@ const UnitTables = memo(function UnitTables({ shown, types, roles, grades }: {
               </Box>
             </Box>
             <Box as="tbody">
-              {grades.map((grade) => (
+              {grades.map((grade, gi) => (
                 <Box as="tr" key={grade}>
                   <Box as="th" px={2} py={2} textAlign="center" verticalAlign="middle"
                     borderTopWidth="1px" borderColor="surface.border">
@@ -206,9 +208,10 @@ const UnitTables = memo(function UnitTables({ shown, types, roles, grades }: {
                     <Box as="td" key={role} px={2} py={2} verticalAlign="top"
                       borderTopWidth="1px" borderLeftWidth="1px" borderColor="surface.border">
                       <Wrap spacing={2} justify="center">
-                        {cell(type, role, grade).map((u) => (
+                        {cell(type, role, grade).map((u, ui) => (
                           <WrapItem key={u.id}>
-                            <UnitTile unit={u} />
+                            {/* the top row's first tiles in every column are on screen at load */}
+                            <UnitTile unit={u} eager={ti === 0 && gi === 0 && ui < EAGER_PER_COLUMN} />
                           </WrapItem>
                         ))}
                       </Wrap>
@@ -226,21 +229,21 @@ const UnitTables = memo(function UnitTables({ shown, types, roles, grades }: {
 });
 
 // Compact unit cell: formation portrait + name, links to the detail page.
-function UnitTile({ unit }: { unit: UnitData }) {
+function UnitTile({ unit, eager }: { unit: UnitData; eager: boolean }) {
   return (
-    <Box as={NextLink} href={`/units/detail?id=${encodeURIComponent(unit.id)}`} display="block" w="88px" role="group" textAlign="center">
+    <Box as={NextLink} href={`/units/detail?id=${encodeURIComponent(unit.id)}`} display="block" w="88px" data-group="" textAlign="center">
       <Box position="relative" boxSize="88px" borderRadius="lg" overflow="hidden" bg="blackAlpha.500"
         borderWidth="1px" borderColor="surface.border"
         transition="border-color .12s ease, transform .12s ease"
         _groupHover={{ borderColor: 'accent.400', transform: 'translateY(-2px)' }}>
         {unit.icon ? (
-          <Image src={`/images/icons/${unit.icon}.png`} alt={unitName(unit)} objectFit="cover" w="100%" h="100%"
+          <Image src={iconSrc(unit.icon)} alt="" loading={eager ? 'eager' : 'lazy'} decoding="async" objectFit="cover" w="100%" h="100%"
             _groupHover={{ transform: 'scale(1.05)' }} transition="transform .2s ease" />
         ) : null}
         {/* official role+rank badge, bottom-left corner */}
         {roleRankIcon(unit.role, unit.rarity) ? (
-          <Image position="absolute" bottom="1px" left="1px" h="26px" objectFit="contain"
-            src={`/images/icons/${roleRankIcon(unit.role, unit.rarity)}.png`}
+          <Image position="absolute" bottom="1px" left="1px" h="26px" w="26px" objectFit="contain" loading="lazy" decoding="async"
+            src={iconSrc(roleRankIcon(unit.role, unit.rarity)!)}
             alt={`${rankTag(unit.rarity)} ${unit.role}`}
             filter="drop-shadow(0 1px 1px rgba(0,0,0,.8))" />
         ) : null}

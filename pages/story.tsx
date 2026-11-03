@@ -27,6 +27,7 @@ import { STAGE_ICON_SRC, type World } from '@/interfaces/world';
 import type {
   CharStoryGroup, CharStoryIndex, CharStorySquad, StoryIndex, StoryScene, StoryZone, StoryZoneText,
 } from '@/interfaces/story';
+import { iconSrc } from '@/lib/imageSrc';
 
 const DESCRIPTION = 'Last Origin story reader: main story, character stories and event stories.';
 
@@ -375,7 +376,7 @@ function SubStoryGroupView({ group, lines, lang, scene }: {
   return (
     <Box borderWidth="1px" borderColor="whiteAlpha.200" borderRadius="md" p={2}>
       <HStack spacing={3} px={2} py={1}>
-        {group.icon && <Image src={`/images/icons/${group.icon}.png`} alt="" boxSize={8} borderRadius="full" />}
+        {group.icon && <Image src={iconSrc(group.icon)} alt="" boxSize={8} borderRadius="full" />}
         <Text fontWeight="bold">{pickText(group.name, lang)}</Text>
       </HStack>
       <Accordion allowMultiple index={open} onChange={(i) => setOpen(Array.isArray(i) ? i : [i])}>
@@ -383,7 +384,7 @@ function SubStoryGroupView({ group, lines, lang, scene }: {
           <AccordionItem key={s.scene} borderColor="whiteAlpha.200">
             <AccordionButton px={2} py={2} _hover={{ bg: 'whiteAlpha.50' }}>
               <HStack flex="1" spacing={2} minW={0} textAlign="left">
-                {s.icon && <Image src={`/images/icons/${s.icon}.png`} alt="" boxSize={6} borderRadius="full" />}
+                {s.icon && <Image src={iconSrc(s.icon)} alt="" boxSize={6} borderRadius="full" />}
                 <Text fontSize="xs" color="gray.500">{s.no}</Text>
                 <Text fontSize="sm" fontWeight="semibold" noOfLines={1}>{pickText(s.name, lang)}</Text>
               </HStack>
@@ -456,7 +457,7 @@ function CharGroupView({ group, text, loaded, lang, story }: {
   return (
     <Box borderWidth="1px" borderColor="whiteAlpha.200" borderRadius="md" p={2}>
       <HStack spacing={3} px={2} py={1}>
-        {group.icon && <Image src={`/images/icons/${group.icon}.png`} alt="" boxSize={10} borderRadius="full" />}
+        {group.icon && <Image src={iconSrc(group.icon)} alt="" boxSize={10} borderRadius="full" />}
         <Box minW={0}>
           <HStack spacing={2} wrap="wrap">
             <Text fontWeight="bold">{pickText(group.name, lang)}</Text>
@@ -470,7 +471,7 @@ function CharGroupView({ group, text, loaded, lang, story }: {
           <AccordionItem key={s.key} borderColor="whiteAlpha.200">
             <AccordionButton px={2} py={2} _hover={{ bg: 'whiteAlpha.50' }}>
               <HStack flex="1" spacing={2} minW={0} textAlign="left">
-                {s.icon && <Image src={`/images/icons/${s.icon}.png`} alt="" boxSize={6} borderRadius="full" />}
+                {s.icon && <Image src={iconSrc(s.icon)} alt="" boxSize={6} borderRadius="full" />}
                 <Text fontSize="xs" color="gray.500">{s.no ?? i + 1}</Text>
                 <Text fontSize="sm" fontWeight="semibold" noOfLines={1}>{pickText(s.name, lang)}</Text>
                 {s.stage && <Badge fontSize="0.6rem" colorScheme="red" flexShrink={0}>Battle {s.stage.title}</Badge>}

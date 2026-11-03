@@ -13,6 +13,7 @@ import { chipColor, countActive, fillModes, useListUrl, useUrlText } from '@/lib
 import { Seo } from '@/components/seo';
 import { useStableList } from '@/lib/useStableList';
 import { useRouter } from 'next/router';
+import { iconSrc } from '@/lib/imageSrc';
 
 const DESCRIPTION = 'All Last Origin equipment with stats and set effects.';
 
@@ -163,12 +164,12 @@ const EquipSections = memo(function EquipSections({ shown }: { shown: EquipData[
 // Compact equip tile: icon (rank-colored border) + name; opens the equip modal.
 function EquipTile({ equip, onClick }: { equip: EquipData; onClick: () => void }) {
   return (
-    <Box onClick={onClick} cursor="pointer" role="group" textAlign="center">
+    <Box onClick={onClick} cursor="pointer" data-group="" textAlign="center">
       <Box position="relative" boxSize="72px" mx="auto" borderRadius="lg" overflow="hidden"
         bg="blackAlpha.500" borderWidth="2px" borderColor={rankColor(equip.grade)}
         transition="transform .12s ease" _groupHover={{ transform: 'translateY(-2px)' }} p="4px">
         {equip.icon ? (
-          <Image src={`/images/icons/${equip.icon}.png`} alt={equip.icon} objectFit="contain" w="100%" h="100%" />
+          <Image src={iconSrc(equip.icon)} alt={equip.icon} loading="lazy" decoding="async" objectFit="contain" w="100%" h="100%" />
         ) : null}
         {equip.exchange ? (
           <Badge position="absolute" top="2px" right="2px" fontSize="2xs" px={1} borderRadius="sm"

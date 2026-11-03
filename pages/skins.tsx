@@ -14,6 +14,7 @@ import { Seo } from '@/components/seo';
 import { fetchSkinList, SkinEntry } from '@/lib/fetchData';
 import SkinViewer from '@/components/skinViewer';
 import UnitHoverCard from '@/components/unitHoverCard';
+import { iconSrc } from '@/lib/imageSrc';
 
 const DESCRIPTION = 'Every Last Origin skin with an in-browser skin viewer.';
 
@@ -72,7 +73,7 @@ const getAllUniqueCategoryKeys = (list: any[]) => {
 const ALL_PARTS = Object.keys(PARTS_META);
 
 function skinFaceIcon(faceKey: string) {
-  return `/images/icons/${faceKey.replace(/^CharFace_/, 'FormationIcon_')}.png`;
+  return iconSrc(faceKey.replace(/^CharFace_/, 'FormationIcon_'));
 }
 
 const isDefault = (s: SkinEntry) => s.key.startsWith('default_');
@@ -259,8 +260,8 @@ const SkinRow = memo(function SkinRow({ shown, selectedKey, onSelect }: {
   return (
     <Box overflowX="auto" pb={2}>
       <HStack spacing={3} align="stretch" minW="max-content">
-        {shown.map((s) => (
-          <SkinCard key={s.key} skin={s} selected={selectedKey === s.key} onClick={() => onSelect(s)} />
+        {shown.map((s, i) => (
+          <SkinCard key={s.key} skin={s} eager={i < 6} selected={selectedKey === s.key} onClick={() => onSelect(s)} />
         ))}
       </HStack>
     </Box>
@@ -269,10 +270,10 @@ const SkinRow = memo(function SkinRow({ shown, selectedKey, onSelect }: {
 
 // ── skin card (same style as unit detail picker) ──────────────────────────────
 
-function SkinCard({ skin, selected, onClick }: {
-  skin: SkinEntry; selected: boolean; onClick: () => void;
+function SkinCard({ skin, selected, onClick, eager }: {
+  skin: SkinEntry; selected: boolean; onClick: () => void; eager: boolean;
 }) {
-  const iconSrc = skin.faceKey ? skinFaceIcon(skin.faceKey) : null;
+  const faceIcon = skin.faceKey ? skinFaceIcon(skin.faceKey) : null;
   const name = skinDisplayName(skin);
   return (
     <Box as="button" onClick={onClick}
@@ -283,14 +284,14 @@ function SkinCard({ skin, selected, onClick }: {
       p={2} textAlign="center" minW="100px" maxW="120px"
       cursor="pointer" _hover={{ borderColor: 'accent.300' }}
       transition="border-color 0.15s">
-      {iconSrc && (
-        <Image src={iconSrc} alt={name} boxSize="80px" objectFit="contain"
+      {faceIcon && (
+        <Image src={faceIcon} alt="" loading={eager ? 'eager' : 'lazy'} decoding="async" boxSize="80px" objectFit="contain"
           mx="auto" mb={1} borderRadius="sm" />
       )}
       <Text fontSize="xs" fontWeight={selected ? 'bold' : 'normal'} noOfLines={2} lineHeight="1.3">
         {name}
       </Text>
-      <Text fontSize="10px" color="gray.500" noOfLines={1} mt={0.5}>{skin.unitEngName}</Text>
+      <Text fontSize="xs" color="gray.500" noOfLines={1} mt={0.5}>{skin.unitEngName}</Text>
       <Box mt={1}>
         {isDefault(skin) ? (
           <Badge colorScheme="gray" fontSize="2xs">Base</Badge>

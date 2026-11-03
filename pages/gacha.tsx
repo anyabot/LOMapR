@@ -13,6 +13,7 @@ import NextLink from '@/components/link';
 import { fetchGachaPools, GachaEntry, GachaPools } from '@/lib/fetchData';
 import { tAny } from '@/lib/strings';
 import { useTranslationVersion } from '@/lib/translationVersion';
+import { iconSrc } from '@/lib/imageSrc';
 
 const DESCRIPTION = 'Last Origin gacha simulator using live Global and KR rates.';
 
@@ -142,9 +143,9 @@ function doPulls(pool: GachaEntry[], count: number): GachaEntry[] {
 
 // ── entry display ─────────────────────────────────────────────────────────────
 function EntryIcon({ entry, size = '56px' }: { entry: GachaEntry; size?: string }) {
-  const iconSrc = entry.kind === 'skin'
-    ? `/images/icons/${skinFormationIcon(entry)}.png`
-    : `/images/icons/${entry.icon}.png`;
+  const src = entry.kind === 'skin'
+    ? iconSrc(skinFormationIcon(entry))
+    : iconSrc(entry.icon);
   const grade = entry.kind === 'skin' ? 5 : entry.grade;
   const borderColor = GRADE_COLOR[grade] ?? 'gray.500';
   const label = entry.kind === 'skin' ? skinName(entry) : itemName(entry.name, entry.key);
@@ -161,7 +162,7 @@ function EntryIcon({ entry, size = '56px' }: { entry: GachaEntry; size?: string 
         flexShrink={0}
       >
         <Image
-          src={iconSrc}
+          src={src}
           alt={entry.kind === 'skin' ? entry.unitEngName : entry.key}
           w="100%"
           h="100%"
@@ -269,8 +270,8 @@ function RatesSection({ entries, label, total }: { entries: GachaEntry[]; label:
               >
                 <Image
                   src={entry.kind === 'skin'
-                    ? `/images/icons/${skinFormationIcon(entry)}.png`
-                    : `/images/icons/${entry.icon}.png`}
+                    ? iconSrc(skinFormationIcon(entry))
+                    : iconSrc(entry.icon)}
                   alt={name}
                   w="100%"
                   h="100%"

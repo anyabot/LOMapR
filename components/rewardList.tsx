@@ -10,6 +10,7 @@ import { useTranslationVersion } from '@/lib/translationVersion';
 import { rankColor, unitDisplayName } from '@/lib/rank';
 import { selectUnit } from '@/store/unitSlice';
 import UnitHoverCard from './unitHoverCard';
+import { iconSrc } from '@/lib/imageSrc';
 
 // Display labels for the currency keys on a RewardEntry (`metal` reads as "Gear").
 const CURRENCY_LABEL: Record<string, string> = {
@@ -124,7 +125,7 @@ function IconPlaceholder({ icon }: { icon: string }) {
       {showImg ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={`/images/icons/${icon}.png`}
+          src={iconSrc(icon)}
           alt={icon}
           style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
           onError={() => setBroken(true)}
