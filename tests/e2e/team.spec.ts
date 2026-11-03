@@ -1,4 +1,4 @@
-import { test, expect, Page } from '@playwright/test';
+import { test, expect, Page } from './test';
 import { SAMPLE } from './fixtures';
 
 // Five distinct global units for filling a squad (canonNames from unit.json).
@@ -20,6 +20,8 @@ async function addUnit(page: Page, name: string) {
   await expect(dialog).toBeHidden();
   await expect(page.getByRole('button', { name: `Configure ${name}` })).toBeVisible();
 }
+
+const savedTeams = (page: Page) => page.evaluate(() => localStorage.getItem('lomapr.teams.v1'));
 
 test.describe('/team', () => {
   test.use({ permissions: ['clipboard-read', 'clipboard-write'] });
@@ -74,13 +76,16 @@ test.describe('/team', () => {
   });
 
   test('the team survives a page reload', async ({ page }) => {
+    const before = await savedTeams(page);
     await addUnit(page, SAMPLE.unit.name);
+    await expect.poll(() => savedTeams(page)).not.toBe(before);
     await page.reload();
     await expect(page.getByRole('button', { name: `Configure ${SAMPLE.unit.name}` })).toBeVisible({ timeout: 15_000 });
   });
 
   test('export image downloads a PNG of the team', async ({ page }) => {
     await addUnit(page, SAMPLE.unit.name);
+    await expect(page.getByRole('button', { name: 'Export image' })).toBeEnabled({ timeout: 15_000 });
     const downloadPromise = page.waitForEvent('download', { timeout: 30_000 });
     await page.getByRole('button', { name: 'Export image' }).click();
     const download = await downloadPromise;
@@ -96,5 +101,38 @@ test.describe('/team', () => {
   test('team slot bar allows adding a new slot', async ({ page }) => {
     await page.getByRole('button', { name: '+ New' }).click();
     await expect(page.getByRole('button', { name: '2', exact: true })).toBeVisible();
+  });
+
+  test('an invalid team code is rejected', async ({ page }) => {
+    await page.getByPlaceholder('Paste a team code…').fill('not-a-team-code');
+    await page.getByRole('button', { name: 'Load', exact: true }).click();
+    await expect(page.getByText('Invalid team code.')).toBeVisible();
+    await expect(page.getByRole('button', { name: '2', exact: true })).toBeHidden();
+  });
+
+  test('simulate tab reports stats for the fielded unit', async ({ page }) => {
+    await addUnit(page, SAMPLE.unit.name);
+    await page.getByRole('tab', { name: 'Simulate (Round 1)' }).click();
+    await expect(page.getByRole('heading', { name: /Live Battle Stats/ })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('heading', { name: /First Action Timeline|Turn Order/ })).toBeVisible();
+    await expect(page.getByRole('tabpanel').getByText(SAMPLE.unit.name).first()).toBeVisible();
+  });
+
+  test('removing a unit from its config frees the tile', async ({ page }) => {
+    await addUnit(page, SAMPLE.unit.name);
+    await page.getByRole('button', { name: `Configure ${SAMPLE.unit.name}` }).click();
+    await page.getByRole('button', { name: 'remove unit' }).first().click();
+    await expect(page.getByRole('button', { name: `Configure ${SAMPLE.unit.name}` })).toBeHidden();
+  });
+
+  test('export image stays disabled until the unit data has loaded', async ({ page }) => {
+    let release!: () => void;
+    const loaded = new Promise<void>((resolve) => { release = resolve; });
+    await page.route(`**/split/units/${SAMPLE.unit.id}.json`, async (route) => { await loaded; await route.continue(); });
+    await addUnit(page, SAMPLE.unit.name);
+    const exportButton = page.getByRole('button', { name: 'Export image' });
+    await expect(exportButton).toBeDisabled();
+    release();
+    await expect(exportButton).toBeEnabled({ timeout: 15_000 });
   });
 });

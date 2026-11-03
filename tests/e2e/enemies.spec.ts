@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './test';
 import { SAMPLE } from './fixtures';
 
 test.describe('/enemies', () => {
@@ -34,5 +34,17 @@ test.describe('/enemies', () => {
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible({ timeout: 15_000 });
     await expect(dialog.getByRole('spinbutton')).toHaveValue('30');
+  });
+
+  test('closing a deep-linked modal clears the URL so a reload keeps it closed', async ({ page }) => {
+    await page.goto(`/enemies?enemy=${encodeURIComponent(SAMPLE.enemy.id)}`);
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible({ timeout: 15_000 });
+    await dialog.getByRole('button', { name: 'Close' }).click();
+    await expect(dialog).toBeHidden();
+    await expect(page).not.toHaveURL(/enemy=/);
+    await page.reload();
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 15_000 });
+    await expect(dialog).toBeHidden();
   });
 });

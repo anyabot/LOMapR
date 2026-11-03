@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './test';
 
 // KR data is ahead of global, so a KR-only unit must appear only under the KR region.
 const KR_ONLY = { id: 'Char_BR_MariaGrace_N', name: 'Maria Grace' };
@@ -17,9 +17,11 @@ test.describe('region switching', () => {
     await page.getByPlaceholder('Search name or code').fill(KR_ONLY.name);
     const tile = page.getByText(KR_ONLY.name, { exact: true }).first();
     await expect(tile).toBeVisible({ timeout: 15_000 });
+    // the debounced search URL update would otherwise cancel the click's navigation
+    await expect(page).toHaveURL(/q=Maria/);
 
     await tile.click();
-    await expect(page).toHaveURL(new RegExp(`/units/detail\\?id=${KR_ONLY.id}`));
+    await expect(page).toHaveURL(new RegExp(`/units/detail/\\?id=${KR_ONLY.id}`));
     await expect(page.getByRole('heading', { name: KR_ONLY.name, exact: true })).toBeVisible({ timeout: 15_000 });
   });
 

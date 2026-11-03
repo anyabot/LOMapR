@@ -1,4 +1,4 @@
-import { test, expect, Page } from '@playwright/test';
+import { test, expect, Page } from './test';
 
 // These stream archives from the live CDN, so unlike the rest of the suite they need
 // network access. One skin per PixiJS layout kind; the Unity kind is not covered.
