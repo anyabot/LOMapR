@@ -6,7 +6,7 @@ import { selectRegion } from '@/store/regionSlice';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router'
 import Error from 'next/error';
-import Link from 'next/link';
+import Link from '@/components/link';
 import SimpleCard from '@/components/simpleCard';
 import CopyLink from '@/components/copyLink';
 import EventImage from '@/components/eventImage';

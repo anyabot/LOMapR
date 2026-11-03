@@ -2,7 +2,7 @@ import {
   Box, Button, HStack, VStack, Text, Image, Center, SimpleGrid, Tag, Divider, Link,
 } from '@altterisk/game-hub/ui';
 import { StarIcon } from '@altterisk/game-hub/ui';
-import NextLink from 'next/link';
+import NextLink from '@/components/link';
 import { useRouter } from 'next/router';
 import { Panel, StatRows, UrlTabs, TabPanel, tabParam, WaveNav, type StatItem } from '@altterisk/game-hub';
 import { nextRouterAdapter } from '@altterisk/game-hub/filters';

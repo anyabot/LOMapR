@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useDeferredValue, useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/router';
 import styles from "@/styles/custom.module.css"
 import {
   Modal,
@@ -29,6 +30,7 @@ import {
 import SkillTabList from './skillTabList';
 import ApperanceList from './appearanceList';
 import CopyLink from '@/components/copyLink';
+import { dropQueryParams } from '@/lib/href';
 import { StatRows } from '@altterisk/game-hub';
 import StatHeading from '@/components/statHeading';
 
@@ -54,13 +56,15 @@ export default function EnemyModal() {
   useTranslationVersion();
   // Focus the dialog itself, so no control opens with a focus ring and its tooltip.
   const contentRef = useRef<HTMLDivElement>(null);
-  const activeEnemy = useAppSelector(selectActiveEnemy);
+  // Deferred so the click that opens the modal paints before the modal's heavy first render.
+  const activeEnemy = useDeferredValue(useAppSelector(selectActiveEnemy));
   const initialLevel = useAppSelector(selectActiveLevel);
   const imagelink = useAppSelector(selectImage);
   const enemy = useAppSelector(selectEnemy);
   const realEnemy = useAppSelector(state => selectEnemyFull(state, activeEnemy));
   const fullStatus = useAppSelector(state => selectEnemyFullStatus(state, activeEnemy));
   const dispatch = useAppDispatch();
+  const router = useRouter();
 
   const [realLevel, setRealLevel] = useState<number>(initialLevel);
 
@@ -69,6 +73,7 @@ export default function EnemyModal() {
   }
   function hide() {
     dispatch(setActive(["", 1]));
+    dropQueryParams(router, ['enemy', 'lv']);
   }
   useEffect(() => {
     dispatch(fetchEnemyAsync());

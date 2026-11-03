@@ -1,4 +1,4 @@
-import NextLink from 'next/link'
+import NextLink from '@/components/link'
 import { useRouter } from 'next/router'
 import { ReactNode } from "react";
 

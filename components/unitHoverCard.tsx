@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import NextLink from 'next/link';
+import NextLink from '@/components/link';
 import {
   Popover, PopoverTrigger, PopoverContent, PopoverBody, Portal,
   Box, HStack, VStack, Image, Text, Tag, Wrap, WrapItem,

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Tag, TagLabel, Text } from '@altterisk/game-hub/ui'
 import { LinkIcon } from '@altterisk/game-hub/ui'
-import Link from 'next/link';
+import Link from '@/components/link';
 
 import { useAppSelector, useAppDispatch } from '@/hooks';
 import { selectWorldStatus, fetchWorldAsync } from '@/store/worldSlice';

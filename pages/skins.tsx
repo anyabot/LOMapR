@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { memo, useCallback, useDeferredValue, useEffect, useState, useMemo } from 'react';
 import { useAppSelector } from '@/hooks';
 import { selectRegion } from '@/store/regionSlice';
 import {
@@ -95,6 +95,7 @@ export default function Skins() {
   const [activeCats, setActiveCats] = useState<Set<string>>(new Set());
   const [activeParts, setActiveParts] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState('');
+  const deferredSearch = useDeferredValue(searchTerm);
 
   const [selected, setSelected] = useState<SkinEntry | null>(null);
 
@@ -132,15 +133,16 @@ export default function Skins() {
     }
 
     // Search
-    if (searchTerm) {
-      const q = searchTerm.toLowerCase();
+    if (deferredSearch) {
+      const q = deferredSearch.toLowerCase();
       const name = skinDisplayName(s).toLowerCase();
       const unit = (s.unitEngName || tAny(s.unitName) || '').toLowerCase();
       if (!name.includes(q) && !unit.includes(q)) return false;
     }
 
     return true;
-  }), [skins, activeCats, activeParts, searchTerm]);
+  }), [skins, activeCats, activeParts, deferredSearch]);
+  const toggleSelected = useCallback((s: SkinEntry) => setSelected((prev) => prev?.key === s.key ? null : s), []);
 
   return (
     <>
@@ -236,15 +238,7 @@ export default function Skins() {
         ) : (
           <>
             {/* Horizontal scrollable skin row */}
-            <Box overflowX="auto" pb={2}>
-              <HStack spacing={3} align="stretch" minW="max-content">
-                {shown.map((s) => (
-                  <SkinCard key={s.key} skin={s}
-                    selected={selected?.key === s.key}
-                    onClick={() => setSelected((prev) => prev?.key === s.key ? null : s)} />
-                ))}
-              </HStack>
-            </Box>
+            <SkinRow shown={shown} selectedKey={selected?.key} onSelect={toggleSelected} />
 
             {/* Viewer panel */}
             {selected && (
@@ -256,6 +250,22 @@ export default function Skins() {
     </>
   );
 }
+
+// Memoized so keystrokes that leave the result set unchanged skip the row.
+const SkinRow = memo(function SkinRow({ shown, selectedKey, onSelect }: {
+  shown: SkinEntry[]; selectedKey: string | undefined; onSelect: (s: SkinEntry) => void;
+}) {
+  useTranslationVersion();
+  return (
+    <Box overflowX="auto" pb={2}>
+      <HStack spacing={3} align="stretch" minW="max-content">
+        {shown.map((s) => (
+          <SkinCard key={s.key} skin={s} selected={selectedKey === s.key} onClick={() => onSelect(s)} />
+        ))}
+      </HStack>
+    </Box>
+  );
+});
 
 // ── skin card (same style as unit detail picker) ──────────────────────────────
 

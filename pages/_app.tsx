@@ -1,5 +1,6 @@
 import '@/styles/globals.css'
 import type { AppProps } from 'next/app'
+import { Inter, Noto_Sans_KR } from 'next/font/google'
 import { Provider, useSelector, useDispatch } from 'react-redux'
 import { useEffect, useRef, useState } from 'react'
 import { store, RootState } from '@/store'
@@ -32,6 +33,10 @@ import '@altterisk/game-hub/ui.css'
 import '@altterisk/game-hub/hub.css'
 import '@altterisk/game-hub/components.css'
 import '@/styles/site.css'
+
+const inter = Inter({ subsets: ['latin'], display: 'swap' })
+const notoKr = Noto_Sans_KR({ subsets: ['latin'], display: 'swap', preload: false })
+const FONT_CSS = `:root { --hub-font: ${inter.style.fontFamily}, "Noto Sans JP", ${notoKr.style.fontFamily}, Pretendard, "Hiragino Sans", Meiryo, system-ui, sans-serif; }`
 
 function forcedRegionFromUrl(): Region | null {
   if (typeof window === 'undefined') return null;
@@ -151,6 +156,7 @@ function useStringsAndTranslation(): number {
 export default function App({ Component, pageProps }: AppProps) {
   return (
     <Provider store={store}>
+      <style dangerouslySetInnerHTML={{ __html: FONT_CSS }} />
       <RegionSync />
       <AppBody Component={Component} pageProps={pageProps} />
       <Toaster />

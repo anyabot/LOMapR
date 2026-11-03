@@ -1,5 +1,5 @@
 import { ReactNode, useState } from 'react'
-import NextLink from 'next/link'
+import NextLink from '@/components/link'
 import { useRouter } from 'next/router'
 import { SiteShell, homeLink } from '@altterisk/game-hub'
 import EnemyModal from './enemyTab/enemyModal';

@@ -1,17 +1,18 @@
 import { useAppSelector, useAppDispatch } from '@/hooks';
 import { selectUnits, selectUnitStatus, fetchUnitsAsync } from '@/store/unitSlice';
-import { useEffect, useState } from 'react';
+import { memo, useDeferredValue, useEffect, useState } from 'react';
 import { useTranslationVersion } from '@/lib/translationVersion';
 import { UnitData } from '@/interfaces/unit';
 import {
   VStack, HStack, Center, Text, Heading, Badge, Box, Image, Wrap, WrapItem,
 } from '@altterisk/game-hub/ui';
-import NextLink from 'next/link';
+import NextLink from '@/components/link';
 import { ListToolbar, SearchBox, FilterPanel, FilterRow, FilterChip, EmptyState } from '@altterisk/game-hub';
 import { rankTag, rankColor, roleRankIcon, typeIcon, roleIcon, bodyIcon, factionIcon, factionKey,
   factionName, filterValueAllowed, unitDisplayName } from '@/lib/rank';
 import { chipColor, countActive, fillModes, useListUrl, useUrlText } from '@/lib/listUrl';
 import { Seo } from '@/components/seo';
+import { useStableList } from '@/lib/useStableList';
 
 const DESCRIPTION = 'Playable Last Origin units with stats, skills and skins.';
 
@@ -41,6 +42,7 @@ export default function Units() {
 
   const { list, ready } = useListUrl();
   const [searchTerm, setSearchTerm] = useUrlText(list, ready);
+  const deferredSearch = useDeferredValue(searchTerm);
   const types = fillModes(TYPES, list.modes('type'));
   const roles = fillModes(ROLES, list.modes('role'));
   const bodies = fillModes(BODIES, list.modes('body'));
@@ -71,30 +73,24 @@ export default function Units() {
     if (!filterValueAllowed(u.body as BodyKey, bodies)) return false;
     if (!filterValueAllowed(u.rarity, grades)) return false;
     if (!filterValueAllowed(u.faction ? factionKey(u.faction.icon) : '', factions)) return false;
-    if (searchTerm) {
-      const q = searchTerm.toLowerCase();
+    if (deferredSearch) {
+      const q = deferredSearch.toLowerCase();
       if (!unitName(u).toLowerCase().includes(q) && !(u.id || '').replace(/^Char_[^_]+_/, '').toLowerCase().includes(q)) return false;
     }
     return true;
   }
+
+  const shown = useStableList(Object.values(units).filter(matches));
+  // a filtered-out type/role/grade drops its whole table / column / row
+  const activeTypes = useStableList(TYPES.filter((ty) => filterValueAllowed(ty, types)));
+  const activeRoles = useStableList(ROLES.filter((r) => filterValueAllowed(r, roles)));
+  const activeGrades = useStableList([...GRADES].filter((g) => filterValueAllowed(g, grades)).reverse());  // SS at top
 
   if (status === 'failed') {
     return (<><Seo title="Units" description={DESCRIPTION} /><Center py={20}><Text color="red.300">Failed to load units.</Text></Center></>);
   }
   if (Object.keys(units).length === 0) {
     return (<><Seo title="Units" description={DESCRIPTION} /></>);
-  }
-
-  const shown = Object.values(units).filter(matches);
-  // a filtered-out type/role/grade drops its whole table / column / row
-  const activeRoles = ROLES.filter((r) => filterValueAllowed(r, roles));
-  const activeGrades = [...GRADES].filter((g) => filterValueAllowed(g, grades)).reverse();  // SS at top
-
-  // cell lookup: type -> role -> grade -> units (name-sorted)
-  function cell(type: TypeKey, role: RoleKey, grade: number) {
-    return shown
-      .filter((u) => u.type === type && u.role === role && u.rarity === grade)
-      .sort((a, b) => unitName(a).localeCompare(unitName(b)));
   }
 
   return (
@@ -153,64 +149,81 @@ export default function Units() {
         {shown.length === 0 ? (
           <EmptyState title="No units match the current filters." />
         ) : (
-          // one table per active class type; columns = active roles, rows = active grades.
-          TYPES.filter((ty) => filterValueAllowed(ty, types)).map((type) => (
-            <Box key={type} borderWidth="1px" borderColor="surface.border" borderRadius="xl"
-              overflow="hidden" bg="surface.elevated">
-              <Box px={4} py={2} bg="blackAlpha.300" borderBottomWidth="1px" borderBottomColor="surface.border">
-                <HStack spacing={2}>
-                  {typeIcon(type) ? <Image src={typeIcon(type)!} alt={type} boxSize="20px" /> : null}
-                  <Heading size="sm" color="green.200">{type}</Heading>
-                </HStack>
-              </Box>
-              <Box overflowX="auto">
-                <Box as="table" w="100%" style={{ borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-                  <Box as="thead">
-                    <Box as="tr">
-                      <Box as="th" w="44px" />
-                      {activeRoles.map((role) => (
-                        <Box as="th" key={role} px={2} py={1.5}
-                          borderBottomWidth="1px" borderColor="surface.border"
-                          fontSize="xs" color="red.200" textTransform="uppercase" letterSpacing="wide">
-                          <HStack spacing={1.5} justify="center">
-                            {roleIcon(role) ? <Image src={roleIcon(role)!} alt={role} boxSize="16px" /> : null}
-                            <span>{role}</span>
-                          </HStack>
-                        </Box>
-                      ))}
-                    </Box>
-                  </Box>
-                  <Box as="tbody">
-                    {activeGrades.map((grade) => (
-                      <Box as="tr" key={grade}>
-                        <Box as="th" px={2} py={2} textAlign="center" verticalAlign="middle"
-                          borderTopWidth="1px" borderColor="surface.border">
-                          <Badge fontSize="sm" bg={rankColor(grade)} color="blackAlpha.800">{rankTag(grade)}</Badge>
-                        </Box>
-                        {activeRoles.map((role) => (
-                          <Box as="td" key={role} px={2} py={2} verticalAlign="top"
-                            borderTopWidth="1px" borderLeftWidth="1px" borderColor="surface.border">
-                            <Wrap spacing={2} justify="center">
-                              {cell(type, role, grade).map((u) => (
-                                <WrapItem key={u.id}>
-                                  <UnitTile unit={u} />
-                                </WrapItem>
-                              ))}
-                            </Wrap>
-                          </Box>
-                        ))}
-                      </Box>
-                    ))}
-                  </Box>
-                </Box>
-              </Box>
-            </Box>
-          ))
+          <UnitTables shown={shown} types={activeTypes} roles={activeRoles} grades={activeGrades} />
         )}
       </VStack>
     </>
   );
 }
+
+// Memoized so keystrokes and URL updates that leave the result set unchanged skip the grid.
+const UnitTables = memo(function UnitTables({ shown, types, roles, grades }: {
+  shown: UnitData[]; types: readonly TypeKey[]; roles: readonly RoleKey[]; grades: number[];
+}) {
+  useTranslationVersion();
+  // cell lookup: type -> role -> grade -> units (name-sorted)
+  function cell(type: TypeKey, role: RoleKey, grade: number) {
+    return shown
+      .filter((u) => u.type === type && u.role === role && u.rarity === grade)
+      .sort((a, b) => unitName(a).localeCompare(unitName(b)));
+  }
+  return (
+    <>
+    {types.map((type) => (
+      <Box key={type} borderWidth="1px" borderColor="surface.border" borderRadius="xl"
+        overflow="hidden" bg="surface.elevated">
+        <Box px={4} py={2} bg="blackAlpha.300" borderBottomWidth="1px" borderBottomColor="surface.border">
+          <HStack spacing={2}>
+            {typeIcon(type) ? <Image src={typeIcon(type)!} alt={type} boxSize="20px" /> : null}
+            <Heading size="sm" color="green.200">{type}</Heading>
+          </HStack>
+        </Box>
+        <Box overflowX="auto">
+          <Box as="table" w="100%" style={{ borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+            <Box as="thead">
+              <Box as="tr">
+                <Box as="th" w="44px" />
+                {roles.map((role) => (
+                  <Box as="th" key={role} px={2} py={1.5}
+                    borderBottomWidth="1px" borderColor="surface.border"
+                    fontSize="xs" color="red.200" textTransform="uppercase" letterSpacing="wide">
+                    <HStack spacing={1.5} justify="center">
+                      {roleIcon(role) ? <Image src={roleIcon(role)!} alt={role} boxSize="16px" /> : null}
+                      <span>{role}</span>
+                    </HStack>
+                  </Box>
+                ))}
+              </Box>
+            </Box>
+            <Box as="tbody">
+              {grades.map((grade) => (
+                <Box as="tr" key={grade}>
+                  <Box as="th" px={2} py={2} textAlign="center" verticalAlign="middle"
+                    borderTopWidth="1px" borderColor="surface.border">
+                    <Badge fontSize="sm" bg={rankColor(grade)} color="blackAlpha.800">{rankTag(grade)}</Badge>
+                  </Box>
+                  {roles.map((role) => (
+                    <Box as="td" key={role} px={2} py={2} verticalAlign="top"
+                      borderTopWidth="1px" borderLeftWidth="1px" borderColor="surface.border">
+                      <Wrap spacing={2} justify="center">
+                        {cell(type, role, grade).map((u) => (
+                          <WrapItem key={u.id}>
+                            <UnitTile unit={u} />
+                          </WrapItem>
+                        ))}
+                      </Wrap>
+                    </Box>
+                  ))}
+                </Box>
+              ))}
+            </Box>
+          </Box>
+        </Box>
+      </Box>
+    ))}
+    </>
+  );
+});
 
 // Compact unit cell: formation portrait + name, links to the detail page.
 function UnitTile({ unit }: { unit: UnitData }) {

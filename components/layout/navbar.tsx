@@ -1,4 +1,4 @@
-import NextLink from 'next/link';
+import NextLink from '@/components/link';
 import { useRouter } from 'next/router';
 import { CloseIcon, HamburgerIcon } from '@altterisk/game-hub/ui'
 import { Flex, HStack, IconButton } from '@altterisk/game-hub/ui';

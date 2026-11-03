@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { memo, useDeferredValue, useEffect, useState } from 'react';
 import {
   VStack, HStack, Center, Text, Heading, Badge, Box, Image, SimpleGrid,
 } from '@altterisk/game-hub/ui';
@@ -11,6 +11,7 @@ import { useTranslationVersion } from '@/lib/translationVersion';
 import { rankTag, rankColor, equipIcon, EXCHANGE_META, filterValueAllowed } from '@/lib/rank';
 import { chipColor, countActive, fillModes, useListUrl, useUrlText } from '@/lib/listUrl';
 import { Seo } from '@/components/seo';
+import { useStableList } from '@/lib/useStableList';
 import { useRouter } from 'next/router';
 
 const DESCRIPTION = 'All Last Origin equipment with stats and set effects.';
@@ -46,6 +47,7 @@ export default function Equipment() {
 
   const { list, ready } = useListUrl();
   const [searchTerm, setSearchTerm] = useUrlText(list, ready);
+  const deferredSearch = useDeferredValue(searchTerm);
   const grades = fillModes(GRADES, list.modes('grade'));
   const exchanges = fillModes(EXCHANGES, list.modes('exchange'));
   const types = fillModes(TYPES, list.modes('type'));
@@ -61,12 +63,14 @@ export default function Equipment() {
     if (TYPES.some((ty) => types[ty] === -1 && typeMatch(ty))) return false;
     const typeIncludes = TYPES.filter((ty) => types[ty] === 1);
     if (typeIncludes.length && !typeIncludes.some(typeMatch)) return false;
-    if (searchTerm) {
-      const q = searchTerm.toLowerCase();
+    if (deferredSearch) {
+      const q = deferredSearch.toLowerCase();
       if (!t(e.name).toLowerCase().includes(q) && !(e.id || '').toLowerCase().includes(q)) return false;
     }
     return true;
   }
+
+  const shown = useStableList(Object.values(equip).filter(matches));
 
   if (status === 'failed') {
     return (<><Seo title="Equipment" description={DESCRIPTION} /><Center py={20}><Text color="red.300">Failed to load equipment.</Text></Center></>);
@@ -74,8 +78,6 @@ export default function Equipment() {
   if (Object.keys(equip).length === 0) {
     return (<><Seo title="Equipment" description={DESCRIPTION} /></>);
   }
-
-  const shown = Object.values(equip).filter(matches);
 
   return (
     <>
@@ -117,35 +119,46 @@ export default function Equipment() {
         {shown.length === 0 ? (
           <EmptyState title="No equipment matches the current filters." />
         ) : (
-          SLOTS.map((slot) => {
-            const items = shown.filter((e) => e.slot === slot.label)
-              .sort((a, b) => (b.grade - a.grade) || t(a.name).localeCompare(t(b.name)));
-            if (!items.length) return null;
-            return (
-              <Box key={slot.label} borderWidth="1px" borderColor="surface.border" borderRadius="xl"
-                overflow="hidden" bg="surface.elevated">
-                <Box px={4} py={2} bg="blackAlpha.300" borderBottomWidth="1px" borderBottomColor="surface.border">
-                  <HStack spacing={2}>
-                    {equipIcon(slot.icon) ? <Image src={equipIcon(slot.icon)!} alt={slot.label} boxSize="20px" /> : null}
-                    <Heading size="sm" color="gray.200">{slot.label}</Heading>
-                    <Badge colorScheme="gray" borderRadius="full">{items.length}</Badge>
-                  </HStack>
-                </Box>
-                <Box p={3}>
-                  <SimpleGrid columns={[3, 4, 5, 7]} spacing={3}>
-                    {items.map((e) => (
-                      <EquipTile key={e.id} equip={e} onClick={() => dispatch(setActiveEquip(e.id))} />
-                    ))}
-                  </SimpleGrid>
-                </Box>
-              </Box>
-            );
-          })
+          <EquipSections shown={shown} />
         )}
       </VStack>
     </>
   );
 }
+
+// Memoized so keystrokes and URL updates that leave the result set unchanged skip the grid.
+const EquipSections = memo(function EquipSections({ shown }: { shown: EquipData[] }) {
+  useTranslationVersion();
+  const dispatch = useAppDispatch();
+  return (
+    <>
+    {SLOTS.map((slot) => {
+      const items = shown.filter((e) => e.slot === slot.label)
+        .sort((a, b) => (b.grade - a.grade) || t(a.name).localeCompare(t(b.name)));
+      if (!items.length) return null;
+      return (
+        <Box key={slot.label} borderWidth="1px" borderColor="surface.border" borderRadius="xl"
+          overflow="hidden" bg="surface.elevated">
+          <Box px={4} py={2} bg="blackAlpha.300" borderBottomWidth="1px" borderBottomColor="surface.border">
+            <HStack spacing={2}>
+              {equipIcon(slot.icon) ? <Image src={equipIcon(slot.icon)!} alt={slot.label} boxSize="20px" /> : null}
+              <Heading size="sm" color="gray.200">{slot.label}</Heading>
+              <Badge colorScheme="gray" borderRadius="full">{items.length}</Badge>
+            </HStack>
+          </Box>
+          <Box p={3}>
+            <SimpleGrid columns={[3, 4, 5, 7]} spacing={3}>
+              {items.map((e) => (
+                <EquipTile key={e.id} equip={e} onClick={() => dispatch(setActiveEquip(e.id))} />
+              ))}
+            </SimpleGrid>
+          </Box>
+        </Box>
+      );
+    })}
+    </>
+  );
+});
 
 // Compact equip tile: icon (rank-colored border) + name; opens the equip modal.
 function EquipTile({ equip, onClick }: { equip: EquipData; onClick: () => void }) {

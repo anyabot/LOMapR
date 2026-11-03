@@ -1,7 +1,7 @@
 import { useAppSelector, useAppDispatch } from '@/hooks';
 import { selectEnemy, selectEnemyStatus, fetchEnemyAsync, setActive } from '@/store/enemySlice';
 import { selectImage, fetchImageAsync } from '@/store/imageSlice';
-import { useEffect, useState } from 'react';
+import { memo, useDeferredValue, useEffect, useState } from 'react';
 import { EnemyData } from '@/interfaces/enemy';
 import { Box, SimpleGrid, VStack, Center, Text, Heading } from '@altterisk/game-hub/ui';
 import { useRouter } from 'next/router';
@@ -13,6 +13,7 @@ import { typeIcon, roleIcon, nextFilterMode, FilterMode } from '@/lib/rank';
 import { chipColor, countActive, fillModes, useListUrl, useUrlText } from '@/lib/listUrl';
 import { Image } from '@altterisk/game-hub/ui';
 import { Seo } from '@/components/seo';
+import { useStableList } from '@/lib/useStableList';
 
 const DESCRIPTION = 'Every Last Origin enemy with stats and skills.';
 
@@ -24,7 +25,6 @@ export default function Home() {
   useTranslationVersion();
   const enemy = useAppSelector(selectEnemy);
   const enemyStatus = useAppSelector(selectEnemyStatus);
-  const imagelink = useAppSelector(selectImage);
   const dispatch = useAppDispatch();
 
   const router = useRouter();
@@ -46,14 +46,13 @@ export default function Home() {
 
   const { list: urlList, ready } = useListUrl();
   const [searchTerm, setSearchTerm] = useUrlText(urlList, ready);
+  const deferredSearch = useDeferredValue(searchTerm);
   const usedParam = urlList.text('used');
   const usedMode: FilterMode = usedParam === '1' ? 1 : usedParam === '-1' ? -1 : 0;
   const setUsedMode = (mode: FilterMode) => urlList.setText('used', mode ? String(mode) : '');
   const filterGroup = { ...fillModes(TYPES, urlList.modes('type')), ...fillModes(ROLES, urlList.modes('role')) };
   const [filtersOpen, setFiltersOpen] = useState(false);
   const activeFilters = countActive(filterGroup, { used: usedMode });
-
-  const getImage = (id: string) => imagelink[id] || undefined;
 
   function handleSwitch(e: keyof typeof filterGroup) {
     urlList.cycleMode((TYPES as readonly string[]).includes(e) ? 'type' : 'role', e);
@@ -69,8 +68,8 @@ export default function Home() {
     return false;
   }
   function filterName(e: EnemyData) {
-    if (!searchTerm) return true;
-    const q = searchTerm.toLowerCase();
+    if (!deferredSearch) return true;
+    const q = deferredSearch.toLowerCase();
     // match display name OR the internal code name (e.id)
     return t(e.name).toLowerCase().includes(q) || (e.id || '').toLowerCase().includes(q);
   }
@@ -92,6 +91,8 @@ export default function Home() {
     return out;
   }
 
+  const list = useStableList(enemies(enemy));
+
   if (enemyStatus == 'failed') {
     return (<><Seo title="Enemy List" description={DESCRIPTION} /><Center py={20}><Text color="red.300">Failed to load enemies.</Text></Center></>);
   }
@@ -99,8 +100,6 @@ export default function Home() {
     // empty -> render nothing here; the layout's GlobalLoader shows the spinner
     return (<><Seo title="Enemy List" description={DESCRIPTION} /></>);
   }
-
-  const list = enemies(enemy);
 
   return (
     <>
@@ -141,16 +140,26 @@ export default function Home() {
         {list.length === 0 ? (
           <EmptyState title="No enemies match the current filters." />
         ) : (
-          <SimpleGrid columns={[3, 4, 5, 7, 8]} spacing={3}>
-            {list.map((e) => (
-              <SimpleCard key={e.id} onClick={() => dispatch(setActive([e.id, 1]))}
-                headingSize="xs" img={getImage(e.img)} alt={e.img}>
-                {t(e.name)}
-              </SimpleCard>
-            ))}
-          </SimpleGrid>
+          <EnemyGrid list={list} />
         )}
       </VStack>
     </>
   );
 }
+
+// Memoized so keystrokes and URL updates that leave the result set unchanged skip the grid.
+const EnemyGrid = memo(function EnemyGrid({ list }: { list: EnemyData[] }) {
+  useTranslationVersion();
+  const dispatch = useAppDispatch();
+  const imagelink = useAppSelector(selectImage);
+  return (
+    <SimpleGrid columns={[3, 4, 5, 7, 8]} spacing={3}>
+      {list.map((e) => (
+        <SimpleCard key={e.id} onClick={() => dispatch(setActive([e.id, 1]))}
+          headingSize="xs" img={imagelink[e.img] || undefined} alt={e.img}>
+          {t(e.name)}
+        </SimpleCard>
+      ))}
+    </SimpleGrid>
+  );
+});
