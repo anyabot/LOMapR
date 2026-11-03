@@ -22,7 +22,7 @@ import {
   Input, Button, VStack, Heading, Spinner,
 } from '@altterisk/game-hub/ui';
 import { ArrowBackIcon } from '@altterisk/game-hub/ui';
-import Link from "next/link";
+import Link from "@/components/link";
 import { Seo } from "@/components/seo";
 import { useRouter } from "next/router";
 import SkillTabList from "@/components/enemyTab/skillTabList";

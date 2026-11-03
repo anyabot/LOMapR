@@ -94,6 +94,43 @@ with identical data are listed once (the earliest season, `lib/iwCanonical.mjs`)
 No secrets are needed in Cloudflare — data pushes run locally via
 `tools/admin/push_r2.py` / `push_skins_r2.py`.
 
+## CI
+
+`.github/workflows/ci.yml` runs on pushes to `main` and `new-dev` and on pull
+requests to `main`: `npm ci`, `hub:update`, `tsc --noEmit`, lint, `next build`, then
+the Playwright suite against `next start`. It reads game data from the live bucket,
+because `data/` is not in the repo, and it needs no secrets. `next start` doesn't send
+the generated `_headers`, so CI doesn't exercise the CSP. To check it against the
+deployed site, run `E2E_BASE_URL=https://lo.altterisk.cc npm run test:e2e`; any CSP
+violation then fails the test that triggered it.
+
+CI does not deploy. Cloudflare Workers Builds still deploys every push to `main`,
+and it does not wait for this workflow. To stop a failing commit from deploying,
+protect `main` in GitHub (Settings → Branches): require a pull request and require
+the **E2E** status check.
+
+Tests read live data, so a data push can fail them without any code change. Some
+fixtures (`tests/e2e/fixtures.ts`) name real game content; update them if a
+published change renames or removes it.
+
+## Security headers
+
+`scripts/copy-prerendered-assets.js` writes `.open-next/assets/_headers`: HSTS and
+`Cross-Origin-Opener-Policy: same-origin` on every static response, and a Content-Security-Policy on every prerendered page.
+Inline scripts are allowed by their SHA-256 hash, so each page gets its own policy.
+The policy allows the asset domain (`NEXT_PUBLIC_R2_PUBLIC_URL`),
+`hub.altterisk.cc` and `firebasestorage.googleapis.com` for images. A new external
+origin has to be added there, or the browser blocks it on the deployed site. `_headers` applies
+only to static responses; Worker responses (`/models`, `/rebuilt`, `/skins/*`, `/api`)
+don't get these headers.
+
+Pixi needs eval unless `pixi.js/unsafe-eval` is loaded first, so it is always loaded
+through `lib/pixi.ts`.
+
+HTTP → HTTPS redirects are a zone setting: Cloudflare dashboard → SSL/TLS → Edge
+Certificates → **Always Use HTTPS**. The site can't set it from code, because static
+pages never reach the Worker.
+
 ## Updating data
 
 Unchanged: re-run the Python push when data changes — no redeploy needed,

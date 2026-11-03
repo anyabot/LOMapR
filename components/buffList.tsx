@@ -3,7 +3,6 @@ import React, { useState } from "react";
 import { SkillBuff } from "@/interfaces/skill";
 import { t, tOrEmpty } from "@/lib/strings";
 import { useTranslationVersion } from "@/lib/translationVersion";
-import NextLink from "next/link";
 import { useAppSelector } from "@/hooks";
 import { selectUnits } from "@/store/unitSlice";
 import { unitDisplayName } from "@/lib/rank";
@@ -862,8 +861,7 @@ function CharSetName({ vals }: { vals: string[] }) {
             {i > 0 && <Box as="span" color="gray.400"> / </Box>}
             <UnitHoverCard unitId={v} inline>
               {unit ? (
-                <Box as={NextLink} href={`/units/detail?id=${encodeURIComponent(v)}`}
-                  color="accent.100" fontWeight="semibold" textDecoration="underline">{label}</Box>
+                <Box as="span" color="accent.100" fontWeight="semibold" textDecoration="underline">{label}</Box>
               ) : (
                 <Box as="span" color="accent.100" fontWeight="semibold">{label}</Box>
               )}

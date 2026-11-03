@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './test';
 import { SAMPLE } from './fixtures';
 
 test.describe('/units', () => {
@@ -44,7 +44,7 @@ test.describe('/units', () => {
   test('clicking a unit tile opens its detail page', async ({ page }) => {
     await page.getByPlaceholder('Search name or code').fill(SAMPLE.unit.name);
     await page.getByText(SAMPLE.unit.name, { exact: true }).first().click();
-    await expect(page).toHaveURL(new RegExp(`/units/detail\\?id=${SAMPLE.unit.id}`));
+    await expect(page).toHaveURL(new RegExp(`/units/detail/\\?id=${SAMPLE.unit.id}`));
     await expect(page.getByRole('heading', { name: SAMPLE.unit.name, exact: true })).toBeVisible({ timeout: 15_000 });
   });
 });
@@ -52,12 +52,12 @@ test.describe('/units', () => {
 test.describe('/units/detail', () => {
   test.use({ permissions: ['clipboard-read', 'clipboard-write'] });
 
-  test('share button copies the canonical deep link', async ({ page }) => {
+  test('share button copies the canonical deep link', async ({ page, baseURL }) => {
     await page.goto(`/units/detail?id=${encodeURIComponent(SAMPLE.unit.id)}`);
     await expect(page.getByRole('heading', { name: SAMPLE.unit.name, exact: true })).toBeVisible({ timeout: 15_000 });
     await page.getByRole('button', { name: 'Share link' }).click();
     const copied = await page.evaluate(() => navigator.clipboard.readText());
-    expect(copied).toBe(`http://localhost:3000/units/detail?id=${encodeURIComponent(SAMPLE.unit.id)}`);
+    expect(copied).toBe(`${baseURL}/units/detail/?id=${encodeURIComponent(SAMPLE.unit.id)}`);
   });
 
   test('shows stats, skills and a back link for a valid unit', async ({ page }) => {
@@ -67,27 +67,27 @@ test.describe('/units/detail', () => {
     await expect(page.getByRole('heading', { name: 'Stats', exact: true })).toBeVisible();
     // back button (a link-styled button) returns to the unit grid
     await page.getByRole('link', { name: 'Units', exact: true }).first().click();
-    await expect(page).toHaveURL(/\/units$/);
+    await expect(page).toHaveURL(/\/units\/$/);
   });
 
   test('unknown id shows the not-found fallback', async ({ page }) => {
     await page.goto('/units/detail?id=Char_No_Such_Unit');
     await expect(page.getByText('Unit not found.')).toBeVisible({ timeout: 15_000 });
     await page.getByRole('link', { name: 'Back to units' }).click();
-    await expect(page).toHaveURL(/\/units$/);
+    await expect(page).toHaveURL(/\/units\/$/);
   });
 
   test('shows faction squads and lore groups with member links', async ({ page }) => {
     await page.goto(`/units/detail?id=${encodeURIComponent(SAMPLE.unit.id)}`);
     await expect(page.getByRole('heading', { name: SAMPLE.unit.name, exact: true })).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText('Faction', { exact: true })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Battle Maid Project', exact: true, level: 3 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Battle Maid Project', exact: true, level: 2 })).toBeVisible();
     await expect(page.getByText('5/5', { exact: true })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Lore Groups', exact: true })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Squad 21', exact: true })).toBeVisible();
     await expect(page.getByRole('link', { name: 'View Invincible Dragon', exact: true })).toBeVisible();
     await page.getByRole('link', { name: 'View Vanilla A1', exact: true }).click();
-    await expect(page).toHaveURL(/\/units\/detail\?id=Char_3P_Vanilla_N/);
+    await expect(page).toHaveURL(/\/units\/detail\/\?id=Char_3P_Vanilla_N/);
   });
 
   test('links NPC Lemonades from the Secretary Lemonades lore group', async ({ page }) => {
@@ -96,6 +96,29 @@ test.describe('/units/detail', () => {
     const zeta = page.getByRole('link', { name: 'View Lemonade Zeta (Humanoid)', exact: true });
     await expect(zeta).toBeVisible();
     await zeta.click();
-    await expect(page).toHaveURL(/\/npcs\?id=lemonade-zeta-humanoid/);
+    await expect(page).toHaveURL(/\/npcs\/\?id=lemonade-zeta-humanoid/);
   });
+
+  test('?tab= deep link opens that section and tabs update the URL', async ({ page }) => {
+    await page.goto(`/units/detail?id=${encodeURIComponent(SAMPLE.unit.id)}&tab=skills`);
+    await expect(page.getByRole('tab', { name: 'Skills', exact: true })).toHaveAttribute('aria-selected', 'true', { timeout: 15_000 });
+
+    await page.getByRole('tab', { name: 'Profile', exact: true }).click();
+    await expect(page).toHaveURL(/tab=profile/);
+    await expect(page.getByRole('tab', { name: 'Profile', exact: true })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  for (const tab of ['Drop Location', 'Promotion', 'Limit Break', 'Skin', 'Voice']) {
+    test(`${tab} tab renders without a page error`, async ({ page }) => {
+      const errors: string[] = [];
+      page.on('pageerror', (err) => errors.push(err.message));
+      await page.goto(`/units/detail?id=${encodeURIComponent(SAMPLE.unit.id)}`);
+      const control = page.getByRole('tab', { name: tab, exact: true });
+      await expect(control).toBeVisible({ timeout: 15_000 });
+      await control.click();
+      await expect(control).toHaveAttribute('aria-selected', 'true');
+      await expect(page.getByRole('tabpanel')).not.toBeEmpty();
+      expect(errors).toEqual([]);
+    });
+  }
 });

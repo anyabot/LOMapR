@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './test';
 
 // A modal must open with focus on the dialog, never on a control: a focused Share link
 // button shows a focus ring and pops its tooltip on every open.

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './test';
 
 test.describe('/misc', () => {
   test('all three categorization tabs render content', async ({ page }) => {
@@ -14,5 +14,19 @@ test.describe('/misc', () => {
       const panel = page.getByRole('tabpanel');
       await expect(panel).not.toBeEmpty();
     }
+  });
+
+  test('selecting an effect lists its units and filtering narrows them', async ({ page }) => {
+    await page.goto('/misc');
+    await expect(page.getByPlaceholder('Filter effects')).toBeVisible({ timeout: 15_000 });
+
+    await page.getByRole('tabpanel').getByRole('button').filter({ hasText: /\d/ }).first().click();
+    await expect(page.getByPlaceholder('Filter units')).toBeVisible();
+    const rows = page.locator('[data-label="Unit"]');
+    await expect(rows.first()).toBeVisible({ timeout: 15_000 });
+
+    const before = await rows.count();
+    await page.getByPlaceholder('Filter units').fill('zzzz-no-such-unit');
+    await expect.poll(() => rows.count()).toBeLessThan(before);
   });
 });

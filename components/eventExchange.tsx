@@ -2,7 +2,7 @@ import {
   Badge, Box, HStack, Image, SimpleGrid, Tab, TabList, TabPanel, TabPanels, Tabs, Text,
 } from '@altterisk/game-hub/ui';
 import { useEffect } from 'react';
-import Link from 'next/link';
+import Link from '@/components/link';
 import { useAppDispatch, useAppSelector } from '@/hooks';
 import { selectItems, ItemMap } from '@/store/itemSlice';
 import { RewardItem } from '@/components/rewardList';

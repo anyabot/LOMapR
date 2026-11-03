@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Seo } from '@/components/seo';
-import NextLink from 'next/link';
+import NextLink from '@/components/link';
 import { useRouter } from 'next/router';
 import {
   Accordion, AccordionButton, AccordionIcon, AccordionItem, AccordionPanel, AspectRatio, Badge, Box,

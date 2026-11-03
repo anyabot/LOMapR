@@ -1,4 +1,5 @@
 import { ShareButton } from '@altterisk/game-hub';
+import { withSlash } from '@/lib/href';
 
 interface Props {
   // Path relative to the site root, e.g. "/enemies?enemy=NightChick_N".
@@ -10,7 +11,7 @@ interface Props {
 export default function CopyLink({ path, label = 'Share link' }: Props) {
   return (
     <span style={{ display: 'inline-flex', flexShrink: 0 }} onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
-      <ShareButton value={() => window.location.origin + path} label={label} copiedLabel="Copied!" />
+      <ShareButton value={() => window.location.origin + withSlash(path)} label={label} copiedLabel="Copied!" />
     </span>
   );
 }

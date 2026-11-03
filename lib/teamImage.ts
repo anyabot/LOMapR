@@ -77,6 +77,13 @@ function drawCover(
   ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
 }
 
+export function teamExportPending(team: Team, state: RootState): boolean {
+  return team.some((slot) => !!slot && (
+    !(selectUnitFull(state, slot.unitId) as FullUnitData | null)?.stat
+    || slot.equips.some((eq) => !!eq && !selectEquipFull(state, eq.id))
+  ));
+}
+
 function collectUnits(team: Team, state: RootState): ExportUnit[] {
   const missing = new Set<string>();
   const out: ExportUnit[] = [];

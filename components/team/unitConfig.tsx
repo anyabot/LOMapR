@@ -8,7 +8,7 @@ import {
   AccordionPanel, AccordionIcon,
 } from '@altterisk/game-hub/ui';
 import { CloseIcon, SmallCloseIcon } from '@altterisk/game-hub/ui';
-import Link from 'next/link';
+import Link from '@/components/link';
 import { useAppSelector, useAppDispatch } from '@/hooks';
 import { selectUnitSkills, selectUnitSkillStatus } from '@/store/unitSlice';
 import { selectEquip, fetchEquipFullAsync, setActiveEquip } from '@/store/equipSlice';

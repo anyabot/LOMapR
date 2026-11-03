@@ -1,4 +1,4 @@
-import { test, expect, Page } from '@playwright/test';
+import { test, expect, Page } from './test';
 
 // Smoke tests: every page renders its title and, where static, its main heading; a
 // data-driven heading also proves public/local-data is being served.
@@ -50,7 +50,7 @@ for (const c of CASES) {
     const badResponses: string[] = [];
     page.on('response', (r) => {
       const failed = r.status() >= 500
-        || (r.status() >= 400 && r.url().includes('/local-data/global/'));
+        || (r.status() >= 400 && r.url().includes('/global/'));
       if (failed) badResponses.push(`${r.status()} ${r.url()}`);
     });
 
@@ -75,6 +75,15 @@ for (const c of CASES) {
     });
     expect(overflow, 'page body scrolls horizontally').toBeLessThanOrEqual(1);
 
+    const links = await page.evaluate(() => ({
+      unslashed: Array.from(new Set(Array.from(document.querySelectorAll('a[href^="/"]'), (a) => a.getAttribute('href')!)
+        .filter((h) => { const path = h.split(/[?#]/)[0]; return !path.endsWith('/') && !/\.[^/]+$/.test(path); }))),
+      nested: document.querySelectorAll('a a').length,
+    }));
+    // a link without the slash costs every visitor and crawler a redirect
+    expect(links.unslashed, 'internal links without a trailing slash').toEqual([]);
+    expect(links.nested, 'links nested inside links').toBe(0);
+
     expect(errors, errors.map((e) => e.message).join('\n')).toHaveLength(0);
     expect(badResponses, badResponses.join('\n')).toHaveLength(0);
   });
@@ -86,9 +95,9 @@ test('Etc navigation groups secondary tools', async ({ page }) => {
   if (await mobileToggle.isVisible()) await mobileToggle.click();
 
   await page.getByRole('button', { name: 'Etc' }).click();
-  await expect(page.getByRole('link', { name: 'NPC Viewer', exact: true })).toHaveAttribute('href', '/npcs');
-  await expect(page.getByRole('link', { name: 'Gacha Simulator', exact: true })).toHaveAttribute('href', '/gacha');
-  await expect(page.getByRole('link', { name: 'Team Builder', exact: true })).toHaveAttribute('href', '/team');
-  await expect(page.getByRole('link', { name: 'Misc Categories', exact: true })).toHaveAttribute('href', '/misc');
-  await expect(page.getByRole('link', { name: 'Exchange', exact: true })).toHaveAttribute('href', '/exchange');
+  await expect(page.getByRole('link', { name: 'NPC Viewer', exact: true })).toHaveAttribute('href', '/npcs/');
+  await expect(page.getByRole('link', { name: 'Gacha Simulator', exact: true })).toHaveAttribute('href', '/gacha/');
+  await expect(page.getByRole('link', { name: 'Team Builder', exact: true })).toHaveAttribute('href', '/team/');
+  await expect(page.getByRole('link', { name: 'Misc Categories', exact: true })).toHaveAttribute('href', '/misc/');
+  await expect(page.getByRole('link', { name: 'Exchange', exact: true })).toHaveAttribute('href', '/exchange/');
 });

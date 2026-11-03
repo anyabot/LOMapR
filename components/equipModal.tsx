@@ -1,11 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
+import { useDeferredValue, useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/router';
 import {
   Modal, ModalOverlay, ModalContent, ModalHeader, ModalCloseButton, ModalBody,
   Box, HStack, VStack, Image, Text, Tag, Button, ButtonGroup, Center, Spinner,
   Wrap, WrapItem, Slider, SliderTrack, SliderFilledTrack, SliderThumb,
   Tabs, TabList, TabPanels, Tab, TabPanel,
 } from '@altterisk/game-hub/ui';
-import Link from 'next/link';
+import Link from '@/components/link';
 import { useAppSelector, useAppDispatch } from '@/hooks';
 import {
   selectActiveEquip, selectEquipFull, selectEquipFullStatus, setActiveEquip, fetchEquipFullAsync,
@@ -21,6 +22,7 @@ import StatHeading from '@/components/statHeading';
 import BuffList from '@/components/buffList';
 import UnitHoverCard from '@/components/unitHoverCard';
 import CopyLink from '@/components/copyLink';
+import { dropQueryParams } from '@/lib/href';
 
 function statText(value: number, pct: boolean): string {
   // sign goes BEFORE the magnitude so negatives read "-27" / "-5%", not "+-27".
@@ -53,9 +55,11 @@ const fmtPoints = (n: number): string => {
 
 export default function EquipModal() {
   const dispatch = useAppDispatch();
+  const router = useRouter();
   // Focus the dialog, not the first control, which would ring and open its tooltip.
   const contentRef = useRef<HTMLDivElement>(null);
-  const id     = useAppSelector(selectActiveEquip);
+  // Deferred so the click that opens the modal paints before the modal's heavy first render.
+  const id     = useDeferredValue(useAppSelector(selectActiveEquip));
   const full   = useAppSelector((s) => (id ? selectEquipFull(s, id) : null));
   const status = useAppSelector((s) => (id ? selectEquipFullStatus(s, id) : null));
   const world  = useAppSelector(selectWorld);
@@ -70,7 +74,10 @@ export default function EquipModal() {
   // default to the highest rank whenever a new equip opens
   useEffect(() => { if (full) setRankIdx(full.ranks.length - 1); }, [full?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const hide   = () => dispatch(setActiveEquip(''));
+  const hide = () => {
+    dispatch(setActiveEquip(''));
+    dropQueryParams(router, ['equip']);
+  };
   const isOpen = !!id;
 
   const safeRankIdx = Math.min(rankIdx, (full?.ranks.length ?? 1) - 1);

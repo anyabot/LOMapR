@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Seo } from '@/components/seo';
-import Link from 'next/link';
+import Link from '@/components/link';
 import { useRouter } from 'next/router';
 import { Box, Button, Center, Flex, HStack, Spinner, Text, VStack } from '@altterisk/game-hub/ui';
 import {

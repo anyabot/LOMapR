@@ -12,7 +12,7 @@ import {
   selectFloorData,
 } from "@/store/sanctumSlice";
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import Link from "@/components/link";
 import { Seo } from "@/components/seo";
 import { useRouter } from "next/router";
 import {

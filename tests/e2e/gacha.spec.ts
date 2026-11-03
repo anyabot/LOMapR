@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './test';
 
 test.describe('/gacha', () => {
   test.beforeEach(async ({ page }) => {
@@ -46,5 +46,13 @@ test.describe('/gacha', () => {
     const boxes = page.getByText('Box type', { exact: true }).locator('..');
     await expect(boxes).toBeVisible();
     await expect(page.getByRole('button', { name: /^Pull / }).first()).toBeEnabled();
+  });
+
+  test('history accumulates across pulls', async ({ page }) => {
+    const pull = page.getByRole('button', { name: /^Pull / }).first();
+    await pull.click();
+    await expect(page.getByRole('tab', { name: /^History \(1/ })).toBeVisible();
+    await pull.click();
+    await expect(page.getByRole('tab', { name: /^History \(2/ })).toBeVisible();
   });
 });

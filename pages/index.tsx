@@ -1,5 +1,5 @@
 import { useAppSelector, useAppDispatch } from '../hooks';
-import { selectWorld, fetchWorldAsync } from '@/store/worldSlice';
+import { selectWorld, selectWorldStatus, fetchWorldAsync } from '@/store/worldSlice';
 import { selectImage, fetchImageAsync } from '@/store/imageSlice';
 import { useEffect } from 'react';
 import {
@@ -11,7 +11,7 @@ import { ArrowForwardIcon, ExternalLinkIcon } from '@altterisk/game-hub/ui';
 import EventImage from '@/components/eventImage';
 import { t } from '@/lib/strings';
 import { useTranslationVersion } from '@/lib/translationVersion';
-import Link from 'next/link';
+import Link from '@/components/link';
 import { Seo, SITE_URL, HOME_TITLE, HOME_DESCRIPTION } from '@/components/seo';
 
 const SECTIONS: [string, string, string][] = [
@@ -46,6 +46,7 @@ const WEBSITE_LD = {
 export default function Home() {
   useTranslationVersion();
   const world = useAppSelector(selectWorld);
+  const worldStatus = useAppSelector(selectWorldStatus);
   const imagelink = useAppSelector(selectImage);
   const dispatch = useAppDispatch();
   useEffect(() => {
@@ -103,6 +104,15 @@ export default function Home() {
                   </HStack>
                 </VStack>
               </HStack>
+            </Box>
+          </Center>
+        ) : worldStatus === 'loading' ? (
+          // Holds the banner's height so the cards below don't shift when it arrives.
+          <Center aria-hidden>
+            <Box w="100%" maxW="2xl" bg="surface.elevated" borderWidth="1px" borderColor="surface.border" borderRadius="xl">
+              <Box w={['120px', '180px', '220px']}>
+                <AspectRatio ratio={1}><Box /></AspectRatio>
+              </Box>
             </Box>
           </Center>
         ) : null}

@@ -27,7 +27,7 @@ import { useTranslationVersion } from '@/lib/translationVersion';
 import { makeSlot, encodeTeam, decodeTeam, allyAffectedTiles, MAX_UNITS } from '@/lib/team';
 import { decodeWaveRef, sanitizeWaveRef } from '@/lib/waveRef';
 import { isEnemyWaveCell } from '@/lib/simInputs';
-import { exportTeamImage } from '@/lib/teamImage';
+import { exportTeamImage, teamExportPending } from '@/lib/teamImage';
 import FormationGrid from '@/components/team/formationGrid';
 import UnitPicker from '@/components/team/unitPicker';
 import UnitConfig from '@/components/team/unitConfig';
@@ -377,6 +377,7 @@ export default function TeamBuilder() {
 
   const selSlot = selTile != null ? team[selTile] : null;
   const selUnit = useAppSelector((s) => (selSlot ? selectUnitFull(s, selSlot.unitId) : null));
+  const exportPending = useAppSelector((s) => teamExportPending(team, s));
 
   return (
     <>
@@ -489,7 +490,7 @@ export default function TeamBuilder() {
                         isDisabled={!team.some((s) => s)}>Copy link</Button>
                       <Button size="xs" colorScheme="teal" variant="outline" onClick={exportImage}
                         isLoading={exporting} loadingText="Exporting"
-                        isDisabled={!team.some((s) => s)}>Export image</Button>
+                        isDisabled={!team.some((s) => s) || exportPending}>Export image</Button>
                     </HStack>
                     <InputGroup size="sm">
                       <Input placeholder="Paste a team code…" value={loadCode}

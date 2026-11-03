@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import { Seo } from '@/components/seo';
-import Link from 'next/link';
+import Link from '@/components/link';
 import {
   Box, Button, ButtonGroup, Center, Flex, Heading, HStack, VStack, Text, Tag, Wrap, WrapItem,
   SimpleGrid, Spinner, Image, Badge, Tooltip,
@@ -353,7 +353,7 @@ function FactionSection({ unit, units }: { unit: UnitData; units: UnitData[] }) 
           <Box key={squadName} borderWidth="1px" borderColor="surface.border" borderRadius="lg"
             bg="blackAlpha.200" p={3} minW={0}>
             <HStack mb={2} minH="20px">
-              <Heading as="h3" size="xs" color="blue.200">{t(squadName)}</Heading>
+              <Heading as={t(squadName) === title ? 'div' : 'h3'} size="xs" color="blue.200">{t(squadName)}</Heading>
               <Badge colorScheme="blue" borderRadius="full">{members.length}/5</Badge>
             </HStack>
             {/* Every squad owns one five-slot row, even when fewer slots are filled. */}

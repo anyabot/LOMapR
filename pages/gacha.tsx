@@ -9,7 +9,7 @@ import {
   Tabs, TabList, TabPanels, Tab, TabPanel,
 } from '@altterisk/game-hub/ui';
 import { Seo } from '@/components/seo';
-import NextLink from 'next/link';
+import NextLink from '@/components/link';
 import { fetchGachaPools, GachaEntry, GachaPools } from '@/lib/fetchData';
 import { tAny } from '@/lib/strings';
 import { useTranslationVersion } from '@/lib/translationVersion';

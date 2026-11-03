@@ -64,6 +64,7 @@ export default function SimpleCard({
         bgGradient="linear(to-t, blackAlpha.900 30%, blackAlpha.700 70%, transparent)"
       >
         <Heading
+          as="div"
           size={headingSize}
           textAlign="center"
           color="white"

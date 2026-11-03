@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './test';
 
 test.describe('/', () => {
   test('section cards navigate to their pages', async ({ page }) => {
@@ -8,7 +8,7 @@ test.describe('/', () => {
 
     // quick-nav card (a heading inside a link card, distinct from the navbar links)
     await page.getByRole('heading', { name: 'Units', exact: true }).click();
-    await expect(page).toHaveURL(/\/units$/);
+    await expect(page).toHaveURL(/\/units\/$/);
     await expect(page.getByRole('heading', { name: 'Units', exact: true })).toBeVisible({ timeout: 15_000 });
   });
 
@@ -18,5 +18,20 @@ test.describe('/', () => {
     const wiki = page.getByRole('link', { name: /English Last Origin Wiki/ });
     await expect(wiki).toBeVisible();
     await expect(wiki).toHaveAttribute('href', /lastorigin\.fandom\.com/);
+  });
+
+  test('the current event banner does not push the section cards down', async ({ page }) => {
+    let release!: () => void;
+    const loaded = new Promise<void>((resolve) => { release = resolve; });
+    await page.route('**/global/world.json', async (route) => { await loaded; await route.continue(); });
+    await page.goto('/');
+    const card = page.getByRole('heading', { name: 'Units', level: 2 });
+    await expect(card).toBeVisible();
+    const before = (await card.boundingBox())!.y;
+    release();
+    const banner = page.getByText('Current Event', { exact: true });
+    await banner.waitFor({ timeout: 15_000 }).catch(() => {});
+    test.skip(!(await banner.isVisible()), 'no current event in the data');
+    expect((await card.boundingBox())!.y).toBe(before);
   });
 });

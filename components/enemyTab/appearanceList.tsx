@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { Card, CardHeader, CardBody, Text, Divider, Box, Tag, TagLabel, Heading } from '@altterisk/game-hub/ui'
 import { LinkIcon } from '@altterisk/game-hub/ui'
-import Link from 'next/link';
+import Link from '@/components/link';
 
 import { useAppSelector, useAppDispatch } from '@/hooks';
 import { selectWorld, selectWorldStatus, fetchWorldAsync } from '@/store/worldSlice';

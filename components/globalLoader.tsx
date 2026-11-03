@@ -16,7 +16,7 @@ const ROUTE_DEPS: { test: (path: string) => boolean; deps: Dep[] }[] = [
   { test: (p) => p.startsWith('/iw'), deps: ['iw'] },
   { test: (p) => p.startsWith('/units'), deps: ['unit'] },
   { test: (p) => p.startsWith('/equipment'), deps: ['equip'] },
-  { test: (p) => p === '/' || p.startsWith('/world'), deps: ['world'] },
+  { test: (p) => p.startsWith('/world'), deps: ['world'] },
 ];
 
 // App-wide overlay rendered once in the layout, so pages need no loading state.

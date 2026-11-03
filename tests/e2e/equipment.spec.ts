@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './test';
 import { SAMPLE } from './fixtures';
 
 test.describe('/equipment', () => {
@@ -37,5 +37,31 @@ test.describe('/equipment', () => {
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible({ timeout: 15_000 });
     await expect(dialog.getByText(SAMPLE.equip.name).first()).toBeVisible();
+  });
+
+  test('rank buttons switch rank and the source tab opens', async ({ page }) => {
+    await page.goto(`/equipment?equip=${encodeURIComponent(SAMPLE.equip.id)}`);
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible({ timeout: 15_000 });
+    const stat = dialog.getByText(/^\+\d/).first();
+    await expect(stat).toBeVisible({ timeout: 15_000 });
+    const topRank = await stat.innerText();
+    await dialog.getByRole('button', { name: 'S', exact: true }).click();
+    await expect(stat).not.toHaveText(topRank);
+
+    await dialog.getByRole('tab', { name: 'Source', exact: true }).click();
+    await expect(dialog.getByRole('tab', { name: 'Source', exact: true })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  test('closing a deep-linked modal clears the URL so a reload keeps it closed', async ({ page }) => {
+    await page.goto(`/equipment?equip=${encodeURIComponent(SAMPLE.equip.id)}`);
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible({ timeout: 15_000 });
+    await dialog.getByRole('button', { name: 'Close' }).click();
+    await expect(dialog).toBeHidden();
+    await expect(page).not.toHaveURL(/equip=/);
+    await page.reload();
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 15_000 });
+    await expect(dialog).toBeHidden();
   });
 });

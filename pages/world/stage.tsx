@@ -97,7 +97,7 @@ export default function Home() {
           { label: t(world[id].title), href: `/world/detail?id=${encodeURIComponent(id)}` },
           { label: t(z.title) },
         ]} />
-        <Heading size="xl">{t(z.title)}</Heading>
+        <Heading as="h1" size="xl">{t(z.title)}</Heading>
 
         {/* subzone switcher (chapters 12/13) — show one sub-map at a time */}
         {subzones && subzones.length > 1 ? (

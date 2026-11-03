@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { loadPixi } from '@/lib/pixi';
 import { Box, Center, Spinner, Text } from '@altterisk/game-hub/ui';
 import { readText, revokeArchiveUrls } from '@altterisk/game-hub/archive';
 import {
@@ -221,7 +222,7 @@ function SkinnedPixiViewer(props: SkinViewerProps) {
       setLoadState('unpacking');
       const [files, PIXI, module] = await Promise.all([
         filesPromise,
-        import('pixi.js'),
+        loadPixi(),
         import('./skinViewer/skinnedPixi'),
       ]);
       const manifest = JSON.parse(await readText(files, 'skinned.json')) as import('./skinViewer/skinnedRig').SkinnedDoc;
@@ -473,7 +474,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
     let pixi: PixiAppHandle | null = null;
 
     (async () => {
-      const PIXI = await import('pixi.js');
+      const PIXI = await loadPixi();
       pixiRef.current = PIXI;
       const files = filesRef.current;
       if (!files) return;
@@ -781,7 +782,7 @@ function PixiSkinViewer({ skin, height = '70vh', parts = [], hasDam = false, sho
     refreshLayersRef.current = null;
 
     (async () => {
-      const PIXI = await import('pixi.js');
+      const PIXI = await loadPixi();
       pixiRef.current = PIXI;
       const spineModule = await import('@esotericsoftware/spine-pixi-v8') as any;
       const { Spine, Skin, Physics } = spineModule;
