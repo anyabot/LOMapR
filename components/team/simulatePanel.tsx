@@ -20,6 +20,7 @@ import { BUFF_TYPE_NAMES, TRIGGER_LABELS, buffValue } from '@/components/buffLis
 import { buildSimInputs, buildEnemySimInputs, isEnemyWaveCell } from '@/lib/simInputs';
 import { simulateRound1, NoteKind, AppliedBuff, SimUnitResult, Side } from '@/lib/simulate';
 import { selectCombatVersion } from '@/store/combatSlice';
+import { iconSrc } from '@/lib/imageSrc';
 
 // Round-1 simulation output: in-battle stats, applied buffs, action order, and the
 // review list of effects that were not auto-applied.
@@ -53,7 +54,7 @@ function UnitChip({ unit }: { unit: UnitData }) {
       spacing={1.5} flexShrink={0} onClick={(e) => e.stopPropagation()}
       _hover={{ color: 'accent.300', textDecoration: 'underline' }}>
       {unit.icon ? (
-        <Image src={`/images/icons/${unit.icon}.png`} alt="" boxSize="22px" borderRadius="sm" objectFit="cover" />
+        <Image src={iconSrc(unit.icon)} alt="" boxSize="22px" borderRadius="sm" objectFit="cover" />
       ) : null}
       <Text fontSize="xs" fontWeight="600" noOfLines={1}>{unitDisplayName(unit)}</Text>
     </HStack>
@@ -230,7 +231,7 @@ export default function SimulatePanel({ team, enemyWave }: {
     const rec = isEnemy ? enemyList[r.unitId] : undefined;
     const img = isEnemy
       ? (rec ? imagelink[rec.img] : undefined)
-      : (u?.icon ? `/images/icons/${u.icon}.png` : undefined);
+      : (u?.icon ? iconSrc(u.icon) : undefined);
     const name = isEnemy ? (rec ? t(rec.name) : r.unitId) : (u ? unitDisplayName(u) : '');
     const chip = (
       <VStack spacing={1} w="68px" flexShrink={0}>

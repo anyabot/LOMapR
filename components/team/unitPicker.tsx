@@ -6,6 +6,7 @@ import {
 import { UnitData } from '@/interfaces/unit';
 import { unitDisplayName, rankColor, filterActiveProps } from '@/lib/rank';
 import { useTranslationVersion } from '@/lib/translationVersion';
+import { iconSrc } from '@/lib/imageSrc';
 
 // Unit picker modal for a formation tile (search + filters, no duplicates).
 
@@ -73,7 +74,7 @@ export default function UnitPicker({ isOpen, onClose, units, usedIds, onPick }: 
                 textAlign="center" pb={1}>
                 <Box sx={{ aspectRatio: '1' }} overflow="hidden">
                   {u.icon ? (
-                    <Image src={`/images/icons/${u.icon}.png`} alt={unitDisplayName(u)}
+                    <Image src={iconSrc(u.icon)} alt={unitDisplayName(u)}
                       objectFit="cover" w="100%" h="100%" loading="lazy" />
                   ) : null}
                 </Box>

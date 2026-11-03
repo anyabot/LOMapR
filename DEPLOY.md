@@ -141,7 +141,11 @@ python tools/admin/push_r2.py --region all
 ```
 
 Regenerate the bundled-image manifest when files under `public/images/`
-change (also runs automatically as `prebuild`):
+change (also runs automatically as `prebuild`). The same step writes tile-sized
+WebP copies of `public/images/icons` and `public/images/tbaricon` to
+`public/images/_w/` (gitignored, `scripts/gen-image-variants.js`, about 8 s from
+scratch). Pages ask for them through `lib/imageSrc.ts`; the full PNGs remain for
+the team image export and social previews:
 
 ```
 npm run gen:images

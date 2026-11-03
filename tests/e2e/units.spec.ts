@@ -7,6 +7,21 @@ test.describe('/units', () => {
     await expect(page.getByRole('heading', { name: 'Units', exact: true })).toBeVisible({ timeout: 15_000 });
   });
 
+  test('unit tiles are plain links with small lazy WebP portraits', async ({ page }) => {
+    const tile = page.locator(`a[href*="${SAMPLE.unit.id}"]`).first();
+    await expect(tile).toBeAttached({ timeout: 15_000 });
+    await expect(page.locator('a[role="group"]')).toHaveCount(0);
+    const portrait = tile.locator('img').first();
+    await expect(portrait).toHaveAttribute('src', /^\/images\/_w\/icons\/.+\.webp$/);
+    await expect(portrait).toHaveAttribute('loading', 'lazy');
+    const loaded = await portrait.evaluate(async (img: HTMLImageElement) => {
+      img.scrollIntoView();
+      await img.decode().catch(() => {});
+      return img.naturalWidth;
+    });
+    expect(loaded).toBeGreaterThan(0);
+  });
+
   test('search narrows the grid to matching units', async ({ page }) => {
     await page.getByPlaceholder('Search name or code').fill(SAMPLE.unit.name);
     await expect(page.getByText(SAMPLE.unit.name, { exact: true }).first()).toBeVisible();

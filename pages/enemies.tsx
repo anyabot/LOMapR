@@ -154,8 +154,8 @@ const EnemyGrid = memo(function EnemyGrid({ list }: { list: EnemyData[] }) {
   const imagelink = useAppSelector(selectImage);
   return (
     <SimpleGrid columns={[3, 4, 5, 7, 8]} spacing={3}>
-      {list.map((e) => (
-        <SimpleCard key={e.id} onClick={() => dispatch(setActive([e.id, 1]))}
+      {list.map((e, i) => (
+        <SimpleCard key={e.id} eager={i < 12} onClick={() => dispatch(setActive([e.id, 1]))}
           headingSize="xs" img={imagelink[e.img] || undefined} alt={e.img}>
           {t(e.name)}
         </SimpleCard>

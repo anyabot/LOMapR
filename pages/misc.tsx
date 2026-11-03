@@ -24,6 +24,7 @@ import { useTranslationVersion } from '@/lib/translationVersion';
 import { MiscAoeEntry, MiscBuffEntry, MiscBuffTypeMeta, MiscSkillMeta } from '@/interfaces/misc';
 import { SkillBuff } from '@/interfaces/skill';
 import { UnitData } from '@/interfaces/unit';
+import { iconSrc } from '@/lib/imageSrc';
 
 const DESCRIPTION = 'Last Origin units grouped by skill effect: buffs, debuffs and their targets.';
 
@@ -35,7 +36,7 @@ function UnitCell({ unit }: { unit: UnitData | undefined }) {
     <UnitHoverCard unitId={unit.id} inline>
       <HStack spacing={2} cursor="pointer" minW={0}>
         {unit.icon ? (
-          <Image src={`/images/icons/${unit.icon}.png`} alt="" boxSize="34px"
+          <Image src={iconSrc(unit.icon)} alt="" boxSize="34px"
             borderRadius="md" objectFit="cover" flexShrink={0} />
         ) : null}
         <Box minW={0}>

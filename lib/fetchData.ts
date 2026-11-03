@@ -1,7 +1,7 @@
 // Browser-side data layer. Shaping applied here: KR to global fallback, image merge
 // and rewrite to bundled /public art, empty-array fill, and id-stamping from the key.
 import { createJsonLoader } from '@altterisk/game-hub/data';
-import PUBLIC_IMAGES from './publicImages.json';
+import { hasPublicImage, variant } from './imageSrc';
 import type { UnitVoice } from '@/interfaces/voice';
 import type { CharStoryIndex, StoryIndex, StoryZoneText } from '@/interfaces/story';
 import type { EventExchange, GeneralExchange } from '@/interfaces/world';
@@ -83,8 +83,6 @@ function stampId<T extends Record<string, any>>(data: T | null): T {
 }
 
 // ── images: prefer bundled /public art ───────────────────────────────────────
-const PUBLIC_SET = new Set(PUBLIC_IMAGES as string[]);
-
 function preferPublicImages(map: { [key: string]: string }): { [key: string]: string } {
   const out: { [key: string]: string } = {};
   for (const [key, value] of Object.entries(map)) {
@@ -96,7 +94,7 @@ function preferPublicImages(map: { [key: string]: string }): { [key: string]: st
       const m = /\/o\/([^?]+)/.exec(value);
       if (m) rel = decodeURIComponent(m[1]);
     }
-    if (rel && PUBLIC_SET.has(rel)) out[key] = '/' + rel.replace(/\\/g, '/');
+    if (rel && hasPublicImage(rel)) out[key] = variant('/' + rel.replace(/\\/g, '/'));
   }
   return out;
 }

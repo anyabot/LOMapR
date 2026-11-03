@@ -46,6 +46,7 @@ import {
   playClip, setPreferredDub, stopVoice, touchLine, useNowPlaying, usePreferredDub, useUnitVoice,
 } from '@/lib/voice';
 import { ControlRow, ControlSection, SegmentedControl, ToggleRow } from '@altterisk/game-hub/viewer';
+import { iconSrc } from '@/lib/imageSrc';
 
 // HP/ATK/DEF grow linearly from stat[grade].X[0] (lv1) to X[1]; the rest are flat.
 const LV_CAP = 100;
@@ -232,15 +233,15 @@ export default function UnitDetail() {
           art={
             <Box boxSize="96px" borderRadius="lg" overflow="hidden" bg="blackAlpha.500">
               {unit.icon ? (
-                <Image src={`/images/icons/${unit.icon}.png`} alt={name} objectFit="cover" w="100%" h="100%" />
+                <Image src={iconSrc(unit.icon)} alt={name} objectFit="cover" w="100%" h="100%" />
               ) : null}
             </Box>
           }
           title={name}
           id={unit.id}
           badges={roleRankIcon(unit.role, unit.rarity) ? (
-            <Image src={`/images/icons/${roleRankIcon(unit.role, unit.rarity)}.png`}
-              alt={`${rankTag(unit.rarity)} ${unit.role}`} h="40px" objectFit="contain" alignSelf="center" />
+            <Image src={iconSrc(roleRankIcon(unit.role, unit.rarity)!)}
+              alt={`${rankTag(unit.rarity)} ${unit.role}`} boxSize="40px" objectFit="contain" alignSelf="center" />
           ) : (
             <RankTag grade={unit.rarity} />
           )}
@@ -311,8 +312,13 @@ export default function UnitDetail() {
           </Box>
         );
         })()}
-        <FactionSection unit={unit} units={Object.values(units)} />
-        <LoreGroupsSection unit={unit} units={Object.values(units)} />
+        {/* Held back until the stats render above them, which would otherwise push them down. */}
+        {detailLoaded || lastFullRef.current ? (
+          <>
+            <FactionSection unit={unit} units={Object.values(units)} />
+            <LoreGroupsSection unit={unit} units={Object.values(units)} />
+          </>
+        ) : null}
       </VStack>
     </>
   );
@@ -417,15 +423,15 @@ function LoreMemberGrid({ currentUnit, members, npcMembers }: {
           <Link key={member.id} href={`/npcs?id=${encodeURIComponent(member.id)}`}
             aria-label={`View ${memberName}`}>
             <Box borderWidth="1px" borderColor="surface.border" borderRadius="lg"
-              bg="blackAlpha.300" overflow="hidden" role="group"
+              bg="blackAlpha.300" overflow="hidden" data-group=""
               transition="border-color .12s ease, transform .12s ease"
               _hover={{ borderColor: 'accent.400', transform: 'translateY(-2px)' }}>
               <Box position="relative" w="100%" pt="100%" bg="blackAlpha.500">
-                <Image src={member.thumbnail} alt={memberName} position="absolute" inset={0}
+                <Image src={member.thumbnail} alt="" loading="lazy" decoding="async" position="absolute" inset={0}
                   objectFit="cover" w="100%" h="100%" />
                 <Badge position="absolute" top={1} right={1} colorScheme="purple" fontSize="8px">NPC</Badge>
               </Box>
-              <Text px={1} py={1} fontSize="2xs" fontWeight="semibold" textAlign="center" noOfLines={2}
+              <Text px={1} py={1} fontSize="xs" fontWeight="semibold" textAlign="center" noOfLines={2}
                 color="gray.200">{memberName}</Text>
             </Box>
           </Link>
@@ -449,16 +455,16 @@ function UnitMemberCard({ currentUnit, member }: { currentUnit: UnitData; member
   const current = member.id === currentUnit.id;
   const card = (
     <Box borderWidth="1px" borderColor={current ? 'accent.400' : 'surface.border'} borderRadius="lg"
-      bg={current ? 'var(--hub-accent-soft)' : 'blackAlpha.300'} overflow="hidden" role="group"
+      bg={current ? 'var(--hub-accent-soft)' : 'blackAlpha.300'} overflow="hidden" data-group=""
       transition="border-color .12s ease, transform .12s ease"
       _hover={current ? undefined : { borderColor: 'accent.400', transform: 'translateY(-2px)' }}>
       <Box position="relative" w="100%" pt="100%" bg="blackAlpha.500">
         {member.icon ? (
-          <Image src={`/images/icons/${member.icon}.png`} alt={memberName}
+          <Image src={iconSrc(member.icon)} alt="" loading="lazy" decoding="async"
             position="absolute" inset={0} objectFit="cover" w="100%" h="100%" />
         ) : null}
       </Box>
-      <Text px={1} py={1} fontSize="2xs" fontWeight="semibold" textAlign="center" noOfLines={2}
+      <Text px={1} py={1} fontSize="xs" fontWeight="semibold" textAlign="center" noOfLines={2}
         color={current ? 'accent.200' : 'gray.200'}>{memberName}</Text>
     </Box>
   );
@@ -599,12 +605,12 @@ function ProfileTab({ unit }: { unit: FullUnitData }) {
 
   return (
     <SimpleGrid columns={[1, 1, 2]} spacing={4} alignItems="start">
-      <Panel title="Profile">
+      <Panel level={2} title="Profile">
         <Center mb={2}><RadarChart values={p.chart} /></Center>
         <StatRows rows={vitals} columns={1} />
       </Panel>
       {bio ? (
-        <Panel title="Introduction">
+        <Panel level={2} title="Introduction">
           <Text fontSize="sm" color="gray.300" whiteSpace="pre-wrap" lineHeight="1.6">{bio}</Text>
         </Panel>
       ) : null}
@@ -628,7 +634,7 @@ function InfoTab({
 
   return (
     <SimpleGrid columns={[1, 1, 2]} spacing={4} alignItems="start">
-      <Panel title="Stats">
+      <Panel level={2} title="Stats">
         {/* grade selector (swap promotion level) */}
         <HStack mb={3} spacing={2} align="center">
           <Text fontSize="xs" color="gray.500" textTransform="uppercase" letterSpacing="wide">Grade</Text>
@@ -677,20 +683,20 @@ function InfoTab({
 
       {/* Profile column: manufacturing + favor */}
       <VStack align="stretch" spacing={4}>
-        <Panel title="Manufacturing">
+        <Panel level={2} title="Manufacturing">
           <StatRows columns={1} rows={[
             { label: 'Craft time', value: unit.craft ? fmtTime(unit.craft) : '—' },
             { label: 'Max grade', value: rankTag(unit.maxGrade) },
           ]} />
         </Panel>
-        <Panel title="Equipment Slots">
+        <Panel level={2} title="Equipment Slots">
           <HStack spacing={3} justify="space-around">
             {unit.equip.map((s) => (
               <VStack key={s.level} spacing={1}>
                 <Box boxSize="44px" borderRadius="lg" bg="blackAlpha.400" borderWidth="1px" borderColor="surface.border"
                   display="flex" alignItems="center" justifyContent="center" p="6px">
                   {equipIcon(s.type) ? (
-                    <Image src={equipIcon(s.type)!} alt={s.type} maxW="100%" maxH="100%" objectFit="contain" />
+                    <Image src={equipIcon(s.type)!} alt="" w="100%" h="100%" objectFit="contain" />
                   ) : <Text fontSize="2xs">{s.type}</Text>}
                 </Box>
                 <Text fontSize="2xs" color="gray.300">{s.type}</Text>
@@ -699,7 +705,7 @@ function InfoTab({
             ))}
           </HStack>
         </Panel>
-        <Panel title="Favor Gain">
+        <Panel level={2} title="Favor Gain">
           <StatRows rows={[
             { label: 'Battle clear', value: `+${unit.favor.clear}` },
             { label: 'On death', value: `−${unit.favor.death}` },
@@ -709,7 +715,7 @@ function InfoTab({
         </Panel>
 
         {unit.linkBonus.length > 0 || unit.fullLinkBonus.length > 0 ? (
-          <Panel title="Core Link Bonus">
+          <Panel level={2} title="Core Link Bonus">
             {unit.linkBonus.length > 0 ? (
               <Box mb={3}>
                 <Text fontSize="xs" color="gray.500" mb={1}>
@@ -753,7 +759,7 @@ function ExclusiveEquip({ unit, equip }: { unit: UnitData; equip: Record<string,
   const ids = unit.exclusiveEquip || [];
   if (!ids.length) return null;
   return (
-    <Panel title="Exclusive Equipment">
+    <Panel level={2} title="Exclusive Equipment">
       <Wrap spacing={3} justify="center">
         {ids.map((eid) => {
           const e = equip[eid];
@@ -765,7 +771,7 @@ function ExclusiveEquip({ unit, equip }: { unit: UnitData; equip: Record<string,
                 <Box boxSize="56px" borderRadius="md" overflow="hidden" bg="blackAlpha.500"
                   borderWidth="2px" borderColor={e ? rankColor(e.grade) : 'surface.border'} flexShrink={0} p="3px">
                   {e?.icon ? (
-                    <Image src={`/images/icons/${e.icon}.png`} alt={eid} objectFit="contain" w="100%" h="100%" />
+                    <Image src={iconSrc(e.icon)} alt={eid} objectFit="contain" w="100%" h="100%" />
                   ) : null}
                 </Box>
                 <Box minW={0}>
@@ -879,7 +885,7 @@ function LimitBreakTab({ unit }: { unit: FullUnitData }) {
                     <Tooltip label={info ? t(info.name) : id} hasArrow openDelay={300}>
                       <Box display="inline-flex" justifyContent="center" w="100%">
                         {info?.icon ? (
-                          <Image src={`/images/icons/${info.icon}.png`} alt={info ? t(info.name) : id}
+                          <Image src={iconSrc(info.icon)} alt={info ? t(info.name) : id}
                             boxSize="28px" objectFit="contain" />
                         ) : (
                           <Text fontSize="2xs" noOfLines={2}>{id}</Text>
@@ -917,7 +923,7 @@ function LimitBreakTab({ unit }: { unit: FullUnitData }) {
 }
 
 function skinFaceIcon(faceKey: string): string {
-  return `/images/icons/${faceKey.replace(/^CharFace_/, 'FormationIcon_')}.png`;
+  return iconSrc(faceKey.replace(/^CharFace_/, 'FormationIcon_'));
 }
 
 

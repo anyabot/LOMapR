@@ -4,17 +4,17 @@
   "license": "AGPL-3.0-or-later",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "prebuild": "node scripts/gen-public-images.js",
+    "dev": "node scripts/gen-image-variants.js && next dev",
+    "prebuild": "node scripts/gen-public-images.js && node scripts/gen-image-variants.js",
     "build": "next build",
     "start": "next start",
     "sync:local-data": "node scripts/sync-local-data.js",
-    "dev:local": "npm run sync:local-data && cross-env NEXT_PUBLIC_DATA_SOURCE=local NEXT_PUBLIC_SKIN_ARCHIVE_BASE=/api/local-skin NEXT_PUBLIC_VOICE_BASE=/api/local-voice next dev",
+    "dev:local": "npm run sync:local-data && node scripts/gen-image-variants.js && cross-env NEXT_PUBLIC_DATA_SOURCE=local NEXT_PUBLIC_SKIN_ARCHIVE_BASE=/api/local-skin NEXT_PUBLIC_VOICE_BASE=/api/local-voice next dev",
     "dev:bucket": "cross-env NEXT_PUBLIC_DATA_SOURCE=bucket next dev",
     "lint": "eslint . --ext .ts,.tsx",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "gen:images": "node scripts/gen-public-images.js",
+    "gen:images": "node scripts/gen-public-images.js && node scripts/gen-image-variants.js",
     "hub:update": "npm install --no-save github:Altterisk/game-hub",
     "cf:build": "npm run hub:update && node scripts/sync-local-data.js --clean && opennextjs-cloudflare build && node scripts/copy-prerendered-assets.js && node scripts/seo-files.js",
     "cf:preview": "npm run cf:build && opennextjs-cloudflare preview",
@@ -47,6 +47,7 @@
     "@playwright/test": "^1.61.1",
     "cross-env": "^10.1.0",
     "patch-package": "^8.0.1",
+    "sharp": "^0.35.5",
     "wrangler": "^4.0.0"
   }
 }

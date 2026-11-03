@@ -25,6 +25,7 @@ import {
 import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon } from '@altterisk/game-hub/ui';
 import { Breadcrumbs, PageHeader, Panel } from '@altterisk/game-hub';
 import { Seo } from '@/components/seo';
+import { iconSrc } from '@/lib/imageSrc';
 
 const BANNER_RATIO = 320 / 156;
 
@@ -42,7 +43,7 @@ function SubStoryCard({ worldId, zone, group }: { worldId: string; zone: number;
     <Box borderWidth="1px" borderColor="surface.border" borderRadius="lg" bg="surface.elevated" p={3}>
       <HStack spacing={3} mb={2}>
         {group.icon ? (
-          <Image src={`/images/icons/${group.icon}.png`} alt="" boxSize={9} borderRadius="full" flexShrink={0} />
+          <Image src={iconSrc(group.icon)} alt="" boxSize={9} borderRadius="full" flexShrink={0} />
         ) : null}
         <Text fontWeight="bold" noOfLines={1} flex="1" minW={0}>{pickText(group.name, 'en')}</Text>
         <Badge borderRadius="full" px={2}>{group.stories.length}</Badge>

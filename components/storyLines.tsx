@@ -3,6 +3,7 @@ import { RichText, replaceTag, type MarkupRule } from '@altterisk/game-hub/text'
 import { Avatar, Image } from '@altterisk/game-hub/ui';
 import { GAME_TEXT_RULES } from '@/components/gameText';
 import type { StoryLine, StoryText } from '@/interfaces/story';
+import { iconSrc } from '@/lib/imageSrc';
 
 export type StoryLang = 'en' | 'ko';
 
@@ -37,7 +38,7 @@ function toView(lines: StoryLine[], names: Record<string, StoryText>, lang: Stor
       name: name || undefined,
       text: text(line),
       avatar: line.a
-        ? <Image src={`/images/icons/${line.a}.png`} alt={name} loading="lazy" />
+        ? <Image src={iconSrc(line.a)} alt={name} loading="lazy" />
         : <Avatar size="sm" name={name || undefined} boxSize={8} />,
     };
   });

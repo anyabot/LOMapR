@@ -13,11 +13,13 @@ interface Props {
   headingSize?: HeadingSize | HeadingSize[],
   // image aspect ratio (w/h). Square icons = 1; set higher for wide art.
   ratio?: number,
+  // on screen at load: skip lazy loading
+  eager?: boolean,
 }
 
 // Poster-style card: image in a fixed-ratio frame, title as a gradient caption.
 export default function SimpleCard({
-  img, alt, children, onClick, headingSize = ['sm', 'sm', 'md'], ratio = 1,
+  img, alt, children, onClick, headingSize = ['sm', 'sm', 'md'], ratio = 1, eager = false,
 }: Props) {
   return (
     <Box
@@ -36,13 +38,14 @@ export default function SimpleCard({
         borderColor: 'accent.400',
         boxShadow: '0 8px 20px rgba(0,0,0,.45)',
       }}
-      role="group"
+      data-group=""
     >
       <AspectRatio ratio={ratio}>
         {img ? (
           <Image
             src={img}
             alt={alt}
+            loading={eager ? 'eager' : 'lazy'} decoding="async"
             objectFit="cover"
             transition="transform .25s ease"
             _groupHover={{ transform: 'scale(1.06)' }}

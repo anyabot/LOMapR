@@ -9,6 +9,7 @@ import { selectUnit, fetchUnitsAsync } from '@/store/unitSlice';
 import { t } from '@/lib/strings';
 import { useTranslationVersion } from '@/lib/translationVersion';
 import { rankTag, rankColor, roleRankIcon, typeIcon, roleIcon, bodyIcon, factionIcon, unitDisplayName } from '@/lib/rank';
+import { iconSrc } from '@/lib/imageSrc';
 
 // An unknown id (e.g. a filtered-out char) renders the children unchanged, no popover.
 export default function UnitHoverCard({
@@ -38,17 +39,17 @@ export default function UnitHoverCard({
     <PopoverContent bg="surface.elevated" borderColor="surface.border" w="260px" boxShadow="dark-lg" zIndex="popover">
           <PopoverBody>
             <HStack as={NextLink} href={`/units/detail?id=${encodeURIComponent(unit.id)}`}
-              spacing={3} align="start" role="group">
+              spacing={3} align="start" data-group="">
               <Box position="relative" boxSize="64px" borderRadius="md" overflow="hidden" bg="blackAlpha.500" flexShrink={0}
                 borderWidth="1px" borderColor={rankColor(unit.rarity)}>
                 {unit.icon ? (
-                  <Image src={`/images/icons/${unit.icon}.png`} alt={name} objectFit="cover" w="100%" h="100%"
+                  <Image src={iconSrc(unit.icon)} alt="" loading="lazy" decoding="async" objectFit="cover" w="100%" h="100%"
                     _groupHover={{ transform: 'scale(1.05)' }} transition="transform .15s ease" />
                 ) : null}
                 {/* official role+rank badge nested in the icon corner (matches unit list) */}
                 {rankRole ? (
                   <Image position="absolute" bottom="1px" left="1px" h="20px" objectFit="contain"
-                    src={`/images/icons/${rankRole}.png`} alt={`${rankTag(unit.rarity)} ${unit.role}`}
+                    src={iconSrc(rankRole)} alt={`${rankTag(unit.rarity)} ${unit.role}`}
                     filter="drop-shadow(0 1px 1px rgba(0,0,0,.8))" />
                 ) : (
                   <Tag position="absolute" bottom="1px" left="1px" size="sm" bg={rankColor(unit.rarity)}
@@ -69,20 +70,20 @@ export default function UnitHoverCard({
                 <Wrap spacing={1}>
                   <WrapItem>
                     <Tag size="sm" colorScheme="red" gap={1}>
-                      {roleIcon(unit.role) ? <Image src={roleIcon(unit.role)!} alt={unit.role} boxSize="12px" /> : null}
+                      {roleIcon(unit.role) ? <Image src={roleIcon(unit.role)!} alt="" boxSize="12px" /> : null}
                       {unit.role}
                     </Tag>
                   </WrapItem>
                   <WrapItem>
                     <Tag size="sm" colorScheme="green" gap={1}>
-                      {typeIcon(unit.type) ? <Image src={typeIcon(unit.type)!} alt={unit.type} boxSize="12px" /> : null}
+                      {typeIcon(unit.type) ? <Image src={typeIcon(unit.type)!} alt="" boxSize="12px" /> : null}
                       {unit.type}
                     </Tag>
                   </WrapItem>
                   {unit.body ? (
                     <WrapItem>
                       <Tag size="sm" colorScheme="gray" gap={1}>
-                        {bodyIcon(unit.body) ? <Image src={bodyIcon(unit.body)!} alt={unit.body} boxSize="12px" /> : null}
+                        {bodyIcon(unit.body) ? <Image src={bodyIcon(unit.body)!} alt="" boxSize="12px" /> : null}
                         {unit.body}
                       </Tag>
                     </WrapItem>

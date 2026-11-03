@@ -46,6 +46,7 @@ import { t } from "@/lib/strings";
 import { useTranslationVersion } from "@/lib/translationVersion";
 import { encodeWaveRef } from "@/lib/waveRef";
 import styles from "@/styles/custom.module.css";
+import { iconSrc } from '@/lib/imageSrc';
 
 const DESCRIPTION = 'Last Origin Sanctum of Alteration floors, restrictions and resource gain.';
 
@@ -120,7 +121,7 @@ export default function Home() {
           borderRadius="lg" bg="blackAlpha.300" cursor="pointer"
           _hover={{ borderColor: "accent.400", bg: "whiteAlpha.100" }}>
           {u?.icon ? (
-            <Image src={`/images/icons/${u.icon}.png`} alt={id} boxSize="22px"
+            <Image src={iconSrc(u.icon)} alt={id} boxSize="22px"
               borderRadius="md" objectFit="cover" flexShrink={0} />
           ) : null}
           <Text fontSize="sm" color="gray.100" whiteSpace="nowrap">
