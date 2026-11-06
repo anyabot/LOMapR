@@ -8,7 +8,7 @@ test.describe('/gacha', () => {
     await expect(page.getByRole('button', { name: /^Pull / }).first()).toBeVisible({ timeout: 15_000 });
   });
 
-  test('pulling fills the results tab and enables history reset', async ({ page }) => {
+  test('pulling fills the results tab and enables history reset', { tag: '@smoke' }, async ({ page }) => {
     // the page opens on the Rates tab; the results tab starts empty
     await page.getByRole('tab', { name: /^Last pull/ }).click();
     await expect(page.getByText('Pull to see results')).toBeVisible();

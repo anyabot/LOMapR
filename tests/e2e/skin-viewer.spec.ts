@@ -18,7 +18,7 @@ async function openSkin(page: Page, search: string, skinName: string) {
 test.describe('skin viewer (fetches archives from the live CDN)', () => {
   test.setTimeout(120_000);
 
-  test('fixed-layout skin downloads and renders on a canvas', async ({ page }) => {
+  test('fixed-layout skin downloads and renders on a canvas', { tag: '@smoke' }, async ({ page }) => {
     await openSkin(page, FIXED.unit, FIXED.skin);
     // archive fetched, unpacked and composed -> PixiJS canvas attached
     await expect(page.locator('canvas').first()).toBeVisible({ timeout: 90_000 });

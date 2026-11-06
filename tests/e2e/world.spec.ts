@@ -4,7 +4,7 @@ import { SAMPLE } from './fixtures';
 const W = SAMPLE.world;
 
 test.describe('world drill-down', () => {
-  test('world list -> chapter -> zone -> stage', async ({ page }) => {
+  test('world list -> chapter -> zone -> stage', { tag: '@smoke' }, async ({ page }) => {
     await page.goto('/world');
     await expect(page.getByRole('heading', { name: 'Story', exact: true })).toBeVisible({ timeout: 15_000 });
 

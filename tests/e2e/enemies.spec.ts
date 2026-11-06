@@ -2,7 +2,7 @@ import { test, expect } from './test';
 import { SAMPLE } from './fixtures';
 
 test.describe('/enemies', () => {
-  test('search narrows the list and a card opens the enemy modal', async ({ page }) => {
+  test('search narrows the list and a card opens the enemy modal', { tag: '@smoke' }, async ({ page }) => {
     await page.goto('/enemies');
     await expect(page.getByRole('heading', { name: 'Enemies', exact: true })).toBeVisible({ timeout: 15_000 });
 

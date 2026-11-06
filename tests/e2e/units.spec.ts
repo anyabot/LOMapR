@@ -56,7 +56,7 @@ test.describe('/units', () => {
     await expect(page.getByRole('heading', { name: 'Heavy', exact: true })).toBeVisible();
   });
 
-  test('clicking a unit tile opens its detail page', async ({ page }) => {
+  test('clicking a unit tile opens its detail page', { tag: '@smoke' }, async ({ page }) => {
     await page.getByPlaceholder('Search name or code').fill(SAMPLE.unit.name);
     await page.getByText(SAMPLE.unit.name, { exact: true }).first().click();
     await expect(page).toHaveURL(new RegExp(`/units/detail/\\?id=${SAMPLE.unit.id}`));
@@ -75,7 +75,7 @@ test.describe('/units/detail', () => {
     expect(copied).toBe(`${baseURL}/units/detail/?id=${encodeURIComponent(SAMPLE.unit.id)}`);
   });
 
-  test('shows stats, skills and a back link for a valid unit', async ({ page }) => {
+  test('shows stats, skills and a back link for a valid unit', { tag: '@smoke' }, async ({ page }) => {
     await page.goto(`/units/detail?id=${encodeURIComponent(SAMPLE.unit.id)}`);
     await expect(page.getByRole('heading', { name: SAMPLE.unit.name, exact: true })).toBeVisible({ timeout: 15_000 });
     await expect(page).toHaveTitle(`${SAMPLE.unit.name} — Last Origin | LOMapR`);

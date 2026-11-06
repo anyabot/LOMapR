@@ -11,7 +11,7 @@ test.describe('region switching', () => {
     await expect(page.getByText('No units match the current filters.')).toBeVisible();
   });
 
-  test('?server=kr forces the KR region and reveals the unit', async ({ page }) => {
+  test('?server=kr forces the KR region and reveals the unit', { tag: '@smoke' }, async ({ page }) => {
     await page.goto('/units?server=kr');
     await expect(page.getByRole('heading', { name: 'Units', exact: true })).toBeVisible({ timeout: 15_000 });
     await page.getByPlaceholder('Search name or code').fill(KR_ONLY.name);

@@ -1,7 +1,7 @@
 import { test, expect } from './test';
 
 test.describe('/', () => {
-  test('section cards navigate to their pages', async ({ page }) => {
+  test('section cards navigate to their pages', { tag: '@smoke' }, async ({ page }) => {
     await page.goto('/');
     // navbar brand and hero are both "LOMapR" headings — either proves the page rendered
     await expect(page.getByRole('heading', { name: 'LOMapR', exact: true }).first()).toBeVisible({ timeout: 15_000 });
