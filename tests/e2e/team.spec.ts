@@ -58,7 +58,7 @@ test.describe('/team', () => {
     await expect(dialog.getByText('No units match.')).toBeVisible();
   });
 
-  test('team code round-trips through copy, clear and load', async ({ page }) => {
+  test('team code round-trips through copy, clear and load', { tag: '@smoke' }, async ({ page }) => {
     await addUnit(page, SAMPLE.unit.name);
 
     await page.getByRole('button', { name: 'Copy team code' }).click();

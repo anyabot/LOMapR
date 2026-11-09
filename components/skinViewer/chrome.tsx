@@ -152,6 +152,7 @@ export const PARTS_META: Record<string, { icon: string; label: string }> = {
   PROPS:                  { icon: '/images/shop/UI_ShopObjectIcon.png',      label: 'Props / objects' },
   DAMAGE_IMAGE:           { icon: '/images/shop/UI_ShopDamagedIcon.png',     label: 'Damaged skin image' },
   DAMAGE_LOBBY_ANIMATION: { icon: '/images/shop/UI_ShopDamagedL2DIcon.png', label: 'Damaged Live 2D animation' },
+  RPLUS:                  { icon: '/images/shop/UI_ShopRPlusIcon.png',       label: 'R+ (uncensored) art' },
 };
 
 export function IncludedSection({ parts }: { parts: string[] }) {

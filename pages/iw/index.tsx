@@ -10,6 +10,7 @@ import {
 import { BannerCard } from '@altterisk/game-hub';
 import { nextLink } from '@/lib/hubLink';
 import { Seo } from '@/components/seo';
+import { iwHref } from '@/lib/href';
 
 const DESCRIPTION = 'Last Origin Infinite War boss seasons and phases.';
 
@@ -66,7 +67,7 @@ export default function Home() {
           {items.map((s) => (
             <BannerCard
               key={s.key}
-              href={`/iw/detail?id=${encodeURIComponent(s.key)}`}
+              href={iwHref(s.key)}
               renderLink={nextLink}
               highlight={highlight}
               art={

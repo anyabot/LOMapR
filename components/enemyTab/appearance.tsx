@@ -5,6 +5,7 @@ import Link from '@/components/link';
 
 import { useAppSelector, useAppDispatch } from '@/hooks';
 import { selectWorldStatus, fetchWorldAsync } from '@/store/worldSlice';
+import { stageHref } from '@/lib/href';
 
 export default function Apperance({name, ev, used} : {name:string, ev:string, used: [number, string][]}) {
 
@@ -28,7 +29,7 @@ export default function Apperance({name, ev, used} : {name:string, ev:string, us
           variant='solid'
           colorScheme='blue'
           as={Link}
-          href={`/world/stage?id=${encodeURIComponent(ev)}&zone=${e[0]}&stage=${encodeURIComponent(e[1])}`}
+          href={stageHref(ev, e[0], e[1])}
         >
           <TagLabel>{e[1]}</TagLabel>
           <LinkIcon ml={1} />

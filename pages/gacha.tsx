@@ -14,6 +14,7 @@ import { fetchGachaPools, GachaEntry, GachaPools } from '@/lib/fetchData';
 import { tAny } from '@/lib/strings';
 import { useTranslationVersion } from '@/lib/translationVersion';
 import { iconSrc } from '@/lib/imageSrc';
+import { unitHref } from '@/lib/href';
 
 const DESCRIPTION = 'Last Origin gacha simulator using live Global and KR rates.';
 
@@ -182,7 +183,7 @@ function ResultCard({ entry }: { entry: GachaEntry }) {
   const price = entry.kind === 'skin' ? entry.price : undefined;
   const qty = entry.kind === 'item' ? entry.qty : undefined;
   const grade = entry.kind === 'skin' ? 5 : entry.grade;
-  const href = entry.kind === 'skin' ? `/units/detail?id=${encodeURIComponent(entry.unitId)}` : null;
+  const href = entry.kind === 'skin' ? unitHref(entry.unitId) : null;
 
   const card = (
     <VStack
@@ -243,7 +244,7 @@ function RatesSection({ entries, label, total }: { entries: GachaEntry[]; label:
           const qty = entry.kind === 'item' ? entry.qty : undefined;
           const grade = entry.kind === 'skin' ? 5 : entry.grade;
           const highlight = entry.rate >= 0.004;
-          const href = entry.kind === 'skin' ? `/units/detail?id=${encodeURIComponent(entry.unitId)}` : null;
+          const href = entry.kind === 'skin' ? unitHref(entry.unitId) : null;
           return (
             <VStack
               key={entry.id}

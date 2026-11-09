@@ -22,7 +22,7 @@ import StatHeading from '@/components/statHeading';
 import BuffList from '@/components/buffList';
 import UnitHoverCard from '@/components/unitHoverCard';
 import CopyLink from '@/components/copyLink';
-import { dropQueryParams } from '@/lib/href';
+import { dropQueryParams, stageHref } from '@/lib/href';
 import { iconSrc } from '@/lib/imageSrc';
 
 function statText(value: number, pct: boolean): string {
@@ -364,7 +364,7 @@ export default function EquipModal() {
                               <Button as={Link} size="xs"
                                 variant={farm ? 'outline' : 'solid'}
                                 colorScheme={farm ? 'yellow' : 'purple'}
-                                href={`/world/stage?id=${encodeURIComponent(wid)}&zone=${zone}&stage=${encodeURIComponent(stage)}`}>
+                                href={stageHref(wid, zone, stage)}>
                                 {stage}{farm ? '' : ' ·1×'}
                               </Button>
                             </WrapItem>

@@ -12,8 +12,12 @@
     "dev:local": "npm run sync:local-data && node scripts/gen-image-variants.js && cross-env NEXT_PUBLIC_DATA_SOURCE=local NEXT_PUBLIC_SKIN_ARCHIVE_BASE=/api/local-skin NEXT_PUBLIC_VOICE_BASE=/api/local-voice next dev",
     "dev:bucket": "cross-env NEXT_PUBLIC_DATA_SOURCE=bucket next dev",
     "lint": "eslint . --ext .ts,.tsx",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:contract": "vitest run --config vitest.contract.config.mts",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
+    "test:e2e:smoke": "playwright test --grep @smoke --project=chromium",
     "gen:images": "node scripts/gen-public-images.js && node scripts/gen-image-variants.js",
     "hub:update": "npm install --no-save github:Altterisk/game-hub",
     "cf:build": "npm run hub:update && node scripts/sync-local-data.js --clean && opennextjs-cloudflare build && node scripts/copy-prerendered-assets.js && node scripts/seo-files.js",
@@ -26,7 +30,6 @@
     "@dagrejs/dagre": "^3.0.0",
     "@esotericsoftware/spine-pixi-v8": "4.2.72",
     "@reduxjs/toolkit": "^1.9.3",
-    "@types/node": "18.15.11",
     "@types/react": "18.0.31",
     "@types/react-dom": "18.0.11",
     "bootstrap": "^5.2.3",
@@ -45,9 +48,12 @@
   "devDependencies": {
     "@opennextjs/cloudflare": "^1.20.14",
     "@playwright/test": "^1.61.1",
+    "@types/node": "^24.19.2",
     "cross-env": "^10.1.0",
     "patch-package": "^8.0.1",
     "sharp": "^0.35.5",
-    "wrangler": "^4.0.0"
+    "vitest": "^5.1.0",
+    "wrangler": "^4.0.0",
+    "zod": "^4.6.7"
   }
 }

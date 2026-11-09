@@ -37,6 +37,6 @@ test.describe('/skins', () => {
     await page.getByText(SAMPLE.unit.name, { exact: true }).first().click();
 
     await page.getByRole('link', { name: SAMPLE.unit.name, exact: true }).click();
-    await expect(page).toHaveURL(new RegExp(`/units/detail/\\?id=${SAMPLE.unit.id}`));
+    await expect(page).toHaveURL(new RegExp(`/units/${SAMPLE.unit.id}/`));
   });
 });

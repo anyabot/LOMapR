@@ -25,7 +25,10 @@ import { fetchCombatAsync } from '@/store/combatSlice'
 // fetchEnemyAIAsync is dispatched lazily in skillTabList when an enemy is selected
 import Layout from '@/components/layout'
 import ChangelogNotice from '@/components/changelogNotice'
-import { Seo } from '@/components/seo'
+import { Seo, StaticSeoContext } from '@/components/seo'
+import { useRouter } from 'next/router'
+import { LEGACY_IDENTITY, legacyEntityPath, withQuery } from '@/lib/href'
+import type { EntityPageProps } from '@/lib/entityPages'
 
 import { Toaster } from '@altterisk/game-hub/ui'
 import '@altterisk/game-hub/ui-reset.css'
@@ -43,18 +46,23 @@ function forcedRegionFromUrl(): Region | null {
   return parseRegion(new URLSearchParams(window.location.search).get('server'));
 }
 
-function RegionSync() {
+function RegionSync({ pageRegion }: { pageRegion?: Region }) {
   const region = useSelector((s: RootState) => s.region.region);
   const dispatch = useDispatch<typeof store.dispatch>();
   const first = useRef(true);
+  const started = useRef(false);
 
-  // ?server= FORCES the region and wins over the persisted choice. The store starts
-  // at 'global' on both server and client, so there is no hydration drift.
+  // ?server=, then a KR-only page's region, win over the persisted choice. The store
+  // starts at 'global' on both server and client, so there is no hydration drift.
   useEffect(() => {
-    const forced = forcedRegionFromUrl();
-    const target = forced ?? loadRegion();
+    if (started.current) {
+      if (pageRegion) dispatch(setRegion(pageRegion));
+      return;
+    }
+    started.current = true;
+    const target = forcedRegionFromUrl() ?? pageRegion ?? loadRegion();
     if (target && target !== 'global') dispatch(setRegion(target));
-  }, [dispatch]);
+  }, [pageRegion, dispatch]);
 
   // A region change does not re-run the active page's mount-time fetch effect, so
   // kick the fetches here; each thunk self-skips when that bucket is already loaded.
@@ -157,19 +165,42 @@ export default function App({ Component, pageProps }: AppProps) {
   return (
     <Provider store={store}>
       <style dangerouslySetInnerHTML={{ __html: FONT_CSS }} />
-      <RegionSync />
+      <RegionSync pageRegion={(pageProps as Partial<EntityPageProps>).region} />
       <AppBody Component={Component} pageProps={pageProps} />
       <Toaster />
     </Provider>
   );
 }
 
+// A legacy ?id= URL moves to its path page once that page is known to be built.
+function useLegacyRedirect() {
+  const router = useRouter();
+  useEffect(() => {
+    if (!router.isReady) return;
+    const route = router.pathname.replace(/\/$/, '');
+    const identity = LEGACY_IDENTITY[route];
+    const target = identity && legacyEntityPath(route, router.query);
+    if (!target) return;
+    let live = true;
+    fetch(target, { method: 'HEAD' }).then((res) => {
+      if (!live || !res.ok) return;
+      const rest = Object.fromEntries(Object.entries(router.query)
+        .filter(([k, v]) => !identity.includes(k) && typeof v === 'string')) as Record<string, string>;
+      router.replace(withQuery(target, rest));
+    }).catch(() => {});
+    return () => { live = false; };
+  }, [router]);
+}
+
 function AppBody({ Component, pageProps }: Pick<AppProps, 'Component' | 'pageProps'>) {
   const translationVer = useStringsAndTranslation();
   const transitioning  = useSelector(selectTransitioning);
+  const staticSeo = (pageProps as Partial<EntityPageProps>).seo ?? null;
+  useLegacyRedirect();
   return (
     <TranslationVersionContext.Provider value={translationVer}>
-      <Seo />
+    <StaticSeoContext.Provider value={staticSeo}>
+      {staticSeo ? <Seo {...staticSeo} /> : <Seo />}
       <Layout>
         {transitioning && (
           <div style={{
@@ -187,6 +218,7 @@ function AppBody({ Component, pageProps }: Pick<AppProps, 'Component' | 'pagePro
         <Component {...pageProps} />
         <ChangelogNotice />
       </Layout>
+    </StaticSeoContext.Provider>
     </TranslationVersionContext.Provider>
   );
 }

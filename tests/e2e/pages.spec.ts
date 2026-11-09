@@ -42,7 +42,7 @@ function failOnPageError(page: Page) {
 }
 
 for (const c of CASES) {
-  test(`page ${c.path} renders`, async ({ page }) => {
+  test(`page ${c.path} renders`, { tag: '@smoke' }, async ({ page }) => {
     const errors = failOnPageError(page);
 
     // a global-data 404 or any 5xx means content is silently missing; kr/ misses are

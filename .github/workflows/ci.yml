@@ -5,22 +5,23 @@ on:
     branches: [main]
   push:
     branches: [main, new-dev]
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
 
+# Keyed on the event too, so a push never cancels the nightly run on the same branch.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
   contents: read
 
 jobs:
-  e2e:
-    name: E2E
+  checks:
+    name: Typecheck, lint, unit
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    env:
-      NEXT_PUBLIC_R2_PUBLIC_URL: https://lo-assets.altterisk.cc
-      NEXT_PUBLIC_SKIN_ARCHIVE_BASE: https://lo-assets.altterisk.cc/skins
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -34,6 +35,56 @@ jobs:
       - run: npm run hub:update
       - run: npx tsc --noEmit
       - run: npm run lint
+      - run: npm test
+
+  smoke:
+    name: E2E smoke
+    if: github.event_name == 'push'
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_PUBLIC_R2_PUBLIC_URL: https://lo-assets.altterisk.cc
+      NEXT_PUBLIC_SKIN_ARCHIVE_BASE: https://lo-assets.altterisk.cc/skins
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
+      - run: npm ci
+      - run: npm run hub:update
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e:smoke
+      - uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report-smoke
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
+
+  e2e:
+    name: E2E full
+    if: github.event_name != 'push'
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      NEXT_PUBLIC_R2_PUBLIC_URL: https://lo-assets.altterisk.cc
+      NEXT_PUBLIC_SKIN_ARCHIVE_BASE: https://lo-assets.altterisk.cc/skins
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
+      - run: npm ci
+      - run: npm run hub:update
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
@@ -45,3 +96,20 @@ jobs:
             playwright-report/
             test-results/
           retention-days: 14
+
+  contract:
+    name: Data contract (live R2)
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CONTRACT_SOURCE: r2
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
+      - run: npm ci
+      - run: npm run test:contract

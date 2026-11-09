@@ -10,6 +10,7 @@ import { t } from '@/lib/strings';
 import { useTranslationVersion } from '@/lib/translationVersion';
 import { rankTag, rankColor, roleRankIcon, typeIcon, roleIcon, bodyIcon, factionIcon, unitDisplayName } from '@/lib/rank';
 import { iconSrc } from '@/lib/imageSrc';
+import { unitHref } from '@/lib/href';
 
 // An unknown id (e.g. a filtered-out char) renders the children unchanged, no popover.
 export default function UnitHoverCard({
@@ -38,7 +39,7 @@ export default function UnitHoverCard({
   const content = (
     <PopoverContent bg="surface.elevated" borderColor="surface.border" w="260px" boxShadow="dark-lg" zIndex="popover">
           <PopoverBody>
-            <HStack as={NextLink} href={`/units/detail?id=${encodeURIComponent(unit.id)}`}
+            <HStack as={NextLink} href={unitHref(unit.id)}
               spacing={3} align="start" data-group="">
               <Box position="relative" boxSize="64px" borderRadius="md" overflow="hidden" bg="blackAlpha.500" flexShrink={0}
                 borderWidth="1px" borderColor={rankColor(unit.rarity)}>
@@ -109,7 +110,7 @@ export default function UnitHoverCard({
         {/* span wrapper so any child (even text) is a valid single trigger element.
             inline: a plain inline span (wraps a word mid-sentence); default: a
             full-width inline-block (the reward-chip layout). */}
-        <Box as={NextLink} href={`/units/detail?id=${encodeURIComponent(unit.id)}`}
+        <Box as={NextLink} href={unitHref(unit.id)}
           display={inline ? 'inline' : 'inline-block'} w={inline ? undefined : '100%'}>
           {children}
         </Box>

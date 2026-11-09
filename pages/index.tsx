@@ -13,6 +13,7 @@ import { t } from '@/lib/strings';
 import { useTranslationVersion } from '@/lib/translationVersion';
 import Link from '@/components/link';
 import { Seo, SITE_URL, HOME_TITLE, HOME_DESCRIPTION } from '@/components/seo';
+import { worldHref } from '@/lib/href';
 
 const SECTIONS: [string, string, string][] = [
   ['/units', 'Units', 'Playable units with stats, skills and skins'],
@@ -78,7 +79,7 @@ export default function Home() {
           <Center>
             <Box
               as={Link}
-              href={`/world/detail?id=${encodeURIComponent(current.id)}`}
+              href={worldHref(current.id)}
               w="100%"
               maxW="2xl"
               bg="surface.elevated"

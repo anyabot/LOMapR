@@ -14,6 +14,7 @@ import { chipColor, countActive, fillModes, useListUrl, useUrlText } from '@/lib
 import { Seo } from '@/components/seo';
 import { useStableList } from '@/lib/useStableList';
 import { iconSrc } from '@/lib/imageSrc';
+import { unitHref } from '@/lib/href';
 
 const DESCRIPTION = 'Playable Last Origin units with stats, skills and skins.';
 
@@ -231,7 +232,7 @@ const UnitTables = memo(function UnitTables({ shown, types, roles, grades }: {
 // Compact unit cell: formation portrait + name, links to the detail page.
 function UnitTile({ unit, eager }: { unit: UnitData; eager: boolean }) {
   return (
-    <Box as={NextLink} href={`/units/detail?id=${encodeURIComponent(unit.id)}`} display="block" w="88px" data-group="" textAlign="center">
+    <Box as={NextLink} href={unitHref(unit.id)} display="block" w="88px" data-group="" textAlign="center">
       <Box position="relative" boxSize="88px" borderRadius="lg" overflow="hidden" bg="blackAlpha.500"
         borderWidth="1px" borderColor="surface.border"
         transition="border-color .12s ease, transform .12s ease"
