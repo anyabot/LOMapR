@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import Error from 'next/error';
+import NotFound from '@/components/notFound';
 
 // Entities added to the data after the last build have no path page yet; their query page still works.
 const FALLBACK: [RegExp, (m: RegExpExecArray) => string][] = [
@@ -10,7 +10,7 @@ const FALLBACK: [RegExp, (m: RegExpExecArray) => string][] = [
   [/^\/world\/([^/]+)\/?$/, (m) => `/world/detail/?id=${m[1]}`],
 ];
 
-export default function NotFound() {
+export default function NotFoundPage() {
   useEffect(() => {
     const { pathname, search } = window.location;
     for (const [re, to] of FALLBACK) {
@@ -21,5 +21,5 @@ export default function NotFound() {
       }
     }
   }, []);
-  return <Error statusCode={404} />;
+  return <NotFound />;
 }

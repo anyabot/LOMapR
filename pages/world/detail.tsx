@@ -5,7 +5,7 @@ import { fetchItemsAsync } from '@/store/itemSlice';
 import { selectRegion } from '@/store/regionSlice';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router'
-import Error from 'next/error';
+import NotFound from '@/components/notFound';
 import Link from '@/components/link';
 import SimpleCard from '@/components/simpleCard';
 import CopyLink from '@/components/copyLink';
@@ -107,7 +107,7 @@ export default function Home() {
     );
   }
   if (!(id in world)) {
-    return <Error statusCode={404} />;
+    return <NotFound />;
   }
 
   const w = world[id];
