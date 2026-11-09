@@ -1,5 +1,3 @@
-import fs from 'fs';
-import path from 'path';
 import { rankTag } from '@/lib/rank';
 import { iwHref, stageHref, unitHref, worldHref, zoneHref } from '@/lib/href';
 import { iwCanonicalId } from '@/lib/iwCanonical.mjs';
@@ -19,15 +17,11 @@ export interface EntityPageProps {
   region?: Region;
 }
 
-const LOCAL = process.env.NEXT_PUBLIC_DATA_SOURCE === 'local';
+// Live R2 only: local data/ may hold unreleased preview data, and reading it from disk makes file tracing pull in the whole project.
 const R2 = (process.env.NEXT_PUBLIC_R2_PUBLIC_URL ?? '').replace(/\/$/, '');
 const cache = new Map<string, Promise<any | null>>();
 
 async function fetchKey(key: string): Promise<any | null> {
-  if (LOCAL) {
-    const file = path.join(process.cwd(), 'data', key);
-    return fs.existsSync(file) ? JSON.parse(await fs.promises.readFile(file, 'utf8')) : null;
-  }
   if (!R2) return null;
   for (let attempt = 0; ; attempt++) {
     try {
