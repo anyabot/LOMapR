@@ -26,6 +26,7 @@ import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon } fro
 import { Breadcrumbs, PageHeader, Panel } from '@altterisk/game-hub';
 import { Seo } from '@/components/seo';
 import { iconSrc } from '@/lib/imageSrc';
+import { worldHref, zoneHref } from '@/lib/href';
 
 const BANNER_RATIO = 320 / 156;
 
@@ -101,7 +102,7 @@ export default function Home() {
   if (Object.keys(world).length === 0 || !id) {
     return (
       <>
-        <Seo title="Zone List" />
+        <Seo title="Zone List" pending />
       </>
     );
   }
@@ -124,7 +125,7 @@ export default function Home() {
   const prev = at > 0 ? events[at - 1] : null;
   const next = at >= 0 && at < events.length - 1 ? events[at + 1] : null;
   const navButton = (target: string, dir: 'prev' | 'next') => (
-    <Button as={Link} href={`/world/detail?id=${encodeURIComponent(target)}`} size="sm" variant="ghost"
+    <Button as={Link} href={worldHref(target)} size="sm" variant="ghost"
       leftIcon={dir === 'prev' ? <ChevronLeftIcon /> : undefined}
       rightIcon={dir === 'next' ? <ChevronRightIcon /> : undefined}
       maxW="100%" whiteSpace="normal" textAlign={dir === 'prev' ? 'left' : 'right'} ml={dir === 'next' ? 'auto' : undefined}>
@@ -167,7 +168,7 @@ export default function Home() {
                   {w.end ? <Badge colorScheme="orange" borderRadius="full" px={2}>Ends {w.end}</Badge> : null}
                 </HStack>
               }
-              actions={<CopyLink path={`/world/detail?id=${encodeURIComponent(id)}`} />}
+              actions={<CopyLink path={worldHref(id)} />}
             />
             {hasStory ? (
               <HStack spacing={2} wrap="wrap">
@@ -182,7 +183,7 @@ export default function Home() {
         <Panel title="Zones">
           <SimpleGrid columns={[2, 3, 3, 4, 5]} spacing={4}>
             {w.zones.map((z, index) => (
-              <Link key={index} href={`/world/stage?id=${encodeURIComponent(id)}&zone=${index + 1}`}>
+              <Link key={index} href={zoneHref(id, index + 1)}>
                 <SimpleCard img={imagelink[z.img]} alt={`${id}-${index}`}>{t(z.title)}</SimpleCard>
               </Link>
             ))}

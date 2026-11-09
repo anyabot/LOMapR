@@ -15,6 +15,7 @@ import {
 import { BannerCard, CardGrid, EmptyState, EntityTile, SearchBox } from '@altterisk/game-hub';
 import { textMatch } from '@altterisk/game-hub/filters';
 import { Seo } from '@/components/seo';
+import { worldHref } from '@/lib/href';
 
 const DESCRIPTION = 'Last Origin main story and event worlds: stages, waves and enemies.';
 
@@ -39,7 +40,7 @@ export default function Home() {
     return a.id.localeCompare(b.id, undefined, { numeric: true, sensitivity: 'base' });
   }
   const getImage = (id: string) => imagelink[id] || undefined;
-  const href = (w: World) => `/world/detail?id=${encodeURIComponent(w.id)}`;
+  const href = (w: World) => worldHref(w.id);
 
   const all = Object.values(world).filter((w) => !query || textMatch(query, [t(w.title), w.id]));
   const inTypes = (...types: string[]) =>

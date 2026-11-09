@@ -9,7 +9,7 @@ import { fetchWorld, fetchWorldStage } from '@/lib/fetchData';
 interface RegionBucket {
   value: { [key: string]: World };
   status: 'idle' | 'loading' | 'failed';
-  stage: { [id: string]: 'idle' | 'loading' | 'failed' };
+  stage: { [id: string]: 'idle' | 'loading' | 'loaded' | 'failed' };
 }
 const emptyBucket = (): RegionBucket => ({ value: {}, status: 'loading', stage: {} });
 
@@ -91,7 +91,7 @@ export const worldSlice = createSlice({
       .addCase(fetchWorldStageAsync.fulfilled, (state, action) => {
         const b = state.byRegion[action.payload.region];
         b.value[action.payload.id] = { ...b.value[action.payload.id], ...action.payload.world };
-        b.stage[action.payload.id] = 'idle';
+        b.stage[action.payload.id] = 'loaded';
       })
       .addCase(fetchWorldStageAsync.rejected, (state, action) => {
         const p = action.payload as { region?: Region; id?: string } | undefined;

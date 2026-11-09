@@ -10,22 +10,22 @@ test.describe('world drill-down', () => {
 
     // chapter card -> zone list
     await page.getByText(W.title, { exact: true }).first().click();
-    await expect(page).toHaveURL(new RegExp(`/world/detail/\\?id=${W.id}`));
+    await expect(page).toHaveURL(new RegExp(`/world/${W.id}/$`));
     await expect(page.getByRole('heading', { name: W.title, exact: true })).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText(`${W.zones} zones`)).toBeVisible();
 
     // zone card -> stage map
     await page.getByText(W.zone1Title, { exact: true }).first().click();
-    await expect(page).toHaveURL(new RegExp(`/world/stage/\\?id=${W.id}&zone=1`));
+    await expect(page).toHaveURL(new RegExp(`/world/${W.id}/1/$`));
     await expect(page.getByRole('heading', { name: W.zone1Title, exact: true })).toBeVisible({ timeout: 15_000 });
 
     // the breadcrumb's world link returns to the zone list
     await page.getByRole('navigation', { name: 'Breadcrumb' }).getByRole('link', { name: W.title, exact: true }).click();
-    await expect(page).toHaveURL(new RegExp(`/world/detail/\\?id=${W.id}`));
+    await expect(page).toHaveURL(new RegExp(`/world/${W.id}/$`));
   });
 
-  test('?stage= deep link selects the stage', async ({ page }) => {
-    await page.goto(`/world/stage?id=${W.id}&zone=1&stage=${encodeURIComponent(W.stage)}`);
+  test('stage path selects the stage', async ({ page }) => {
+    await page.goto(`/world/${W.id}/1/${encodeURIComponent(W.stage)}/`);
     await expect(page.getByRole('heading', { name: W.zone1Title, exact: true })).toBeVisible({ timeout: 15_000 });
     // the stage header card shows the stage code and its Battle badge
     await expect(page.getByRole('heading', { name: W.stage, exact: true })).toBeVisible({ timeout: 15_000 });

@@ -32,6 +32,7 @@ import { useNumberInput } from '@altterisk/game-hub/ui';
 import { t } from "@/lib/strings";
 import { encodeWaveRef } from "@/lib/waveRef";
 import { iwCanonicalId } from "@/lib/iwCanonical.mjs";
+import { iwHref } from "@/lib/href";
 import styles from "@/styles/custom.module.css";
 
 export default function Home() {
@@ -118,21 +119,21 @@ export default function Home() {
   if (iwStatus == "failed") {
     return (
       <>
-        <Seo title="Infinite War List" />
+        <Seo title="Infinite War List" pending />
         <h1>Fetch Failed</h1>
       </>
     );
   } else if (iw.seasons.length === 0 || !id) {
     return (
       <>
-        <Seo title="Infinite War" />
+        <Seo title="Infinite War" pending />
       </>
     );
   } else if (!(id in iw.bosses)) {
     // e.g. a region switch to one without this boss: offer a way back, don't 404
     return (
       <>
-        <Seo title="Infinite War" />
+        <Seo title="Infinite War" pending />
         <Center py={20}>
           <VStack spacing={4}>
             <Text color="gray.400">This raid boss isn&apos;t available in the selected region.</Text>
@@ -154,7 +155,7 @@ export default function Home() {
 
     return (
       <>
-        <Seo title={`${title} - Raid Boss`} canonicalId={canonicalId}
+        <Seo title={`${title} - Raid Boss`} canonicalPath={canonicalId ? iwHref(canonicalId) : undefined}
           description={`${title}, a Last Origin Infinite War raid boss: phases, stats and skills across all ${boss.length} stages.`} />
         {realEnemy ? (
           <VStack align="stretch" spacing={4} py={4}>

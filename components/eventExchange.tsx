@@ -12,6 +12,7 @@ import { EventExchange, ExchangeProduct, RewardEntry } from '@/interfaces/world'
 import { t } from '@/lib/strings';
 import { useTranslationVersion } from '@/lib/translationVersion';
 import { iconSrc } from '@/lib/imageSrc';
+import { unitHref } from '@/lib/href';
 
 // Unit tickets resolve to the unit itself so the chip gets the unit hover card.
 function entryOf(item: string, items: ItemMap): RewardEntry {
@@ -40,7 +41,7 @@ function SkinChip({ p, items }: { p: ExchangeProduct; items: ItemMap }) {
   const unit = useAppSelector((s) => selectUnit(s, skin.unit));
   useEffect(() => { dispatch(fetchUnitsAsync()); }, [dispatch]);
   return (
-    <HStack as={Link} href={`/units/detail?id=${encodeURIComponent(skin.unit)}&tab=skin`} spacing={2} pr={2.5}
+    <HStack as={Link} href={`${unitHref(skin.unit)}?tab=skin`} spacing={2} pr={2.5}
       py={1} pl={1} borderWidth="1px" borderColor="surface.border" borderRadius="lg" bg="blackAlpha.300"
       _hover={{ borderColor: 'accent.400', bg: 'whiteAlpha.100' }}>
       <Image src={iconSrc(skin.icon)} alt="" boxSize="48px" objectFit="contain" borderRadius="md"

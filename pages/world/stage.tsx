@@ -15,6 +15,7 @@ import { Box, Image, VStack, Center, Badge, Heading, Divider, Button, ButtonGrou
 import { Breadcrumbs, PageHeader } from '@altterisk/game-hub';
 import { nextLink } from '@/lib/hubLink';
 import { Seo } from '@/components/seo';
+import { stageHref, worldHref } from '@/lib/href';
 
 export default function Home() {
   useTranslationVersion();
@@ -26,9 +27,9 @@ export default function Home() {
   }, [dispatch]);
   const router = useRouter()
   const id = router.query.id as string
-  // the container has no stages — lazily load this world's full record.
+  const region = useAppSelector((s) => s.region.region);
   const stageStatus = useAppSelector((s) => (id ? selectWorldStageStatus(s, id) : 'idle'));
-  useEffect(() => { if (id) dispatch(fetchWorldStageAsync(id)); }, [id, dispatch]);
+  useEffect(() => { if (id) dispatch(fetchWorldStageAsync(id)); }, [id, region, dispatch]);
   const zone = router.query.zone as string
   const real_zone_index = parseInt(zone) - 1
   const [realZone, setRealZone] = useState<Zone | undefined | null>(null)
@@ -64,15 +65,11 @@ export default function Home() {
     }
   }, [realCurrStage, currWave])
 
-  // this world's full stage data loaded yet? (a zone carrying stages/subzones)
-  const stagesLoaded = !!world[id]?.zones?.some(
-    (z) => (z.stages && z.stages.length) || z.subzones
-  );
-  if (Object.keys(world).length === 0 || !id || !zone || (id in world && !stagesLoaded && stageStatus !== 'failed')) {
-    // container not loaded yet, or this world's per-world stage split is still loading.
+  const stagesPending = id in world && stageStatus !== 'loaded' && stageStatus !== 'failed';
+  if (Object.keys(world).length === 0 || !id || !zone || stagesPending) {
     return (<>
-      <Seo title="Stage List" />
-      {id in world && !stagesLoaded ? (
+      <Seo title="Stage List" pending />
+      {stagesPending ? (
         <Center py={20}><Spinner size="xl" color="accent.400" thickness="3px" /></Center>
       ) : null}
     </>)
@@ -87,14 +84,22 @@ export default function Home() {
     const subzones: Stage[][] | null = z.subzones ?? null
     const sub = Math.min(currSubzone, (subzones?.length ?? 1) - 1)
     const shownStages: Stage[] = subzones ? subzones[sub] : z.stages
+    const urlStage = stage ? (subzones ? subzones.flat() : z.stages).find(s => s.title.toLowerCase() === stage.toLowerCase()) : undefined
+    const urlStageName = urlStage?.name && t(urlStage.name) !== urlStage.title ? ` ${t(urlStage.name)}` : ''
+    const seo = urlStage
+      ? {
+          title: `${urlStage.title}${urlStageName} · ${t(z.title)}`,
+          description: `${urlStage.title}${urlStageName} in ${t(z.title)} (${t(world[id].title)}), Last Origin: ${isBattleStage(urlStage) ? 'enemy waves, drops, rewards and missions' : 'story stage and rewards'}.`,
+        }
+      : { title: t(z.title), description: `${t(z.title)} stages in Last Origin: enemy waves, rewards and missions.` }
 
     return (
       <>
-      <Seo title={t(z.title)} description={`${t(z.title)} stages in Last Origin: enemy waves, rewards and missions.`} />
+      <Seo {...seo} />
       <VStack align="stretch" spacing={4} py={4}>
         <Breadcrumbs renderLink={nextLink} items={[
           { label: 'World', href: '/world' },
-          { label: t(world[id].title), href: `/world/detail?id=${encodeURIComponent(id)}` },
+          { label: t(world[id].title), href: worldHref(id) },
           { label: t(z.title) },
         ]} />
         <Heading as="h1" size="xl">{t(z.title)}</Heading>
@@ -133,7 +138,7 @@ export default function Home() {
                   const hasName = realCurrStage.name && t(realCurrStage.name) !== realCurrStage.title;
                   const shareLink = (
                     <CopyLink
-                      path={`/world/stage?id=${encodeURIComponent(id)}&zone=${zone}&stage=${encodeURIComponent(realCurrStage.title)}`}
+                      path={stageHref(id, zone, realCurrStage.title)}
                     />
                   );
                   return (

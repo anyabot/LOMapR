@@ -16,6 +16,7 @@ import { t } from '@/lib/strings';
 import { useTranslationVersion } from '@/lib/translationVersion';
 import { ShopGrid } from '@/components/eventExchange';
 import type { ExchangeProduct, GeneralExchange } from '@/interfaces/world';
+import { worldHref } from '@/lib/href';
 
 const DESCRIPTION = 'Last Origin standing exchange shop items currently on sale, with costs and limits.';
 
@@ -93,7 +94,7 @@ export default function ExchangePage() {
         {current && current[1].exchange ? (
           <HStack spacing={3} p={3} borderWidth="1px" borderColor="accent.400" borderRadius="lg" bg="whiteAlpha.50" wrap="wrap">
             <Text fontSize="sm" color="gray.300">Current event exchange:</Text>
-            <Button as={Link} href={`/world/detail?id=${encodeURIComponent(current[0])}`} size="sm" colorScheme="accent">
+            <Button as={Link} href={worldHref(current[0])} size="sm" colorScheme="accent">
               {t(current[1].title)}
             </Button>
           </HStack>

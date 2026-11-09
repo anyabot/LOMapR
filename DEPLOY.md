@@ -77,11 +77,14 @@ local-only dirs (`local-data*`, `skin_test`) from the deploy. Future SSR/API
 routes must be added to `assets.run_worker_first` in `wrangler.jsonc`.
 
 `scripts/seo-files.js` writes `sitemap.xml` and `robots.txt` into
-`.open-next/assets`. The sitemap lists every prerendered route plus one URL per
-unit, world and Infinite War boss, read from the live data bucket at build time
-(both regions), so it only names entities that are actually published. KR-only
-entities are listed with `&server=kr`, and Infinite War seasons that rerun a boss
-with identical data are listed once (the earliest season, `lib/iwCanonical.mjs`).
+`.open-next/assets`. The sitemap lists every prerendered route whose HTML names itself
+(or nothing) as canonical. Unit, world, zone, stage and Infinite War pages are
+prerendered at path URLs from the live data bucket at build time (both regions), so
+the sitemap only names entities that are actually published. Infinite War seasons
+that rerun a boss with identical data point their canonical at the earliest season
+(`lib/iwCanonical.mjs`) and are left out. Entities published after a build get their
+path page on the next build; until then their path 404s and the 404 page forwards to
+the query-string page.
 
 `NEXT_PUBLIC_*` values are baked in at build time from `.env.local`
 (gitignored; see `.env.example`):
@@ -117,7 +120,9 @@ published change renames or removes it.
 
 `scripts/copy-prerendered-assets.js` writes `.open-next/assets/_headers`: HSTS and
 `Cross-Origin-Opener-Policy: same-origin` on every static response, and a Content-Security-Policy on every prerendered page.
-Inline scripts are allowed by their SHA-256 hash, so each page gets its own policy.
+Inline scripts are allowed by their SHA-256 hash, one policy per top-level section
+(`/units/`, `/world/`, …), because Cloudflare caps `_headers` at 100 rules and 2,000
+characters per line.
 The policy allows the asset domain (`NEXT_PUBLIC_R2_PUBLIC_URL`),
 `hub.altterisk.cc` and `firebasestorage.googleapis.com` for images. A new external
 origin has to be added there, or the browser blocks it on the deployed site. `_headers` applies

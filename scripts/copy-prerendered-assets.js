@@ -10,14 +10,17 @@ loadEnvConfig(root);
 const DATA = (process.env.NEXT_PUBLIC_R2_PUBLIC_URL || '').replace(/\/$/, '');
 const IMAGE_HOSTS = 'https://hub.altterisk.cc https://firebasestorage.googleapis.com';
 
-// Inline scripts are allowed by hash, so each page carries its own policy.
-function csp(html) {
-  const hashes = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g)]
+// Inline scripts are allowed by hash; Cloudflare caps _headers at 100 rules and 2,000 characters a line.
+function scriptHashes(html) {
+  return [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g)]
     .filter(([, attrs]) => !/\bsrc=/.test(attrs) && !/\btype="(?!text\/javascript|module)/.test(attrs))
     .map(([, , body]) => `'sha256-${crypto.createHash('sha256').update(body).digest('base64')}'`);
+}
+
+function csp(hashes) {
   return [
     "default-src 'self'",
-    `script-src 'self' 'wasm-unsafe-eval' ${hashes.join(' ')}`.trim(),
+    `script-src 'self' 'wasm-unsafe-eval' ${[...hashes].sort().join(' ')}`.trim(),
     "style-src 'self' 'unsafe-inline'",
     `img-src 'self' data: blob: ${DATA} ${IMAGE_HOSTS}`,
     "font-src 'self' data:",
@@ -42,6 +45,8 @@ for (const dir of ['local-data', 'local-data-rates', 'skin_test']) {
 }
 
 let pages = 0;
+const groups = new Map();
+const fallback = new Set();
 (function walk(dir) {
   for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, ent.name);
@@ -56,8 +61,12 @@ let pages = 0;
       : path.join(assets, route, 'index.html');
     fs.mkdirSync(path.dirname(dest), { recursive: true });
     fs.copyFileSync(full, dest);
-    if (route !== '404' && route !== '500') {
-      headers.push(route === 'index' ? '/' : `/${route}/`, `  Content-Security-Policy: ${csp(fs.readFileSync(full, 'utf8'))}`);
+    const own = scriptHashes(fs.readFileSync(full, 'utf8'));
+    if (route === '404' || route === '500') own.forEach((h) => fallback.add(h));
+    else {
+      const group = route === 'index' ? '' : route.split('/')[0];
+      if (!groups.has(group)) groups.set(group, new Set());
+      own.forEach((h) => groups.get(group).add(h));
     }
     const json = full.replace(/\.html$/, '.json');
     if (fs.existsSync(json)) {
@@ -68,5 +77,11 @@ let pages = 0;
     pages++;
   }
 })(pagesDir);
+// One policy per top-level section; the 404 page can be served under any of them.
+for (const [group, own] of groups) {
+  const line = `  Content-Security-Policy: ${csp(new Set([...own, ...fallback]))}`;
+  if (group === '') headers.push('/', line);
+  else headers.push(`/${group}/`, line, `/${group}/*`, line);
+}
 fs.writeFileSync(path.join(assets, '_headers'), headers.join('\n') + '\n');
 console.log(`copied ${pages} prerendered pages into .open-next/assets (worker-free static serving)`);

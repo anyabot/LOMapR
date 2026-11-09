@@ -8,13 +8,13 @@ test.describe('/iw', () => {
     await expect(season).toBeVisible({ timeout: 15_000 });
 
     await season.click();
-    await expect(page).toHaveURL(new RegExp(`/iw/detail/\\?id=${SAMPLE.iw.seasonKey}`));
+    await expect(page).toHaveURL(new RegExp(`/iw/${SAMPLE.iw.seasonKey}/`));
     // the boss page titles itself "Raid Boss - <name>"
     await expect(page).toHaveTitle(/Raid Boss/, { timeout: 15_000 });
   });
 
   test('stage stepper moves between stages and stops at the ends', async ({ page }) => {
-    await page.goto(`/iw/detail?id=${SAMPLE.iw.seasonKey}`);
+    await page.goto(`/iw/${SAMPLE.iw.seasonKey}/`);
     const min = page.getByRole('button', { name: '« Min' });
     await expect(min).toBeDisabled({ timeout: 15_000 });
     const stage = page.getByRole('textbox').or(page.getByRole('spinbutton')).first();

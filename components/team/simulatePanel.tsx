@@ -21,6 +21,7 @@ import { buildSimInputs, buildEnemySimInputs, isEnemyWaveCell } from '@/lib/simI
 import { simulateRound1, NoteKind, AppliedBuff, SimUnitResult, Side } from '@/lib/simulate';
 import { selectCombatVersion } from '@/store/combatSlice';
 import { iconSrc } from '@/lib/imageSrc';
+import { unitHref } from '@/lib/href';
 
 // Round-1 simulation output: in-battle stats, applied buffs, action order, and the
 // review list of effects that were not auto-applied.
@@ -50,7 +51,7 @@ const NOTE_META: Record<NoteKind, { label: string; color: string; blurb: string 
 
 function UnitChip({ unit }: { unit: UnitData }) {
   return (
-    <HStack as={NextLink} href={`/units/detail?id=${encodeURIComponent(unit.id)}`}
+    <HStack as={NextLink} href={unitHref(unit.id)}
       spacing={1.5} flexShrink={0} onClick={(e) => e.stopPropagation()}
       _hover={{ color: 'accent.300', textDecoration: 'underline' }}>
       {unit.icon ? (
@@ -256,7 +257,7 @@ export default function SimulatePanel({ team, enemyWave }: {
         {chip}
       </Box>
     ) : (
-      <Box as={NextLink} href={`/units/detail?id=${encodeURIComponent(r.unitId)}`} _hover={{ opacity: 0.8 }}>
+      <Box as={NextLink} href={unitHref(r.unitId)} _hover={{ opacity: 0.8 }}>
         {chip}
       </Box>
     );

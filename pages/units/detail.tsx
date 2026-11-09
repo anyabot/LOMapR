@@ -47,6 +47,7 @@ import {
 } from '@/lib/voice';
 import { ControlRow, ControlSection, SegmentedControl, ToggleRow } from '@altterisk/game-hub/viewer';
 import { iconSrc } from '@/lib/imageSrc';
+import { stageHref, unitHref } from '@/lib/href';
 
 // HP/ATK/DEF grow linearly from stat[grade].X[0] (lv1) to X[1]; the rest are flat.
 const LV_CAP = 100;
@@ -245,7 +246,7 @@ export default function UnitDetail() {
           ) : (
             <RankTag grade={unit.rarity} />
           )}
-          actions={<CopyLink path={`/units/detail?id=${encodeURIComponent(unit.id)}`} />}
+          actions={<CopyLink path={unitHref(unit.id)} />}
           meta={
             <MetaChips>
               <MetaChip renderLink={nextLink} href={`/units?role=${encodeURIComponent(unit.role)}`} value={unit.role}
@@ -469,7 +470,7 @@ function UnitMemberCard({ currentUnit, member }: { currentUnit: UnitData; member
     </Box>
   );
   return current ? <Box>{card}</Box> : (
-    <Link href={`/units/detail?id=${encodeURIComponent(member.id)}`} aria-label={`View ${memberName}`}>{card}</Link>
+    <Link href={unitHref(member.id)} aria-label={`View ${memberName}`}>{card}</Link>
   );
 }
 
@@ -810,7 +811,7 @@ function DropTab({ unit, world }: { unit: FullUnitData; world: any }) {
                   <Button as={Link} size="xs"
                     variant={farm ? 'outline' : 'solid'}
                     colorScheme={farm ? 'yellow' : 'purple'}
-                    href={`/world/stage?id=${encodeURIComponent(wid)}&zone=${zone}&stage=${encodeURIComponent(stage)}`}>
+                    href={stageHref(wid, zone, stage)}>
                     {stage}{farm ? '' : ' ·1×'}
                   </Button>
                 </WrapItem>

@@ -2,7 +2,7 @@ import { test, expect, Page } from './test';
 import { SAMPLE } from './fixtures';
 
 const KR_ONLY_UNIT = 'Char_BR_MariaGrace_N';
-const unitPath = `/units/detail?id=${encodeURIComponent(SAMPLE.unit.id)}`;
+const unitPath = `/units/${encodeURIComponent(SAMPLE.unit.id)}/`;
 
 const canonicalOf = async (page: Page) => {
   const link = page.locator('link[rel="canonical"]');
@@ -14,8 +14,8 @@ test.describe('SEO', () => {
   const H1_ROUTES = [
     '/', '/units', '/npcs', '/equipment', '/enemies', '/skins', '/gacha', '/team', '/misc',
     '/sanctum', '/world', '/story', '/iw', '/exchange', unitPath,
-    `/world/detail?id=${SAMPLE.world.id}`, `/world/stage?id=${SAMPLE.world.id}&zone=1`,
-    `/iw/detail?id=${SAMPLE.iw.seasonKey}`,
+    `/world/${SAMPLE.world.id}/`, `/world/${SAMPLE.world.id}/1/`,
+    `/iw/${SAMPLE.iw.seasonKey}/`,
   ];
   for (const route of H1_ROUTES) {
     test(`${route} has exactly one h1`, async ({ page }) => {
@@ -25,21 +25,39 @@ test.describe('SEO', () => {
     });
   }
 
-  test('unit canonical keeps the id and drops UI state', async ({ page }) => {
-    await page.goto(`${unitPath}&tab=skills`);
+  test('unit canonical is the path page without UI state', async ({ page }) => {
+    await page.goto(`${unitPath}?tab=skills`);
     await expect(page.getByRole('heading', { name: SAMPLE.unit.name, exact: true })).toBeVisible({ timeout: 15_000 });
     const url = await canonicalOf(page);
-    expect(url.pathname.replace(/\/$/, '')).toBe('/units/detail');
-    expect(url.searchParams.get('id')).toBe(SAMPLE.unit.id);
-    expect(url.searchParams.has('tab')).toBe(false);
+    expect(url.pathname).toBe(unitPath);
+    expect(url.search).toBe('');
   });
 
-  test('KR-only unit canonical keeps server=kr', async ({ page }) => {
-    await page.goto(`/units/detail?id=${KR_ONLY_UNIT}&server=kr`);
+  test('KR-only unit canonical is its bare path page', async ({ page }) => {
+    await page.goto(`/units/${KR_ONLY_UNIT}/?server=kr`);
     await expect(page.getByRole('heading', { name: 'Maria Grace', exact: true })).toBeVisible({ timeout: 15_000 });
     const url = await canonicalOf(page);
-    expect(url.searchParams.get('id')).toBe(KR_ONLY_UNIT);
-    expect(url.searchParams.get('server')).toBe('kr');
+    expect(url.pathname).toBe(`/units/${KR_ONLY_UNIT}/`);
+    expect(url.search).toBe('');
+  });
+
+  test('legacy query link moves to the path page and keeps UI state', async ({ page }) => {
+    await page.goto(`/units/detail?id=${encodeURIComponent(SAMPLE.unit.id)}&tab=skills`);
+    await expect(page).toHaveURL(`${unitPath}?tab=skills`, { timeout: 15_000 });
+    await expect(page.getByRole('tab', { name: 'Skills', exact: true })).toHaveAttribute('aria-selected', 'true', { timeout: 15_000 });
+  });
+
+  test('entity pages carry their own title and canonical before any script runs', async ({ request }) => {
+    const cases: [string, string][] = [
+      [unitPath, `<title[^>]*>${SAMPLE.unit.name} — `],
+      [`/world/${SAMPLE.world.id}/1/`, `<title[^>]*>${SAMPLE.world.zone1Title} — `],
+      [`/iw/${SAMPLE.iw.seasonKey}/`, '<title[^>]*>[^<]* - Raid Boss — '],
+    ];
+    for (const [path, title] of cases) {
+      const html = await (await request.get(path)).text();
+      expect(html).toMatch(new RegExp(title));
+      expect(html).toMatch(new RegExp(`<link rel="canonical" href="https://[^/"]+${path}"`));
+    }
   });
 
   test('NPC selection canonicalizes to the bare page', async ({ page }) => {
@@ -51,9 +69,9 @@ test.describe('SEO', () => {
   });
 
   test('Infinite War rerun canonicalizes to its earliest identical season', async ({ page }) => {
-    await page.goto('/iw/detail?id=Colossus_02');
+    await page.goto('/iw/Colossus_02/');
     await expect(page).toHaveTitle(/Raid Boss/, { timeout: 15_000 });
-    expect((await canonicalOf(page)).searchParams.get('id')).toBe('Colossus_01');
+    expect((await canonicalOf(page)).pathname).toBe('/iw/Colossus_01/');
   });
 
   test('unit page has its own description and no noindex', async ({ page }) => {
@@ -65,7 +83,7 @@ test.describe('SEO', () => {
 
   test('unit tiles are real links a crawler can follow', async ({ page }) => {
     await page.goto('/units');
-    await expect(page.locator(`a[href*="/units/detail"][href*="${SAMPLE.unit.id}"]`).first()).toBeAttached({ timeout: 15_000 });
+    await expect(page.locator(`a[href="/units/${SAMPLE.unit.id}/"]`).first()).toBeAttached({ timeout: 15_000 });
   });
 
   test('skills and profile panels stay in the DOM on the Stats tab', async ({ page }) => {
@@ -77,7 +95,7 @@ test.describe('SEO', () => {
   const LOADED: [string, string][] = [
     ['/enemies', SAMPLE.enemy.name],
     [unitPath, 'Lore Groups'],
-    [`/world/detail?id=${SAMPLE.world.id}`, SAMPLE.world.zone1Title],
+    [`/world/${SAMPLE.world.id}/`, SAMPLE.world.zone1Title],
   ];
   for (const [route, ready] of LOADED) {
     test(`${route} repeats no heading text`, async ({ page }) => {

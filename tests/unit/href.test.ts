@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import type { NextRouter } from 'next/router';
-import { withSlash, withSlashUrl, dropQueryParams } from '@/lib/href';
+import { withSlash, withSlashUrl, dropQueryParams, legacyEntityPath, stageHref, withQuery } from '@/lib/href';
 
 describe('withSlash', () => {
   it.each([
@@ -44,5 +44,25 @@ describe('dropQueryParams', () => {
     const { r, replace } = router('/team/?code=1');
     dropQueryParams(r, ['w']);
     expect(replace).not.toHaveBeenCalled();
+  });
+});
+
+describe('legacyEntityPath', () => {
+  it.each([
+    ['/units/detail', { id: 'Char_A', tab: 'skills' }, '/units/Char_A/'],
+    ['/world/detail', { id: 'Ev14' }, '/world/Ev14/'],
+    ['/world/stage', { id: 'Ev14', zone: '1' }, '/world/Ev14/1/'],
+    ['/world/stage', { id: 'Ev14', zone: '1', stage: 'EV1-3' }, '/world/Ev14/1/EV1-3/'],
+    ['/iw/detail', { id: 'Colossus_02' }, '/iw/Colossus_02/'],
+    ['/world/stage', { id: 'Ev14' }, null],
+    ['/units/detail', {}, null],
+    ['/team', { id: 'x' }, null],
+  ])('%s %j -> %s', (route, query, out) => {
+    expect(legacyEntityPath(route, query)).toBe(out);
+  });
+
+  it('encodes path segments and keeps the remaining query', () => {
+    expect(stageHref('A B', 2, 'x/y')).toBe('/world/A%20B/2/x%2Fy/');
+    expect(withQuery('/units/X/', { tab: 'skin', server: undefined, q: '' })).toBe('/units/X/?tab=skin');
   });
 });

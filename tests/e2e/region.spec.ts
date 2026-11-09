@@ -21,7 +21,7 @@ test.describe('region switching', () => {
     await expect(page).toHaveURL(/q=Maria/);
 
     await tile.click();
-    await expect(page).toHaveURL(new RegExp(`/units/detail/\\?id=${KR_ONLY.id}`));
+    await expect(page).toHaveURL(new RegExp(`/units/${KR_ONLY.id}/`));
     await expect(page.getByRole('heading', { name: KR_ONLY.name, exact: true })).toBeVisible({ timeout: 15_000 });
   });
 
@@ -42,7 +42,7 @@ test.describe('region switching', () => {
 
   // a region switch wipes the bundle cache, so the open page must refetch, not hang
   test('region switch on an open unit detail refetches instead of hanging', async ({ page }) => {
-    await page.goto('/units/detail?id=Char_3P_ConstantiaS2_N');
+    await page.goto('/units/Char_3P_ConstantiaS2_N/');
     await expect(page.getByRole('heading', { name: 'Constantia S2', exact: true })).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole('heading', { name: 'Stats', exact: true })).toBeVisible({ timeout: 15_000 });
 
@@ -83,12 +83,15 @@ test.describe('region switching', () => {
     await expect(page.getByText('No units match the current filters.')).toBeVisible({ timeout: 15_000 });
   });
 
-  test('KR-only unit detail: not found on global, resolves on KR', async ({ page }) => {
-    await page.goto(`/units/detail?id=${KR_ONLY.id}`);
-    await expect(page.getByText('Unit not found.')).toBeVisible({ timeout: 15_000 });
-
-    await page.goto(`/units/detail?id=${KR_ONLY.id}&server=kr`);
+  test('KR-only unit page forces the KR region', async ({ page }) => {
+    await page.goto(`/units/${KR_ONLY.id}/`);
     await expect(page.getByRole('heading', { name: KR_ONLY.name, exact: true })).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText('Unit not found.')).toBeHidden();
+  });
+
+  test('legacy KR-only query link moves to the path page', async ({ page }) => {
+    await page.goto(`/units/detail?id=${KR_ONLY.id}`);
+    await expect(page).toHaveURL(new RegExp(`/units/${KR_ONLY.id}/$`), { timeout: 15_000 });
+    await expect(page.getByRole('heading', { name: KR_ONLY.name, exact: true })).toBeVisible({ timeout: 15_000 });
   });
 });

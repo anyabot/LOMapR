@@ -35,6 +35,7 @@ import { buildSimInputs, buildEnemySimInputs, isEnemyWaveCell } from '@/lib/simI
 import { solveAutoPoints } from '@/lib/autoStats';
 import EquipPicker from './equipPicker';
 import { iconSrc } from '@/lib/imageSrc';
+import { unitHref } from '@/lib/href';
 
 // Per-tile config: level/grade, links, stat points, equipment, skill levels.
 
@@ -218,7 +219,7 @@ export default function UnitConfig({ tile, slot, unit, team, enemyWave, onChange
         </Box>
         <Box minW={0} flex="1">
           <Heading size="sm" noOfLines={1}>
-            <Link href={`/units/detail?id=${encodeURIComponent(unit.id)}`}>
+            <Link href={unitHref(unit.id)}>
               <Text as="span" _hover={{ color: 'accent.300', textDecoration: 'underline' }}>
                 {unitDisplayName(unit)}
               </Text>
