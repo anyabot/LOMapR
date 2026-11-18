@@ -99,18 +99,18 @@ No secrets are needed in Cloudflare — data pushes run locally via
 
 ## CI
 
-`.github/workflows/ci.yml` runs on pushes to `main` and `new-dev` and on pull
-requests to `main`: `npm ci`, `hub:update`, `tsc --noEmit`, lint, `next build`, then
-the Playwright suite against `next start`. It reads game data from the live bucket,
-because `data/` is not in the repo, and it needs no secrets. `next start` doesn't send
-the generated `_headers`, so CI doesn't exercise the CSP. To check it against the
-deployed site, run `E2E_BASE_URL=https://lo.altterisk.cc npm run test:e2e`; any CSP
-violation then fails the test that triggered it.
+`.github/workflows/ci.yml` runs on pushes to `main` and `new-dev`, on pull requests
+to `main`, and manually: `npm ci`, `hub:update`, `tsc --noEmit`, lint and the unit
+tests. The build, the Playwright suite and the data-contract tests read live data from
+the asset domain, whose bot protection blocks GitHub-hosted runners, so they run
+locally only. `npm run test:e2e` against `next start` or the dev server; to check the
+CSP against the deployed site, run `E2E_BASE_URL=https://lo.altterisk.cc npm run test:e2e`;
+any CSP violation then fails the test that triggered it.
 
 CI does not deploy. Cloudflare Workers Builds still deploys every push to `main`,
 and it does not wait for this workflow. To stop a failing commit from deploying,
 protect `main` in GitHub (Settings → Branches): require a pull request and require
-the **E2E** status check.
+the **Typecheck, lint, unit** status check.
 
 Tests read live data, so a data push can fail them without any code change. Some
 fixtures (`tests/e2e/fixtures.ts`) name real game content; update them if a
